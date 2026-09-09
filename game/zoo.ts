@@ -95,6 +95,7 @@ export const SPECIES = {
 export type Species = keyof typeof SPECIES;
 export type Habitat = {
   accessVersion?: 1;
+  viewpoint?: Point;
   count: number;
   food: number;
   water: number;
@@ -108,6 +109,8 @@ export type Habitat = {
 export type Keeper = {
   id: number;
   role?: SpecialistRole;
+  /** Omitted means automatic job selection; qualification is always kept in role. */
+  assignedHabitatId?: number;
   x: number;
   y: number;
   homeId: number;
@@ -251,6 +254,13 @@ function reconcile(s: ZooPark, net: Set<string>, access?: ZooAccess): ZooState {
     const w = existing >= 0 ? remaining.splice(existing, 1)[0] : undefined;
     const home = homes.find((h) => h.b.id === w?.homeId) ?? homes[index % homes.length];
     if (w) {
+      if (w.assignedHabitatId !== undefined) {
+        const assignment = s.buildings.find((b) => b.id === w.assignedHabitatId);
+        if (!assignment || !canWorkAt(w, assignment)) {
+          delete w.assignedHabitatId;
+          reset(w, 0);
+        } else if (w.targetId !== null && w.targetId !== assignment.id) reset(w, 0);
+      }
       if (w.homeId !== home.b.id || !net.has(key(cell(w)))) {
         reset(w);
         w.homeId = home.b.id;
@@ -379,6 +389,48 @@ function qualified(w: Keeper, b: Building): boolean {
   const profile = HABITAT_PROFILES[b.kind];
   return w.role === profile.careGroup || (!w.role && !profile.specialistRequired);
 }
+function canWorkAt(w: Keeper, b: Building): boolean {
+  return isHabitat(b.kind) && (w.role === "technical" || qualified(w, b));
+}
+function assignedTo(w: Keeper, b: Building): boolean {
+  return w.assignedHabitatId === undefined || w.assignedHabitatId === b.id;
+}
+/** Read-only choices for an existing employee. Empty or closed habitats may be
+ * reserved ahead of need; assignment never grants a different qualification. */
+export function keeperAssignments(s: Park, worker: Keeper): Building[] {
+  const w = s.zoo?.workers.find((w) => w.id === worker.id);
+  if (!w) return [];
+  const net = network(s),
+    home = s.buildings.find((b) => b.id === w.homeId && b.kind === "keeperhut");
+  if (!home || !port(s, home, net) || !net.has(key(cell(w)))) return [];
+  return habitats(s).filter((b) => canWorkAt(w, b) && !!port(s, b, net));
+}
+/** Assign an existing qualified employee to one habitat, or null for automatic
+ * work. This changes neither role, payroll, identity nor the current position. */
+export function assignZooKeeperToHabitat(
+  s: Park,
+  workerId: number,
+  buildingId: number | null,
+): string | null {
+  const w = s.zoo?.workers.find((w) => w.id === workerId);
+  if (!w) return "Dieser Mitarbeiter ist nicht mehr im Team.";
+  if (buildingId !== null) {
+    const b = s.buildings.find((b) => b.id === buildingId);
+    if (!b || !isHabitat(b.kind)) return "Wähle ein vorhandenes Tiergehege.";
+    if (!canWorkAt(w, b))
+      return `Die Qualifikation dieses Mitarbeiters passt nicht zu ${HABITAT_PROFILES[b.kind].careLabel}.`;
+    if (!keeperAssignments(s, w).some((b) => b.id === buildingId))
+      return "Für diesen Einsatz fehlen erreichbare Parkwege zwischen Mitarbeiter, Pflegerstation und Gehege.";
+  }
+  if (w.assignedHabitatId === (buildingId ?? undefined)) return null;
+  if (buildingId === null) delete w.assignedHabitatId;
+  else w.assignedHabitatId = buildingId;
+  // Keep useful work already in progress. A new incompatible job starts from
+  // the worker's actual location on the next simulation step, without teleporting.
+  if (buildingId !== null && w.targetId !== null && w.targetId !== buildingId) reset(w, 0);
+  if (w.targetId === null) w.retry = 0;
+  return null;
+}
 export function habitatCareStatus(s: Park, b: Building) {
   if (!isHabitat(b.kind)) return { qualified: false, staffed: false, label: "Kein Tiergehege" };
   const profile = HABITAT_PROFILES[b.kind],
@@ -386,7 +438,7 @@ export function habitatCareStatus(s: Park, b: Building) {
   const workers = s.zoo?.workers ?? [];
   const available = workers.filter((w) => {
     const home = s.buildings.find((home) => home.id === w.homeId && home.kind === "keeperhut");
-    return home && port(s, home, net) && net.has(key(cell(w)));
+    return home && assignedTo(w, b) && port(s, home, net) && net.has(key(cell(w)));
   });
   const trained = available.some((w) => w.role === profile.careGroup);
   const staffed = !!port(s, b, net) && available.some((w) => qualified(w, b));
@@ -397,17 +449,25 @@ export function habitatCareStatus(s: Park, b: Building) {
       ? trained
         ? `${profile.careLabel} einsatzbereit`
         : "Tierpflege einsatzbereit · Fachpflege verbessert die Betreuung"
-      : `${profile.specialistRequired ? profile.careLabel : "Tierpflege"} oder erreichbare Pflegerstation fehlt`,
+      : `${profile.specialistRequired ? profile.careLabel : "Tierpflege"} fehlt, ist anderweitig zugewiesen oder hat keine erreichbare Pflegerstation`,
   };
 }
 export function habitatRequirements(s: Park, b: Building) {
   if (!isHabitat(b.kind)) return [];
   const profile = HABITAT_PROFILES[b.kind],
-    care = habitatCareStatus(s, b);
+    care = habitatCareStatus(s, b),
+    net = network(s),
+    viewpoint = b.habitat?.viewpoint,
+    visitorAccess = viewpoint
+      ? Number.isInteger(viewpoint.x) &&
+        Number.isInteger(viewpoint.y) &&
+        s.tiles[viewpoint.y]?.[viewpoint.x] === "path" &&
+        net.has(key(viewpoint))
+      : !!port(s, b, net);
   return [
     {
       label: "Erreichbarer Besucherweg",
-      met: !!port(s, b, network(s)),
+      met: visitorAccess,
       detail: "Normale Parkwege am äußeren Gehegerand dienen Besuchern und Pflegepersonal.",
     },
     {
@@ -581,6 +641,7 @@ function routeToJob(
   return undefined;
 }
 function needsWorker(w: Keeper, b: ZooBuilding): boolean {
+  if (!assignedTo(w, b)) return false;
   return w.role === "technical"
     ? (b.habitat?.safety?.condition ?? 100) < 80
     : qualified(w, b) && needsCare(b.habitat!);
@@ -716,6 +777,8 @@ export function validZoo(s: Park): boolean {
         !isHabitat(b.kind) ||
         !h ||
         (h.accessVersion !== undefined && h.accessVersion !== 1) ||
+        (h.viewpoint !== undefined &&
+          (!grid(h.viewpoint) || !exterior(b, h.viewpoint, SPECIES[b.kind].size))) ||
         !int(h.count) ||
         h.count > SPECIES[b.kind].capacity ||
         !["food", "water", "clean", "health"].every((k) => {
@@ -773,6 +836,8 @@ export function validZoo(s: Park): boolean {
         ids.has(w.id) ||
         w.id >= z.nextId ||
         !int(w.homeId) ||
+        (w.assignedHabitatId !== undefined &&
+          (!int(w.assignedHabitatId) || w.assignedHabitatId < 1)) ||
         (w.targetId !== null && !int(w.targetId)) ||
         !["idle", "walk", "care"].includes(w.mode) ||
         !num(w.workLeft) ||

@@ -211,6 +211,8 @@ test("3D repeated paused time is stable, does not mutate the live park, and disp
 test("REGRESSION: habitat daily upkeep follows SPECIES.upkeep plus one keeper wage", () => {
   const s = park(),
     b = habitat(s);
+  // Check the full-cost regression; difficulty scaling has separate integration coverage.
+  s.difficulty = "challenging";
   Z.initZoo(s);
   s.zoo.keepers = 1;
   s.time = 89.95;

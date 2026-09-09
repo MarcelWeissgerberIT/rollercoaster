@@ -1,0 +1,133 @@
+.vp-audience {
+  padding: 15px;
+  background: #edf3e6;
+  border: 1px solid #d9e4d2;
+  border-radius: 16px;
+  color: #345447;
+  margin-bottom: 14px;
+}
+.vp-audience h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  margin: 0 0 14px;
+}
+.vp-counters {
+  display: flex;
+  gap: 5px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+.vp-counters span {
+  flex: 1;
+  font-size: 11px;
+}
+.vp-counters b {
+  display: block;
+  font-size: 21px;
+}
+.vp-audience summary {
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.vp-audience p,
+.vp-audience li {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.vp-audience ul {
+  padding-left: 16px;
+}
+.vp-share {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  margin-top: 9px;
+  font-size: 12px;
+}
+.vp-share i {
+  grid-column: 1/-1;
+  height: 5px;
+  background: #dbe5d6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.vp-share em {
+  display: block;
+  height: 100%;
+  background: #75a58c;
+}
+.vp-couple em {
+  background: #c18fa9;
+}
+.vp-friends em {
+  background: #a294ca;
+}
+.vp-solo em {
+  background: #d4ae70;
+}
+.vp-filters {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.vp-filters button {
+  border: 1px solid #d8e2d0;
+  border-radius: 14px;
+  background: #fbfaf0;
+  color: #3e6251;
+  padding: 7px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.vp-filters button[aria-pressed="true"] {
+  background: #346d58;
+  color: white;
+}
+.vp-guest {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-top: 1px solid #e1e6d7;
+  padding: 14px 0;
+  color: #345447;
+}
+.vp-portrait {
+  width: 48px;
+  height: 59px;
+  flex: 0 0 48px;
+  image-rendering: pixelated;
+  background: #edf2e8;
+  border-radius: 12px;
+}
+.vp-guest strong {
+  font-size: 14px;
+  display: block;
+}
+.vp-guest small {
+  display: block;
+  font-size: 11px;
+  color: #73846c;
+  margin-top: 4px;
+}
+.vp-party {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  margin-top: 5px;
+  color: #608066;
+}
+.vp-guest p {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 6px 0 0;
+}
+.vp-empty {
+  font-size: 12px;
+  color: #71806d;
+  line-height: 1.5;
+}

@@ -53,3 +53,9 @@ Mülleimer und Personal nutzen 24 × 32 logische Pixel mit Fußpunkt (12, 28), j
 Aufträge: `grLzBikwrBU4tTX1dGYu`, `hZhfnYYZZcroE5cQrY8o`, `jiT1fnfKOgYRmMRv1mhu`. Quellen (je 2304 × 1296), vollständige Prompts, Kennungen und Hashes stehen unter [`art/zoo-v7/`](art/zoo-v7/). `python3 art/zoo-v7/extract.py` erzeugt die Zuschnitte und lokalen Ausgabedateien erneut; `python3 art/zoo-v7/validate.py` prüft danach Transparenz, Skalierung, Anker, Hashes und zusammenhängende Tiersilhouetten. Pillow wird benötigt.
 
 Pro Tierart gibt es eine Pose je Richtung. Laufwege, sanfte Körperbewegung und Ruhepausen entstehen im Spiel. Der Pfleger mit Blick nach Nordwesten ist eine dokumentierte Spiegelung der Nordostansicht, da der ursprüngliche Ausschnitt in die falsche Richtung blickte. Zäune, Gehegeboden und Schatten zeichnet die Engine; die eigenständigen 3D-Tiermodelle bestehen aus Codegeometrie und verwenden dieselbe Bewegungsberechnung.
+
+### Elephant walking cycle · zoo-walk-v10
+
+OpenArt MCP, GPT Image 2 text-to-image, history `0pdMRgeNwlHiiHZDpXhu`. The original 1360×1360 atlas, prompt, creation response and SHA-256 manifest are preserved in `art/zoo-walk-v10/`. Sixteen genuine poses cover southeast, southwest, northeast and northwest, four walking phases each. `scripts/extract-elephant-walk.py` performs only chroma-key transparency, cell extraction and nearest-neighbor scaling; all limbs and poses come from the generated atlas. Each runtime frame is 192×160 pixels with logical size 48×40 and foot anchor 24×36. Body movement uses the shared distance-based zoo gait, so paused views remain stable.
+
+Guest diversity reuses the existing OpenArt walk and seated sprites through a runtime material palette. It does not add another external image source. `game/guest-sprite.ts` preserves transparent pixels and outlines while matching the palette used by the 3D guest models.

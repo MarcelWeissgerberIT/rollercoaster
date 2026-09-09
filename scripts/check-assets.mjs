@@ -133,3 +133,21 @@ for (const entry of zooV9Manifest.assets) {
   assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.sha256);
 }
 console.log("Zoo v9: four genuine OpenArt lioness views verified.");
+
+const elephantWalk = JSON.parse(
+  readFileSync(new URL("../art/zoo-walk-v10/manifest.json", import.meta.url), "utf8"),
+);
+assert.equal(elephantWalk.assets.length, 16);
+const elephantSource = readFileSync(
+  new URL("../art/zoo-walk-v10/raw/elephant-walk.png", import.meta.url),
+);
+assert.equal(createHash("sha256").update(elephantSource).digest("hex"), elephantWalk.sourceSha256);
+for (const entry of elephantWalk.assets) {
+  const bytes = readFileSync(
+    new URL(`../public/assets/zoo-walk-v10/${entry.name}.png`, import.meta.url),
+  );
+  assert.deepEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], entry.canvas);
+  assert.deepEqual(entry.logicalPivot, [24, 36]);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.sha256);
+}
+console.log("PASS: 16 OpenArt elephant walk frames, source hash and ground anchors");

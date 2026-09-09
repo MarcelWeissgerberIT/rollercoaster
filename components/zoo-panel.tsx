@@ -13,6 +13,9 @@ import {
   Users,
   Wrench,
   Zap,
+  MapPin,
+  Minus,
+  Plus,
 } from "lucide-react";
 import {
   SPECIES,
@@ -32,10 +35,15 @@ import {
   HABITAT_INSPECTION_COST,
   type Species,
   type SpecialistRole,
+  type Keeper,
+  keeperAssignments,
 } from "../game/zoo";
 import { HABITAT_PROFILES, type HabitatFeatureId } from "../game/habitat-needs";
 import { access, type Park, type Building, type Kind } from "../game/simulation";
 import { ANIMAL_NAMES, animalName, animalSex } from "../game/zoo-motion";
+import { assetUrl } from "../game/assets";
+import { difficultyCost, difficultyEuro } from "../game/difficulty";
+import "./staff-cards.css";
 
 const euro = (v: number) =>
   new Intl.NumberFormat("de-DE", {
@@ -44,6 +52,10 @@ const euro = (v: number) =>
     maximumFractionDigits: 0,
   }).format(v);
 export type ZooSpecialistsHandler = (role: SpecialistRole, count: number) => string | null | void;
+export type ZooKeeperAssignmentHandler = (
+  id: number,
+  buildingId: number | null,
+) => string | null | void;
 export type HabitatPanelAction =
   | "adopt"
   | "rehome"
@@ -65,8 +77,195 @@ export function zooTeamTotals(park: Park) {
     keepers,
     specialists,
     count: keepers + specialists,
-    cost: keepers * KEEPER_WAGE + specialists * ZOO_SPECIALIST_WAGE,
+    cost: difficultyCost(park, keepers * KEEPER_WAGE + specialists * ZOO_SPECIALIST_WAGE, "wages"),
   };
+}
+
+/** Native buttons make each staffing change visible and reversible. */
+export function StaffCounter({
+  label,
+  count,
+  max,
+  disabled = false,
+  onChange,
+}: {
+  label: string;
+  count: number;
+  max: number;
+  disabled?: boolean;
+  onChange: (count: number) => void;
+}) {
+  return (
+    <div className="sc-counter" role="group" aria-label={label}>
+      <button
+        type="button"
+        aria-label={`${label}: eine Person weniger`}
+        disabled={disabled || count <= 0}
+        onClick={() => onChange(count - 1)}
+      >
+        <Minus aria-hidden="true" />
+      </button>
+      <output aria-label={`${label}: ${count} Personen`}>{count}</output>
+      <button
+        type="button"
+        aria-label={`${label}: eine Person einstellen`}
+        disabled={disabled || count >= max}
+        onClick={() => onChange(count + 1)}
+      >
+        <Plus aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+const keeperNames = [
+  "Mila",
+  "Emil",
+  "Jasmin",
+  "Noah",
+  "Clara",
+  "Samir",
+  "Leni",
+  "Finn",
+  "Nora",
+  "Elias",
+  "Lara",
+  "Kian",
+];
+function KeeperEmployeeCard({
+  park,
+  worker,
+  onAssignKeeper,
+}: {
+  park: Park;
+  worker: Keeper;
+  onAssignKeeper?: ZooKeeperAssignmentHandler;
+}) {
+  const [error, setError] = useState("");
+  const home = park.buildings.find((b) => b.id === worker.homeId);
+  const target = park.buildings.find((b) => b.id === worker.targetId);
+  const assigned = park.buildings.find((b) => b.id === worker.assignedHabitatId);
+  const qualification = worker.role ? SPECIALIST_ROLES[worker.role].label : "Basis-Tierpflege";
+  const description = worker.role
+    ? SPECIALIST_ROLES[worker.role].description
+    : "Versorgt Zebras, Giraffen, Flamingos und Pinguine mit Futter, Wasser und Pflege.";
+  const eligible = keeperAssignments(park, worker);
+  const wage = difficultyCost(park, worker.role ? ZOO_SPECIALIST_WAGE : KEEPER_WAGE, "wages");
+  const activity =
+    worker.mode === "walk"
+      ? "Unterwegs zum Einsatz"
+      : worker.mode === "care"
+        ? worker.role === "technical"
+          ? "Prüft die Sicherung"
+          : "Versorgt die Tiere"
+        : "Bereit für einen Auftrag";
+  const name = `${keeperNames[Math.abs(worker.id - 1) % keeperNames.length]} · #${worker.id}`;
+  const assign = (id: number | null) => {
+    const result = onAssignKeeper?.(worker.id, id);
+    setError(typeof result === "string" ? result : "");
+  };
+  return (
+    <details className="sc-person sc-person--keeper" data-testid={`staff-keeper-${worker.id}`}>
+      <summary>
+        <span className="sc-portrait">
+          <img src={assetUrl("keeper-se")} alt={`Spielfigur von ${name}, ${qualification}`} />
+        </span>
+        <span className="sc-person-intro">
+          <strong>{name}</strong>
+          <span>{qualification}</span>
+          <small className={worker.mode === "idle" ? "sc-state" : "sc-state sc-state--busy"}>
+            {activity}
+          </small>
+        </span>
+        <ChevronDown aria-hidden="true" />
+      </summary>
+      <div className="sc-person-body">
+        <dl className="sc-facts">
+          <div>
+            <dt>Qualifikation</dt>
+            <dd>{qualification}</dd>
+          </div>
+          <div>
+            <dt>Lohn / Spieltag</dt>
+            <dd>{difficultyEuro(wage)}</dd>
+          </div>
+          <div className="sc-fact-wide">
+            <dt>Station</dt>
+            <dd>{home?.name ?? "Keine Station zugeordnet"}</dd>
+          </div>
+          <div className="sc-fact-wide">
+            <dt>Aktueller Auftrag</dt>
+            <dd>
+              {target?.name ?? "Wartet auf Pflege- oder Wartungsbedarf"}
+              {worker.mode === "care" && worker.workLeft > 0
+                ? ` · noch ${Math.ceil(worker.workLeft)} s`
+                : ""}
+            </dd>
+          </div>
+        </dl>
+        <p className="sc-qualification">
+          <ShieldCheck aria-hidden="true" />
+          <span>{description}</span>
+        </p>
+        <div className="sc-assignment">
+          <h5>
+            <MapPin aria-hidden="true" />
+            Einsatzgebiet
+          </h5>
+          <p>
+            {worker.assignedHabitatId == null
+              ? "Automatisch: sucht passende Aufträge im Park."
+              : assigned
+                ? `Fest zugeteilt: ${assigned.name}`
+                : "Das zugeteilte Gehege ist nicht mehr vorhanden."}
+          </p>
+          <div
+            className="sc-assignment-options"
+            role="group"
+            aria-label={`Einsatzgebiet für ${name}`}
+          >
+            <button
+              type="button"
+              aria-pressed={worker.assignedHabitatId == null}
+              disabled={!onAssignKeeper}
+              onClick={() => assign(null)}
+              data-testid={`keeper-assignment-${worker.id}-auto`}
+            >
+              Automatisch {worker.assignedHabitatId == null && <Check aria-hidden="true" />}
+            </button>
+            {eligible.map((habitat) => (
+              <button
+                key={habitat.id}
+                type="button"
+                aria-pressed={worker.assignedHabitatId === habitat.id}
+                disabled={!onAssignKeeper}
+                onClick={() => assign(habitat.id)}
+                data-testid={`keeper-assignment-${worker.id}-${habitat.id}`}
+              >
+                <span>{habitat.name}</span>
+                {worker.assignedHabitatId === habitat.id && <Check aria-hidden="true" />}
+              </button>
+            ))}
+          </div>
+          {!eligible.length && (
+            <p className="sc-hint">
+              Kein passendes Gehege erreichbar. Verbinde eine Anlage, die zu dieser Qualifikation
+              passt, mit den Parkwegen.
+            </p>
+          )}
+          <p className="sc-hint">
+            Gezeigt werden passende, erreichbare Gehege. Die Qualifikation bleibt bei der Zuteilung
+            erhalten.
+          </p>
+          {error && (
+            <p className="sc-feedback" role="alert">
+              {error}
+            </p>
+          )}
+        </div>
+      </div>
+    </details>
+  );
 }
 
 /** Shared by the zoo overview and staff panel. Backend remains the authority on role eligibility. */
@@ -74,85 +273,81 @@ export function ZooTeamControls({
   park,
   onKeepers,
   onSpecialists,
+  onAssignKeeper,
 }: {
   park: Park;
   onKeepers: (count: number) => void;
   onSpecialists?: ZooSpecialistsHandler;
+  onAssignKeeper?: ZooKeeperAssignmentHandler;
 }) {
   const [error, setError] = useState("");
   const team = zooTeamTotals(park);
+  const workers = park.zoo?.workers ?? [];
   const homes = park.buildings.filter((b) => b.kind === "keeperhut" && access(park, b)).length;
   const setRole = (role: SpecialistRole, count: number) => {
     const result = onSpecialists?.(role, count);
     setError(typeof result === "string" ? result : "");
   };
   return (
-    <div className="z9-team">
-      <div className="z9-section-heading">
+    <section className="sc sc-zoo-team" aria-label="Zoo-Team verwalten">
+      <div className="sc-section-heading">
         <h4>
-          <Users size={16} /> Zoo-Team
+          <Users aria-hidden="true" />
+          Zoo-Team
         </h4>
-        <span>{euro(team.cost)} / Spieltag</span>
+        <span>
+          {team.count} Personen · {difficultyEuro(team.cost)} / Tag
+        </span>
       </div>
-      <div className="z9-team-role">
-        <div>
-          <strong>Tierpflege</strong>
-          <p>Basisversorgung für Zebras, Giraffen, Flamingos und Pinguine.</p>
-          <small>{euro(KEEPER_WAGE)} je Person und Spieltag</small>
+      <div className="sc-hiring-card">
+        <div className="sc-hiring-heading">
+          <span className="sc-role-icon">
+            <PawPrint aria-hidden="true" />
+          </span>
+          <div>
+            <strong>Tierpflege</strong>
+            <p>Zebras, Giraffen, Flamingos und Pinguine.</p>
+          </div>
         </div>
-        <label>
-          <span className="z9-sr-only">Anzahl Tierpfleger</span>
-          <select
-            aria-label="Anzahl Tierpfleger"
-            value={team.keepers}
-            onChange={(e) => onKeepers(Number(e.target.value))}
-          >
-            {Array.from({ length: 9 }, (_, i) => (
-              <option key={i} value={i}>
-                {i}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="sc-hiring-footer">
+          <span>
+            <b>{difficultyEuro(difficultyCost(park, KEEPER_WAGE, "wages"))}</b> je Person / Spieltag
+            <small>Bis zu 8 Personen</small>
+          </span>
+          <StaffCounter label="Tierpflege" count={team.keepers} max={8} onChange={onKeepers} />
+        </div>
       </div>
-      <details className="z9-specialists">
+      <details className="sc-specialists">
         <summary>
           <span>
-            Fachpersonal <b>{team.specialists}</b>
+            Fachpersonal einstellen <b>{team.specialists}</b>
           </span>
-          <ChevronDown size={16} aria-hidden="true" />
+          <ChevronDown aria-hidden="true" />
         </summary>
-        <p className="z9-muted">
-          Fachpflege übernimmt die Versorgung ihres Fachgebiets. Zauntechnik kümmert sich um die
-          Sicherung.
-        </p>
+        <p className="sc-hint">Wähle das Fachgebiet, das deine Tiere oder Anlagen brauchen.</p>
         {roles.map(([role, info]) => (
-          <div className="z9-team-role" key={role}>
-            <div>
-              <strong>{info.label}</strong>
-              <p>{info.description}</p>
-              <small>{euro(ZOO_SPECIALIST_WAGE)} je Person und Spieltag</small>
-            </div>
-            <label>
-              <span className="z9-sr-only">Anzahl {info.label}</span>
-              <select
-                aria-label={`Anzahl ${info.label}`}
+          <div className="sc-hiring-card" key={role}>
+            <strong>{info.label}</strong>
+            <p>{info.description}</p>
+            <div className="sc-hiring-footer">
+              <span>
+                <b>{difficultyEuro(difficultyCost(park, ZOO_SPECIALIST_WAGE, "wages"))}</b> je
+                Person / Spieltag
+                <small>Bis zu 4 Personen</small>
+              </span>
+              <StaffCounter
+                label={info.label}
+                count={park.zoo?.specialists?.[role] ?? 0}
+                max={4}
                 disabled={!onSpecialists}
-                value={park.zoo?.specialists?.[role] ?? 0}
-                onChange={(e) => setRole(role, Number(e.target.value))}
-              >
-                {Array.from({ length: 5 }, (_, i) => (
-                  <option key={i} value={i}>
-                    {i}
-                  </option>
-                ))}
-              </select>
-            </label>
+                onChange={(count) => setRole(role, count)}
+              />
+            </div>
           </div>
         ))}
       </details>
-      <p className={`z9-note ${homes ? "" : "z9-note--warning"}`}>
-        <Wrench size={16} aria-hidden="true" />
+      <p className={`sc-note ${homes ? "" : "sc-note--warning"}`}>
+        <Wrench aria-hidden="true" />
         <span>
           {homes
             ? `${homes} erreichbare Tierpflegerstation${homes === 1 ? "" : "en"}.`
@@ -161,11 +356,33 @@ export function ZooTeamControls({
         </span>
       </p>
       {error && (
-        <p className="z9-feedback" role="alert">
+        <p className="sc-feedback" role="alert">
           {error}
         </p>
       )}
-    </div>
+      <div className="sc-roster-heading">
+        <h5>Deine Mitarbeitenden</h5>
+        <span>Aufklappen & zuteilen</span>
+      </div>
+      {workers.length > 0 ? (
+        <div className="sc-roster">
+          {workers.map((worker) => (
+            <KeeperEmployeeCard
+              key={worker.id}
+              park={park}
+              worker={worker}
+              onAssignKeeper={onAssignKeeper}
+            />
+          ))}
+        </div>
+      ) : (
+        <p className="sc-empty">
+          {team.count
+            ? `${team.count} Personen eingestellt. Ihre Mitarbeiterkarten erscheinen, sobald eine erreichbare Tierpflegerstation bereitsteht.`
+            : "Stelle Tierpflege oder passendes Fachpersonal ein. Hier siehst du dann jede Person, ihre Qualifikation und ihren Einsatz."}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -174,11 +391,13 @@ export function ZooOverview({
   onKeepers,
   onBuild,
   onSpecialists,
+  onAssignKeeper,
 }: {
   park: Park;
   onKeepers: (n: number) => void;
   onBuild: (k: Kind) => void;
   onSpecialists?: ZooSpecialistsHandler;
+  onAssignKeeper?: ZooKeeperAssignmentHandler;
 }) {
   const stats = zooStats(park);
   const habitats = park.buildings.filter((b) => isHabitat(b.kind));
@@ -219,7 +438,12 @@ export function ZooOverview({
           </ul>
         </details>
       )}
-      <ZooTeamControls park={park} onKeepers={onKeepers} onSpecialists={onSpecialists} />
+      <ZooTeamControls
+        park={park}
+        onKeepers={onKeepers}
+        onSpecialists={onSpecialists}
+        onAssignKeeper={onAssignKeeper}
+      />
       <button className="secondary z9-wide" onClick={() => onBuild("keeperhut")}>
         Tierpflegerstation bauen · 450 €
       </button>

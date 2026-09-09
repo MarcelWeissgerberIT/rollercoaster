@@ -1,7 +1,8 @@
 import { hasOperator, resetRideOperations, ensureOperations } from "./operations";
 import { pathStyleAt, type PathStyle } from "./park-life";
 import { broken } from "./maintenance";
-import { isHabitat } from "./zoo";
+import { habitatSafety, isHabitat } from "./zoo";
+import { rerouteHabitatViewers } from "./habitat-viewpoint";
 import { initCleanliness, type Litter } from "./cleanliness";
 import { insideMap } from "./grid";
 import {
@@ -201,6 +202,8 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
       { x: b.x + i, y: b.y - 1 },
     );
   if (b.pods && usesPods(b.kind)) starts.splice(0, starts.length, podPort(b, n, b.pods.entry));
+  if (isHabitat(b.kind) && b.habitat?.viewpoint)
+    starts.splice(0, starts.length, { ...b.habitat.viewpoint });
   const blocked = new Set<string>();
   for (const item of s.buildings)
     if (!clear || !canAutoClear(item.kind))
@@ -280,7 +283,9 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
     return {
       ...empty,
       error: isHabitat(b.kind)
-        ? "Kein freier Besucherweg zum Zaun. Baue einen normalen Parkweg an eine beliebige Gehegeseite."
+        ? b.habitat?.viewpoint
+          ? "Kein freier Besucherweg zum Aussichtspunkt. Verbinde ihn mit einem normalen Parkweg."
+          : "Kein freier Besucherweg zum Zaun. Baue einen normalen Parkweg an eine beliebige Gehegeseite."
         : "Kein freier Eingangsweg zur Station. Wasser, Gebäude und rote Ausgangswege blockieren den Anschluss. Versetze die Station oder baue einen Parkweg näher heran.",
     };
   const points = unique(route).filter((p) => s.tiles[p.y][p.x] === "grass"),
@@ -306,6 +311,8 @@ export function connectBuilding(s: Park, b: Building, clear = true): string | nu
   if (broken(b)) return "Repariere die Attraktion vor dem Eröffnen.";
   if (!hasOperator(b)) return "Weise zuerst Bedienpersonal zu.";
   if (isHabitat(b.kind) && !b.habitat?.count) return "Nimm zuerst Tiere in das Gehege auf.";
+  if (isHabitat(b.kind) && habitatSafety(b).status === "closed")
+    return "Lass zuerst die Gehegebarriere prüfen, bevor du Besucher zulässt.";
   if (s.trackEdit?.buildingId === b.id) return "Beende zuerst den Streckenumbau.";
   const plan = planConnection(s, b, clear);
   if (plan.error) return plan.error;
@@ -339,6 +346,17 @@ const sameGeometry = (a: Geometry, b: Geometry) =>
   a.y === b.y &&
   JSON.stringify(a.track) === JSON.stringify(b.track) &&
   JSON.stringify(a.pods) === JSON.stringify(b.pods);
+function relocatedViewpoint(s: Park, b: Building, geometry: Geometry): Point | undefined {
+  const old = b.habitat?.viewpoint;
+  if (!old) return undefined;
+  const p = { x: old.x + geometry.x - b.x, y: old.y + geometry.y - b.y };
+  const virtual = { ...s, buildings: s.buildings.filter((item) => item.id !== b.id) };
+  return inside(s, p) &&
+    ["grass", "path"].includes(s.tiles[p.y][p.x]) &&
+    !occupant(virtual, p.x, p.y)
+    ? p
+    : undefined;
+}
 export function stationPositions(b: Building): Point[] {
   if (b.kind !== "coaster" || !b.track) return [];
   const ring = b.track.slice(0, -1);
@@ -374,6 +392,11 @@ function withConnection(
       ],
       cash: s.cash - plan.cost,
     };
+  if (isHabitat(b.kind) && b.habitat)
+    moved.habitat = { ...b.habitat, viewpoint: relocatedViewpoint(virtual, b, plan.geometry) };
+  if (plan.changed && b.habitat?.viewpoint && !moved.habitat?.viewpoint)
+    plan.warning =
+      "Aussichtspunkt passt hier nicht und wird entfernt · vorhandene Wege bleiben stehen";
   if (moved.pods && plan.changed) {
     for (const role of ["entry", "exit"] as const) {
       const pod = planPod(virtual, moved, role, moved.pods[role], clear);
@@ -600,11 +623,17 @@ export function adjustBuilding(
   releaseBuildingGuests(s, b);
   s.buildings = s.buildings.filter((item) => !plan.clearIds.includes(item.id));
   if (plan.cost) spend(s, plan.cost);
+  const viewpoint = isHabitat(b.kind) ? relocatedViewpoint(s, b, plan.geometry) : undefined;
   Object.assign(b, plan.geometry);
+  if (isHabitat(b.kind) && b.habitat) {
+    if (viewpoint) b.habitat.viewpoint = viewpoint;
+    else delete b.habitat.viewpoint;
+  }
   // Rigid moves retain existing test results, track shape and operating statistics.
   return null;
 }
 export type EditRecord = {
+  viewpoints?: { id: number; before: Point | undefined }[];
   photos?: { id: number; before: number | undefined }[];
   label: string;
   tiles: { x: number; y: number; before: Tile; after: Tile }[];
@@ -630,6 +659,12 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     buildings = [...s.buildings],
     flags = buildings.map((b) => ({ id: b.id, open: b.open, autoOpen: b.autoOpen }));
   const geometries = buildings.map((b) => ({ id: b.id, before: geometryOf(b) }));
+  const viewpoints = buildings
+    .filter((b) => isHabitat(b.kind))
+    .map((b) => ({
+      id: b.id,
+      before: b.habitat?.viewpoint ? { ...b.habitat.viewpoint } : undefined,
+    }));
   const litterBefore = s.cleanliness?.litter.map((l) => ({ ...l })) ?? [];
   const vehicles = buildings.map((b) => ({
     id: b.id,
@@ -660,6 +695,10 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     .map((id) => ({ id, before: lines.find((l) => l.id === id) ?? null }));
   const changes: EditRecord = {
     label,
+    viewpoints: viewpoints.filter((old) => {
+      const b = s.buildings.find((b) => b.id === old.id);
+      return b && JSON.stringify(old.before) !== JSON.stringify(b.habitat?.viewpoint);
+    }),
     photos: photos.filter((old) =>
       s.buildings.some((b) => b.id === old.id && b.photoPoint !== old.before),
     ),
@@ -704,6 +743,7 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
       if (tiles[y][x] !== s.tiles[y][x])
         changes.tiles.push({ x, y, before: tiles[y][x], after: s.tiles[y][x] });
   return changes.photos?.length ||
+    changes.viewpoints?.length ||
     changes.pathStyles?.length ||
     changes.tiles.length ||
     changes.added.length ||
@@ -822,6 +862,13 @@ export function undoEdits(s: Park, records: EditRecord[]) {
         b.open = old.open;
         b.autoOpen = record.geometry.some((item) => item.id === b.id) ? false : old.autoOpen;
       }
+    }
+    for (const old of record.viewpoints ?? []) {
+      const b = s.buildings.find((b) => b.id === old.id);
+      if (!b?.habitat) continue;
+      if (old.before) b.habitat.viewpoint = { ...old.before };
+      else delete b.habitat.viewpoint;
+      rerouteHabitatViewers(s, b);
     }
     for (const change of record.lines ?? []) {
       const live = s.transitLines?.find((l) => l.id === change.id);

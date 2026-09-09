@@ -1,0 +1,98 @@
+{
+  "elephant-walk-se-0": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-se-1": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-se-2": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-se-3": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-sw-0": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-sw-1": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-sw-2": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-sw-3": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-ne-0": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-ne-1": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-ne-2": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-ne-3": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-nw-0": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-nw-1": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-nw-2": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-walk-nw-3": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  }
+}

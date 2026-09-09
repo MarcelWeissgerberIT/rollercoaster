@@ -1,3 +1,5 @@
+import { tickLoanDay, validateLoan, type LoanState } from "./loans";
+import { difficultyCost, validDifficulty } from "./difficulty";
 import { validEntrance, type GateStyle } from "./entrance";
 import {
   COIN_COST,
@@ -78,6 +80,20 @@ import { PARK_ENTRANCE } from "./grid";
 import { validDrive, driveCost, type TrackDrive } from "./drive";
 import type { TrackEdit } from "./track-edit";
 import { guestName } from "./guest-identity";
+import {
+  appearanceSeed,
+  visitorAudience,
+  planVisitorParty,
+  partyLeader,
+  partyMembers,
+  partyWalkingSpeed,
+  partyShouldWait,
+  visitorPartyLabel,
+  validVisitorParties,
+  type AgeGroup,
+  type VisitorParty,
+  type VisitorAudience,
+} from "./visitors";
 import { insideMap, mapWidth, mapHeight, MAX_SIZE } from "./grid";
 import { designStats, validDesign, type AttractionDesign } from "./designs";
 import {
@@ -199,6 +215,10 @@ export type Building = {
   design?: AttractionDesign;
 };
 export type Guest = {
+  ageGroup?: AgeGroup;
+  appearance?: number;
+  party?: VisitorParty;
+  partyVisitDone?: number;
   energy?: number;
   food?: Food;
   rest?: Rest;
@@ -227,6 +247,8 @@ export type Guest = {
   souvenir?: "balloon" | "plush";
 };
 export type Park = {
+  difficulty?: import("./difficulty").Difficulty;
+  loan?: LoanState;
   entrance?: { style: GateStyle; owned: GateStyle[] };
   pathStyles?: Record<string, PathStyle>;
   zoo?: ZooState;
@@ -521,6 +543,8 @@ export function migratePark(s: Park): Park {
   for (const b of s.buildings) ensurePods(s, b);
   for (const g of s.guests) {
     g.name ??= guestName(g.id);
+    g.ageGroup ??= "adult";
+    g.appearance ??= appearanceSeed(g.id);
     g.energy ??= 80;
     g.profile ??= (["family", "thrill", "budget"] as const)[g.id % 3];
     g.wallet ??= 60;
@@ -531,7 +555,8 @@ export function migratePark(s: Park): Park {
 }
 export function parkValue(s: Park) {
   return Math.round(
-    s.cash +
+    s.cash -
+      (s.loan?.principal ?? 0) +
       (s.landValue ?? 0) * 0.8 +
       s.buildings.reduce(
         (sum, b) => sum + (b.track ? trackCost(b.track) : buildingBaseCost(b)) * 0.8,
@@ -1576,6 +1601,8 @@ function newGuest(s: Park) {
     bladder: 10,
   };
   g.name = guestName(g.id);
+  g.ageGroup = "adult";
+  g.appearance = appearanceSeed(g.id);
   attributeMarketingGuest(s, g, Math.random(), (s, b) => !!access(s, b));
   s.guests.push(g);
   s.arrivals++;
@@ -1586,12 +1613,34 @@ function newGuest(s: Park) {
   s.operatingIncomeToday = (s.operatingIncomeToday ?? 0) + s.ticket;
   return g;
 }
+/** One arrival event is a complete party; admission and marketing stay per person. */
+export function newVisitorParty(s: Park, roll: number, audience?: VisitorAudience): Guest[] {
+  const plan = planVisitorParty(s, roll, audience);
+  if (!plan) return [];
+  const id = s.nextId,
+    members: Guest[] = [],
+    surname = guestName(id).split(" ").at(-1)!;
+  for (let member = 0; member < plan.size; member++) {
+    const g = newGuest(s);
+    g.party = { id, kind: plan.kind, member, size: plan.size };
+    g.ageGroup = plan.kind === "family" && member >= 2 ? "child" : "adult";
+    g.profile = plan.profile;
+    if (plan.kind === "family") g.name = `${g.name!.split(" ")[0]} ${surname}`;
+    g.thought =
+      plan.kind === "solo"
+        ? "Heute entdecke ich den Park in meinem Tempo."
+        : `${visitorPartyLabel(g)}: Wir entdecken den Park zusammen.`;
+    members.push(g);
+  }
+  return members;
+}
 export function newPark(
   mode: "scenario" | "sandbox" = "scenario",
   scenario: ScenarioId = "waldhain",
 ): Park {
   const s: Park = {
     version: 1,
+    difficulty: "normal",
     cash: 16000,
     tiles: Array.from({ length: SIZE }, () => Array(SIZE).fill("grass")),
     buildings: [],
@@ -1721,7 +1770,83 @@ export function newPark(
   initOperations(s);
   return s;
 }
+/** Followers reuse normal route finding and boarding checks; never move coordinates here. */
+function followParty(s: Park, g: Guest, net: Set<string>): boolean {
+  if (!g.party || g.party.kind === "solo" || g.transit) return false;
+  const leader = partyLeader(s, g);
+  if (!leader || leader.id === g.id) return false;
+  if (leader.state === "leave") {
+    g.state = "leave";
+    g.target = null;
+    g.rest = undefined;
+    g.timer = 0;
+    g.route = findRoute(s, g, ENTRANCE);
+    g.thought = `${visitorPartyLabel(g)}: Wir gehen gemeinsam nach Hause.`;
+    return true;
+  }
+  const b = s.buildings.find((b) => b.id === leader.target);
+  if (!b) {
+    if (leader.state === "walk" && leader.target === null) {
+      g.timer = 0.4;
+      g.thought = "Ich warte kurz auf meine Begleitung.";
+      return true;
+    }
+    return false;
+  }
+  if (g.partyVisitDone === b.id) {
+    // A guest may still be walking along the ride's one-way exit after finishing.
+    if (g.route.length) return false;
+    g.timer = 0.5;
+    g.target = null;
+    g.thought = "Ich warte auf meine Begleitung, bis alle fertig sind.";
+    return true;
+  }
+  if (
+    !b.open ||
+    !hasOperator(b) ||
+    broken(b) ||
+    !access(s, b, net) ||
+    b.price > (g.wallet ?? 60) ||
+    (isAttraction(b.kind) && !b.tested) ||
+    (isHabitat(b.kind) && !b.habitat?.count)
+  )
+    return false;
+  const slot = isAmenity(b.kind) ? amenityRoom(s, b, g) : -1;
+  if (isAmenity(b.kind) && slot < 0) return false;
+  const destination = isHabitat(b.kind) ? viewingDestination(s, b, g, net) : access(s, b, net);
+  if (!destination) return false;
+  const route = findRoute(s, g, destination);
+  if (!route.length && Math.hypot(g.x - destination.x, g.y - destination.y) > 0.25) return false;
+  g.rest = isAmenity(b.kind) ? { slot, remaining: 0 } : undefined;
+  g.target = b.id;
+  g.route = route;
+  g.timer = 0;
+  g.thought = `${visitorPartyLabel(g)} · gemeinsam zu ${b.name}.`;
+  return true;
+}
+function beginPartyVisit(s: Park, g: Guest) {
+  const members = partyLeader(s, g)?.id === g.id ? partyMembers(s, g) : [g];
+  for (const member of members) delete member.partyVisitDone;
+}
+function finishPartyVisit(g: Guest, b: Building) {
+  if (g.party && g.party.kind !== "solo") g.partyVisitDone = b.id;
+}
 function choose(s: Park, g: Guest, net: Set<string>) {
+  if (followParty(s, g, net)) return;
+  const members = partyMembers(s, g);
+  if (
+    g.party &&
+    g.party.kind !== "solo" &&
+    partyLeader(s, g)?.id === g.id &&
+    members.some(
+      (other) => other.id !== g.id && ["queue", "ride", "observe", "rest"].includes(other.state),
+    )
+  ) {
+    g.timer = 0.5;
+    g.thought = "Ich warte hier, bis meine Begleitung fertig ist.";
+    return;
+  }
+  const budget = Math.min(...members.map((member) => member.wallet ?? 60));
   const options = s.buildings.filter(
     (b) =>
       b.open &&
@@ -1729,7 +1854,7 @@ function choose(s: Park, g: Guest, net: Set<string>) {
       !decorative(b.kind) &&
       !isTransport(b.kind) &&
       access(s, b, net) &&
-      b.price <= (g.wallet ?? 60) &&
+      b.price <= budget &&
       (!isAttraction(b.kind) || b.tested) &&
       (!isHabitat(b.kind) || (b.habitat?.count ?? 0) > 0) &&
       !broken(b) &&
@@ -1747,6 +1872,13 @@ function choose(s: Park, g: Guest, net: Set<string>) {
         b.open &&
         access(s, b, net) &&
         amenityRoom(s, b, g) >= 0 &&
+        (!g.party ||
+          g.party.kind === "solo" ||
+          AMENITIES[b.kind].seats -
+            s.guests.filter(
+              (other) => other.target === b.id && other.rest && other.party?.id !== g.party!.id,
+            ).length >=
+            members.length) &&
         (b.kind === "playground"
           ? g.profile === "family" && !g.visited?.includes(b.id)
           : (g.energy ?? 80) < 50 || !!g.food),
@@ -1771,6 +1903,7 @@ function choose(s: Park, g: Guest, net: Set<string>) {
     return;
   }
   if (resting) {
+    beginPartyVisit(s, g);
     g.rest = { slot: amenityRoom(s, resting, g), remaining: 0 };
     g.target = resting.id;
     g.route = findRoute(s, g, access(s, resting, net)!);
@@ -1787,10 +1920,11 @@ function choose(s: Park, g: Guest, net: Set<string>) {
     return;
   }
   const destination = (isHabitat(b.kind) ? viewingDestination(s, b, g, net) : access(s, b, net))!;
+  beginPartyVisit(s, g);
   g.route = findRoute(s, g, destination);
   g.target = b.id;
   g.thought = `Auf dem Weg: ${b.name}`;
-  chooseTransit(s, g, destination, g.route);
+  if (!g.party || g.party.kind === "solo") chooseTransit(s, g, destination, g.route);
 }
 export function tick(s: Park, dt: number) {
   if (s.speed === 0 || !Number.isFinite(dt) || dt <= 0) return;
@@ -1829,7 +1963,11 @@ export function tick(s: Park, dt: number) {
     ) / marketingEffects(s, (s, b) => !!access(s, b)).spawnMultiplier;
   if (s.open && s.spawnClock >= interval && s.guests.length < 220) {
     s.spawnClock = 0;
-    if (Math.random() < entryDemand(s)) newGuest(s);
+    const audience = visitorAudience(s, (park, b) => !!access(park, b, net)),
+      chance = entryDemand(s) / audience.expectedPartySize,
+      roll = Math.random();
+    // Larger parties arrive less often, preserving approximately the old people-per-minute rate.
+    if (roll < chance) newVisitorParty(s, roll / chance, audience);
   }
   for (const b of s.buildings) {
     if (s.trackEdit?.buildingId === b.id) {
@@ -1871,6 +2009,7 @@ export function tick(s: Park, dt: number) {
       for (const id of b.riders) {
         const g = s.guests.find((g) => g.id === id);
         if (g) {
+          finishPartyVisit(g, b);
           leaveBuilding(s, b, g, net, exits);
           g.timer = 2;
           if (isAttraction(b.kind)) {
@@ -1993,6 +2132,7 @@ export function tick(s: Park, dt: number) {
         g.energy + (dt * AMENITIES[b.kind].energy) / AMENITIES[b.kind].duration,
       );
       if (g.rest.remaining === 0) {
+        finishPartyVisit(g, b);
         g.happiness = Math.min(100, g.happiness + AMENITIES[b.kind].joy);
         (g.visited ??= []).push(b.id);
         g.visited = g.visited.slice(-8);
@@ -2025,6 +2165,7 @@ export function tick(s: Park, dt: number) {
       }
       g.timer -= dt;
       if (g.timer <= 0) {
+        finishPartyVisit(g, b);
         g.rides++;
         (g.visited ??= []).push(b.id);
         g.visited = g.visited.slice(-8);
@@ -2056,6 +2197,15 @@ export function tick(s: Park, dt: number) {
         g.thought = "Zu lange gewartet. Ich suche etwas anderes.";
       }
       continue;
+    }
+    if (g.state === "walk" && g.party && !g.transit) {
+      const leader = partyLeader(s, g);
+      if (
+        leader &&
+        leader.id !== g.id &&
+        (leader.state === "leave" || (leader.target !== null && leader.target !== g.target))
+      )
+        followParty(s, g, net);
     }
     if (g.timer > 0) {
       g.timer -= dt;
@@ -2095,8 +2245,12 @@ export function tick(s: Park, dt: number) {
         g.target = null;
         continue;
       }
+      if (partyShouldWait(s, g)) {
+        g.thought = "Ich lasse meine Begleitung aufschließen.";
+        continue;
+      }
       const d = Math.hypot(p.x - g.x, p.y - g.y),
-        step = dt * (1 + (g.id % 7) * 0.065);
+        step = dt * partyWalkingSpeed(g);
       if (d <= step) {
         g.x = p.x;
         g.y = p.y;
@@ -2109,6 +2263,20 @@ export function tick(s: Park, dt: number) {
     }
     if (g.state === "leave") {
       if (Math.hypot(g.x - 15, g.y - 29) < 0.2) {
+        if (
+          g.party &&
+          g.party.kind !== "solo" &&
+          partyMembers(s, g).some(
+            (other) =>
+              other.id !== g.id &&
+              (other.state !== "leave" ||
+                Math.hypot(other.x - ENTRANCE.x, other.y - ENTRANCE.y) > 1.5),
+          )
+        ) {
+          g.timer = 0.5;
+          g.thought = "Am Ausgang warten wir aufeinander.";
+          continue;
+        }
         g.timer = -999;
       } else {
         g.x = 15;
@@ -2219,24 +2387,21 @@ export function tick(s: Park, dt: number) {
   else if (dirtPenalty > 0) s.rating = Math.min(s.rating, Math.round(100 - dirtPenalty));
   let researchDailyProfit = 0;
   if (Math.floor(s.time / 90) !== oldDay) {
+    const payroll = s.staff * 80 + zooWages(s) + operatorWages(s);
+    const upkeep = s.buildings
+      .filter((b) => !decorative(b.kind))
+      .reduce(
+        (a, b) =>
+          a +
+          (isHabitat(b.kind)
+            ? Math.round(SPECIES[b.kind].upkeep * ((b.habitat?.count ?? 0) > 0 ? 1 : 0.25))
+            : Math.round(
+                (b.track ? trackCost(b.track) : buildingBaseCost(b)) * 0.022 * (b.open ? 1 : 0.25),
+              )),
+        0,
+      );
     const cost =
-      s.staff * 80 +
-      zooWages(s) +
-      operatorWages(s) +
-      s.buildings
-        .filter((b) => !decorative(b.kind))
-        .reduce(
-          (a, b) =>
-            a +
-            (isHabitat(b.kind)
-              ? Math.round(SPECIES[b.kind].upkeep * ((b.habitat?.count ?? 0) > 0 ? 1 : 0.25))
-              : Math.round(
-                  (b.track ? trackCost(b.track) : buildingBaseCost(b)) *
-                    0.022 *
-                    (b.open ? 1 : 0.25),
-                )),
-          0,
-        );
+      difficultyCost(s, payroll, "wages") + difficultyCost(s, upkeep, "upkeep") + tickLoanDay(s);
     s.cash -= cost;
     s.expenses += cost;
     s.dayExpenses += cost;
@@ -2307,6 +2472,8 @@ export function validSave(v: unknown): v is Park {
           !(p.style === "wood" && p.inversion)
         : point(p));
     if (
+      !validateLoan(s) ||
+      !validDifficulty(s) ||
       s.version !== 1 ||
       !["scenario", "sandbox"].includes(s.mode) ||
       typeof s.open !== "boolean" ||
@@ -2543,6 +2710,7 @@ export function validSave(v: unknown): v is Park {
         return false;
     }
     const buildingIds = new Set(ids);
+    if (!validVisitorParties(s)) return false;
     for (const g of s.guests) {
       if (
         !g ||

@@ -81,7 +81,7 @@ const ORDER: Record<ParkMenuGroup, readonly string[]> = {
   build: ["select", "rides", "coaster", "paths", "workshop", "erase"],
   zoo: ["zoo", "habitats", "animals", "keepers", "animalcare"],
   park: ["entrance", "shops", "nature", "land", "guests", "goals", "campaigns"],
-  manage: ["personal", "analysis", "marketing", "settings", "sound", "save", "help"],
+  manage: ["personal", "finance", "analysis", "marketing", "settings", "sound", "save", "help"],
 };
 const SHORT_LABELS: Record<string, string> = {
   entrance: "Eingangstor",
@@ -103,7 +103,7 @@ const SHORT_LABELS: Record<string, string> = {
   guests: "Besucher",
   goals: "Ziele",
   campaigns: "Szenarien",
-  analysis: "Parkanalyse",
+  analysis: "Heatmap",
   marketing: "Werbung",
   settings: "Verwaltung",
   save: "Speichern",
@@ -126,7 +126,7 @@ const DESCRIPTIONS: Record<string, string> = {
   guests: "Gäste, Wünsche und Besucherströme beobachten.",
   goals: "Fortschritt und Ziele der laufenden Kampagne ansehen.",
   campaigns: "Einen neuen Park oder eine neue Kampagne starten.",
-  analysis: "Zufriedenheit, Sauberkeit und den Parkbetrieb prüfen.",
+  analysis: "Besucherströme, beliebte Ziele und Gründe für Andrang auf der Karte sehen.",
   marketing: "Kampagnen für deinen Park und einzelne Attraktionen starten.",
   settings: "Parkeinstellungen und den laufenden Betrieb verwalten.",
   save: "Den aktuellen Park speichern.",

@@ -150,3 +150,14 @@ Dies ist eine kompakte Browser-Parksimulation. Fahrphysik und Wirtschaft sind ve
 Im laufenden Vite-Entwicklungsserver `/rollercoaster/scripts/audio-check.html` öffnen und **Audio prüfen** anklicken. Der native OfflineAudioContext prüft hörbare, endliche Samples, Headroom und voneinander unabhängige Musik-/Effektkanäle sowie exakte Stille bei Master 0. Diese Prüfseite gehört nicht zum Produktionsbuild.
 
 Für die Zoo-Tierstimmen prüft `/rollercoaster/scripts/zoo-audio-check.html` im lokalen Entwicklungsserver die vier Rufe im nativen OfflineAudioContext, Stereokanäle und Stille bei Pause, ausgeblendeter Seite, geschlossenem Fenster sowie deaktiviertem Ton.
+
+## Besucher, Analyse und entspannter Parkbetrieb
+
+- **Verwalten → Heatmap** zeigt aktuellen Andrang, wartende Gäste, Stimmung und Müll. Bereiche anklicken, um Gästezahlen und Ursachen zu sehen. Die Angebotsliste unterscheidet aktuelle Ziele, Besuche seit dem Bau und modellierte Anziehung.
+- **Gehege auswählen → Beobachtungspunkt platzieren** bündelt Zuschauer auf bis zu drei normalen Wegfeldern außerhalb des Zauns. Das Gehege muss geöffnet und der Punkt mit dem Parkeingang verbunden sein. Ohne festen Punkt bleiben alle erreichbaren Zaunwege nutzbar.
+- **Verwalten → Personal** zeigt Personen, Qualifikation, Lohn und Auftrag. Tierpfleger können passenden erreichbaren Gehegen direkt zugeteilt werden; „Automatisch“ hebt die Bindung wieder auf.
+- Familien, Paare, Freundesgruppen und Einzelgäste reisen abhängig vom geöffneten Angebot an. Kinder haben eigene Proportionen, auch in 3D. Bestehende Gäste behalten ihre Identität; neue Gruppen entstehen bei neuen Anreisen. **Park → Besucher** zeigt Gruppen und ihre Interessen.
+- **Verwalten → Parkverwaltung → Parkbetrieb** bietet Entspannt (45 % der bisherigen Löhne/Unterhaltskosten), Normal (65 %) und Anspruchsvoll (100 %). Normal ist auch für alte Spielstände ohne Einstellung der Standard. Der Satz gilt bei der nächsten Tagesabrechnung; Baukosten, Verkaufspreise und Pflegegebühren bleiben gleich.
+- **Verwalten → Finanzen & Kredit** bietet bis zu 20.000 € Kredit, in 1.000-€-Schritten, mit freiwilliger Tilgung. 0,25 % der Restschuld werden je Spieltag als Zinsen berechnet: 10.000 € kosten 25 € pro Tag. Auszahlungen erhöhen weder Umsatz noch schuldenbereinigten Parkwert.
+
+Elefanten besitzen einen OpenArt-Gehzyklus mit vier Bildern je Blickrichtung. Die Beinstellungen folgen ihrer zurückgelegten Strecke und bleiben bei Pause stehen. Quellen und reproduzierbare Atlasextraktion: `art/zoo-walk-v10/` und `scripts/extract-elephant-walk.py`.

@@ -4892,4 +4892,51 @@ button:hover:not(:disabled) {
   line-height: 1.3;
 }
 
-.z9.habitat-panel, .z9.zoo-overview { display: block; margin: 14px 0; }
+.z9.habitat-panel,
+.z9.zoo-overview {
+  display: block;
+  margin: 14px 0;
+}
+
+.difficulty-panel {
+  margin-bottom: 22px;
+}
+.difficulty-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.difficulty-options button {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid #d4dfd0;
+  background: #f5f6eb;
+  color: #375647;
+  border-radius: 15px;
+  padding: 15px;
+  cursor: pointer;
+}
+.difficulty-options button[aria-pressed="true"] {
+  background: #d9ebdd;
+  border: 2px solid #52896e;
+  padding: 14px;
+}
+.difficulty-options strong {
+  font-size: 16px;
+}
+.difficulty-options span {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.difficulty-options small {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #6d806a;
+}
+@media (max-width: 650px) {
+  .difficulty-options {
+    grid-template-columns: 1fr;
+  }
+}

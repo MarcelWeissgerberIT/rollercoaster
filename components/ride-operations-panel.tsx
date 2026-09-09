@@ -1,3 +1,4 @@
+import { difficultyCost, difficultyEuro, type DifficultyState } from "../game/difficulty";
 import type { Building } from "../game/simulation";
 import {
   needsOperator,
@@ -9,10 +10,12 @@ import {
 } from "../game/operations";
 export function RideOperationsPanel({
   building: b,
+  park,
   onStaffed,
   onRounds,
 }: {
   building: Building;
+  park?: DifficultyState;
   onStaffed: (staffed: boolean) => void;
   onRounds: (rounds: number) => void;
 }) {
@@ -33,7 +36,8 @@ export function RideOperationsPanel({
         />
       </label>
       <p className="small">
-        {OPERATION_LABELS[operatorActivity(b)]} · {OPERATOR_WAGE} € pro Spieltag
+        {b.open ? OPERATION_LABELS[operatorActivity(b)] : "Fahrgeschäft geschlossen"} ·{" "}
+        {difficultyEuro(difficultyCost(park ?? {}, OPERATOR_WAGE, "wages"))} pro Spieltag
       </p>
       {!o.staffed && (
         <p className="fit-error">Ohne Crew startet keine Fahrt. Weise Bedienpersonal zu.</p>

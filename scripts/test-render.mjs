@@ -109,21 +109,24 @@ globalThis.Image = class {
 };
 globalThis.document = {
   createElement: () => {
-    let source;
-    return {
+    const canvas = {
       width: 0,
       height: 0,
+      bitmap: null,
       getContext: () => ({
         drawImage: (im) => {
-          source = im;
+          canvas.bitmap = { ...im.bitmap, data: im.bitmap.data.slice() };
         },
-        getImageData: () => ({ data: source.bitmap.data }),
+        getImageData: () => ({ data: canvas.bitmap.data.slice() }),
+        putImageData: ({ data }) => {
+          canvas.bitmap = { width: canvas.width, height: canvas.height, data: data.slice() };
+        },
       }),
     };
+    return canvas;
   },
 };
 await R.loadSprites();
-delete globalThis.document;
 report.assets = images.size;
 const noop = () => {},
   gradient = { addColorStop: noop };
@@ -135,7 +138,14 @@ const ctx = new Proxy(
     createRadialGradient: () => gradient,
     measureText: () => ({ width: 20 }),
     drawImage: (im, ...args) => {
-      assert(im?.complete && im.naturalWidth > 0, "invalid draw image");
+      assert(
+        (im?.complete && im.naturalWidth > 0) ||
+          (typeof im?.getContext === "function" &&
+            im.width > 0 &&
+            im.height > 0 &&
+            im.bitmap?.data.length === im.width * im.height * 4),
+        "invalid draw image or painted canvas",
+      );
       assert(args.every(Number.isFinite), "nonfinite draw coordinates");
       imageCalls++;
     },
@@ -282,6 +292,9 @@ for (const kind of ["wheel", "pirate"])
     }
   });
 report.alphaProbes = alphaProbes;
+// The canvas-backed 2D renderer needs document through its draw probes. Keep the
+// existing headless 3D checks free of browser texture-loading side effects.
+delete globalThis.document;
 // Per-model geometry is two merged meshes; body/head colours must follow the
 // actual guest ID and skin, including a nonsequential shuffled passenger list.
 function finiteObject(root) {

@@ -97,6 +97,8 @@ for (const kind of Object.keys(Z.SPECIES))
     test(`${kind}: occupied ${open ? "open" : "closed"} habitat pays declared upkeep and exactly one keeper wage`, () => {
       const s = park(),
         b = makeHabitat(s, kind);
+      // Preserve the declared full-price upkeep regression for every species.
+      s.difficulty = "challenging";
       assert.equal(Z.adoptAnimal(s, b), null);
       b.open = open;
       Z.initZoo(s);

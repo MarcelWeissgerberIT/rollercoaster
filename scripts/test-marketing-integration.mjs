@@ -229,9 +229,9 @@ test("Campaign expense enters actual day-close operating profit exactly once", (
   random([], () => S.tick(b, 90));
   assert.equal(a.time, 90);
   assert.equal(M.campaignStatus(a, a.marketing.campaigns[0]), "finished");
-  assert.equal(a.cash - b.cash, -180);
-  assert.equal(a.operatingProfit - b.operatingProfit, -180);
-  assert.equal(a.lastProfit - b.lastProfit, -180);
+  assert.equal(Math.round((a.cash - b.cash) * 100), -18000);
+  assert.equal(Math.round((a.operatingProfit - b.operatingProfit) * 100), -18000);
+  assert.equal(Math.round((a.lastProfit - b.lastProfit) * 100), -18000);
   assert.equal(a.dayExpenses, b.dayExpenses);
   assert.equal(a.operatingExpensesToday, b.operatingExpensesToday);
   return { campaignProfit: a.operatingProfit, controlProfit: b.operatingProfit, cost: 180 };

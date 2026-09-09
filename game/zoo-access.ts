@@ -13,9 +13,23 @@ const neighbors = (p: Point) => [
 export function habitatViewingSpots(s: Park, b: Building, net = connected(s)): Point[] {
   if (!isHabitat(b.kind)) return [];
   const size = SPECIES[b.kind].size;
-  return podSlots(size)
+  const perimeter = podSlots(size)
     .map((p) => podPort(b, size, p))
     .filter((p) => s.tiles[p.y]?.[p.x] === "path" && net.has(key(p)));
+  const viewpoint = b.habitat?.viewpoint;
+  if (!viewpoint) return perimeter;
+  // The selected terrace must itself connect to the entrance; another side may
+  // not silently serve the habitat when its designated meeting point is cut off.
+  if (!perimeter.some((p) => key(p) === key(viewpoint))) return [];
+  const horizontal = viewpoint.y === b.y - 1 || viewpoint.y === b.y + size;
+  return [
+    { x: viewpoint.x, y: viewpoint.y },
+    ...perimeter.filter((p) =>
+      horizontal
+        ? p.y === viewpoint.y && Math.abs(p.x - viewpoint.x) === 1
+        : p.x === viewpoint.x && Math.abs(p.y - viewpoint.y) === 1,
+    ),
+  ];
 }
 
 /** Spread visitors along the fence, including guests already walking to a spot. */

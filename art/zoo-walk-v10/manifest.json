@@ -1,0 +1,199 @@
+{
+  "provider": "OpenArt",
+  "historyId": "0pdMRgeNwlHiiHZDpXhu",
+  "sourceSha256": "0604ada1c2954aaf9f7cb339ff245361d509b4ab1c15e20b2f7272bf4293416e",
+  "assets": [
+    {
+      "name": "elephant-walk-se-0",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "0e4f005d44577e8d72e1199175a8339d54dae8e9af82da6efe7ade018eb5bf31"
+    },
+    {
+      "name": "elephant-walk-se-1",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "d28cb4535f6e0341add8b0597d856a71bfade7069fb07ff8db887df83aca9b12"
+    },
+    {
+      "name": "elephant-walk-se-2",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "bc0977e5259eca69866c8b93b5c10c907e8b0d15145f8c6fba8fd93db2bed470"
+    },
+    {
+      "name": "elephant-walk-se-3",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "449e5f94b6981c6179465459d2e5dbb0a3f5f33f50c60644382b1032d04c2eff"
+    },
+    {
+      "name": "elephant-walk-sw-0",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "4466de0adc370cc1b2504158da67fdc8b3542cc3b3ad8827ae77026696a827a3"
+    },
+    {
+      "name": "elephant-walk-sw-1",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "c78c2d857c6ee19ee5b506525f2a3a0953bea2119de4c5594d2cce80559b0c6d"
+    },
+    {
+      "name": "elephant-walk-sw-2",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "286a996cd27745db588cda139eee0581497fe9c00c25445446ecfd20341b7607"
+    },
+    {
+      "name": "elephant-walk-sw-3",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "8148682c98f5f6b485e037e4b11a8b09af8eaaa51c19a0c5094ad82b06a21477"
+    },
+    {
+      "name": "elephant-walk-ne-0",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "7d36c513d43f6f2724d97794fc58babc1ae6e988a46aafdb6f70860968bbade0"
+    },
+    {
+      "name": "elephant-walk-ne-1",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "2d5bd2ef9d9a687d2febe8c482e319d515195df989fb9f1347e84b8cff4d644c"
+    },
+    {
+      "name": "elephant-walk-ne-2",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "e952725f84719b8a5a4ef6ca29c3095a590600b712712764446888e9b5657241"
+    },
+    {
+      "name": "elephant-walk-ne-3",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "b0ddd051cfc7f1e8c32e116383cbc17d5c1a5c0cb919debfcfe03fe4893739aa"
+    },
+    {
+      "name": "elephant-walk-nw-0",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "2e8e91c76c4977d0ebb3057c68aac3ff93d7b0b60568a3ca04f872cdda8a4d2f"
+    },
+    {
+      "name": "elephant-walk-nw-1",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "e926cd37d9aa2a7bf92711cef41d379d17a3426b32e345e931aa760beb172d84"
+    },
+    {
+      "name": "elephant-walk-nw-2",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "cdd652a10cf91544399099a185600771ad468ab553563943938e2459559eb80f"
+    },
+    {
+      "name": "elephant-walk-nw-3",
+      "canvas": [
+        192,
+        160
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "sha256": "4775b218bcd662658146ceeaa37a293ca2864d4659ce71a6b0e86d4c79d53c05"
+    }
+  ]
+}

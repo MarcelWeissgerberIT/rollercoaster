@@ -9,6 +9,8 @@ import { closestPhotoPoint } from "../game/coaster-photo";
 import { makeRidePath } from "../game/ride-path";
 import { GATES, gateStyle, changeGate, type GateStyle } from "../game/entrance";
 import { ResearchTree } from "../components/research-tree";
+import { FinancePanel } from "../components/finance-panel";
+import { borrowLoan, repayLoan } from "../game/loans";
 import { StaffPanel } from "../components/staff-panel";
 import { RideOperationsPanel } from "../components/ride-operations-panel";
 import { setRideStaffed, setRideRounds, hasOperator } from "../game/operations";
@@ -25,6 +27,7 @@ import {
   upgradeHabitat,
   addHabitatFeature,
   setZooSpecialists,
+  assignZooKeeperToHabitat,
   setHabitatElectric,
   inspectHabitat,
   habitatSafety,
@@ -42,6 +45,16 @@ import MarketingPanel from "../components/marketing-panel";
 import { startMarketing, cancelMarketing } from "../game/marketing";
 import { initCleanliness } from "../game/cleanliness";
 import ParkAnalysis from "../components/park-analysis";
+import ParkTrafficPanel from "../components/park-traffic-panel";
+import TrafficMapLegend from "../components/traffic-map-legend";
+import HabitatVisitorPanel from "../components/habitat-visitor-panel";
+import {
+  habitatViewpointCandidates,
+  setHabitatViewpoint,
+  clearHabitatViewpoint,
+  viewpointStatus,
+} from "../game/habitat-viewpoint";
+import { parkTraffic, trafficAt, type TrafficMode, type TrafficZone } from "../game/park-traffic";
 import { parkInsights, type ParkIssue } from "../game/park-insights";
 import RideProfileAssistant from "../components/ride-profile-assistant";
 import { commitRideProfile, type RideProfilePlan } from "../game/ride-profiles";
@@ -208,7 +221,15 @@ import {
 import TrackFitAssistant, { type FitAssistantHandle } from "@/components/track-fit-assistant";
 import { commitTrackFit, type TrackFit } from "@/game/track-fit";
 import type { TrackDrive } from "@/game/drive";
-import { guestName } from "@/game/guest-identity";
+import {
+  DIFFICULTIES,
+  difficultyOf,
+  setDifficulty,
+  difficultyCost,
+  difficultyEuro,
+  type Difficulty,
+} from "../game/difficulty";
+import { VisitorPanel, VisitorAudiencePanel } from "../components/visitor-panel";
 import { assetUrl } from "@/game/assets";
 import { insideMap, mapWidth, mapHeight, expansionPlan, expandPark } from "@/game/grid";
 import {
@@ -270,6 +291,14 @@ export default function Home() {
   const [showGoals, setShowGoals] = useState(false);
   const [category, setCategory] = useState("");
   const [tool, setTool] = useState("select");
+  const [trafficMode, setTrafficMode] = useState<TrafficMode | null>(null);
+  const [trafficPoint, setTrafficPoint] = useState<Point | null>(null);
+  const traffic = useMemo(
+    () => (snapshot && (category === "analysis" || trafficMode) ? parkTraffic(snapshot) : null),
+    [snapshot, category, trafficMode],
+  );
+  const selectedTraffic =
+    traffic && trafficPoint ? (trafficAt(traffic, trafficPoint) ?? null) : null;
   const workshopReturn = useRef(false);
   const [workshop, setWorkshop] = useState(false);
   const [customDesign, setCustomDesign] = useState<AttractionDesign | undefined>();
@@ -443,6 +472,24 @@ export default function Home() {
         guests: [...park.current.guests],
       });
   }, []);
+  const focusMapPoint = (point: Point) => {
+    const el = canvas.current;
+    if (!el) return;
+    const v = view.current;
+    const p = projection(el.clientWidth, el.clientHeight, v).project(point.x, point.y);
+    cameraTarget.current = {
+      zoom: v.zoom,
+      panX: v.panX + el.clientWidth * 0.6 - p.x,
+      panY: v.panY + el.clientHeight * 0.48 - p.y,
+    };
+  };
+  const inspectTrafficZone = (zone: TrafficZone, focus = true) => {
+    setTrafficPoint(zone.point);
+    setCategory("analysis");
+    setMenuOpen(false);
+    setSelected(null);
+    if (focus) focusMapPoint(zone.point);
+  };
   const finishStroke = useCallback(() => {
     if (stroke.current?.length) history.current.push(stroke.current);
     stroke.current = null;
@@ -592,6 +639,7 @@ export default function Home() {
       tool !== "select" &&
       tool !== "move" &&
       tool !== "station" &&
+      tool !== "viewpoint" &&
       !tool.startsWith("pod-") &&
       hoverTile &&
       (tool !== "coaster" || blueprintMode)
@@ -733,8 +781,22 @@ export default function Home() {
   useEffect(() => {
     view.current.showMoods = showMoods;
     view.current.issues =
-      category === "analysis" && snapshot ? parkInsights(snapshot).issues : undefined;
-  }, [showMoods, category, snapshot]);
+      category === "analysis" && snapshot && !trafficMode
+        ? parkInsights(snapshot).issues
+        : undefined;
+    view.current.traffic =
+      trafficMode && traffic
+        ? { report: traffic, mode: trafficMode, selected: selectedTraffic?.id ?? null }
+        : undefined;
+  }, [showMoods, category, snapshot, trafficMode, traffic, selectedTraffic?.id]);
+  useEffect(() => {
+    if (tool !== "select") setTrafficMode(null);
+    const habitat = snapshot?.buildings.find((item) => item.id === selected);
+    view.current.viewpointEdit =
+      tool === "viewpoint" && snapshot && habitat
+        ? habitatViewpointCandidates(snapshot, habitat)
+        : undefined;
+  }, [tool, selected, snapshot]);
   useEffect(() => {
     view.current.tool = tool;
     view.current.selected = selected;
@@ -947,6 +1009,23 @@ export default function Home() {
   const act = (p: Point, repeat = false, hitId?: number | null, hitPod?: PodRole) => {
     const s = park.current;
     if (!s) return;
+    if (tool === "viewpoint") {
+      const habitat = s.buildings.find((item) => item.id === selected);
+      if (!habitat) return;
+      edit("Beobachtungspunkt versetzen", () => {
+        const error = setHabitatViewpoint(s, habitat, p);
+        notify(
+          error ??
+            (viewpointStatus(s, habitat).connected
+              ? habitat.open
+                ? "Beobachtungspunkt gesetzt. Besucher können sich hier sammeln."
+                : "Beobachtungspunkt gesetzt. Öffne das Gehege, damit Besucher kommen."
+              : "Beobachtungspunkt gesetzt. Verbinde ihn mit einem normalen Parkweg."),
+        );
+        if (!error) setTool("select");
+      });
+      return;
+    }
     if (podEdit && tool.startsWith("pod-")) {
       const building = s.buildings.find((b) => b.id === podEdit.id);
       if (!building) return;
@@ -1552,9 +1631,10 @@ export default function Home() {
             const hit =
               hitBuildingAt(view.current, px, py) ??
               (park.current ? occupant(park.current, p.x, p.y)?.id : null);
-            view.current.hoveredId = hit ?? null;
+            view.current.hoveredId = trafficMode ? null : (hit ?? null);
             setHoverInfo(
               !drag.current &&
+                !trafficMode &&
                 tool === "select" &&
                 (hit != null ||
                   ["path", "queue", "exit"].includes(park.current?.tiles[p.y]?.[p.x] ?? ""))
@@ -1622,7 +1702,10 @@ export default function Home() {
               e.button === 0 &&
               !["path", "queue", "exit", "water", "erase"].includes(tool)
             ) {
-              if (cut && b && cut.id === b.id && sections.length) {
+              if (trafficMode && traffic && tool === "select") {
+                const zone = trafficAt(traffic, tileAt(e));
+                if (zone) inspectTrafficZone(zone, false);
+              } else if (cut && b && cut.id === b.id && sections.length) {
                 const rect = e.currentTarget.getBoundingClientRect(),
                   { project } = projection(rect.width, rect.height, view.current),
                   x = e.clientX - rect.left,
@@ -1662,7 +1745,19 @@ export default function Home() {
             }
           }}
         />
-        {hoverInfo &&
+        {trafficMode && (
+          <TrafficMapLegend
+            mode={trafficMode}
+            onOpen={() => {
+              setCategory("analysis");
+              setMenuOpen(false);
+              setSelected(null);
+            }}
+            onClose={() => setTrafficMode(null)}
+          />
+        )}
+        {!trafficMode &&
+          hoverInfo &&
           (() => {
             const object = snapshot?.buildings.find((b) => b.id === hoverInfo.id);
             return object ? (
@@ -1821,7 +1916,7 @@ export default function Home() {
                         zoo: "Zoo & Tierpflege",
                         detail: b?.name,
                         guests: "Stimmen aus dem Park",
-                        analysis: "Parkanalyse & Sauberkeit",
+                        analysis: "Parkanalyse & Heatmap",
                       } as Record<string, string | undefined>
                     )[category]
                   }
@@ -1855,6 +1950,11 @@ export default function Home() {
                     ])}
                     <ZooOverview
                       park={snapshot}
+                      onAssignKeeper={(workerId, habitatId) => {
+                        const error = assignZooKeeperToHabitat(park.current!, workerId, habitatId);
+                        sync();
+                        return error;
+                      }}
                       onSpecialists={(role, count) => {
                         const error = setZooSpecialists(park.current!, role, count);
                         sync();
@@ -2463,6 +2563,46 @@ export default function Home() {
                                                     : "Geöffnet · Besucher sind willkommen."
                                                   : "Geschlossen · Bereit zur Eröffnung."}
                         </div>
+                        {isHabitat(b.kind) && connection && (
+                          <HabitatVisitorPanel
+                            park={snapshot}
+                            building={b}
+                            placing={tool === "viewpoint"}
+                            plan={connection}
+                            onPlace={() => {
+                              setTool("viewpoint");
+                              setPodEdit(null);
+                              setCut(null);
+                              setAdjust(null);
+                              setMenuOpen(false);
+                              notify(
+                                "Wähle ein markiertes Feld außen am Zaun für den Beobachtungspunkt.",
+                              );
+                            }}
+                            onClear={() =>
+                              edit("Beobachtungspunkt entfernen", () => {
+                                const live = park.current!.buildings.find(
+                                  (item) => item.id === b.id,
+                                )!;
+                                notify(
+                                  clearHabitatViewpoint(park.current!, live) ??
+                                    "Besucher nutzen wieder alle verbundenen Wege am Zaun.",
+                                );
+                              })
+                            }
+                            onOpen={() =>
+                              edit("Gehege verbinden und öffnen", () => {
+                                const live = park.current!.buildings.find(
+                                  (item) => item.id === b.id,
+                                )!;
+                                notify(
+                                  connectBuilding(park.current!, live, autoClear) ??
+                                    "Gehege geöffnet. Besucher können jetzt die Tiere beobachten.",
+                                );
+                              })
+                            }
+                          />
+                        )}
                         {(isAttraction(b.kind) ||
                           (isTransport(b.kind) &&
                             snapshot.transitLines?.some((l) => l.a === b.id || l.b === b.id))) && (
@@ -2484,6 +2624,7 @@ export default function Home() {
                         )}
                         {isRide(b.kind) && (
                           <RideOperationsPanel
+                            park={snapshot}
                             building={b}
                             onStaffed={(v) => staffRide(b.id, v)}
                             onRounds={(n) =>
@@ -2572,6 +2713,15 @@ export default function Home() {
                         {b.kind === "keeperhut" && (
                           <ZooOverview
                             park={snapshot}
+                            onAssignKeeper={(workerId, habitatId) => {
+                              const error = assignZooKeeperToHabitat(
+                                park.current!,
+                                workerId,
+                                habitatId,
+                              );
+                              sync();
+                              return error;
+                            }}
                             onSpecialists={(role, count) => {
                               const error = setZooSpecialists(park.current!, role, count);
                               sync();
@@ -3705,65 +3855,81 @@ export default function Home() {
                   </>
                 )}
                 {category === "analysis" && snapshot && (
-                  <ParkAnalysis
-                    park={snapshot}
-                    moods={showMoods}
-                    onMoods={setShowMoods}
-                    onFocus={(issue) => {
-                      const el = canvas.current;
-                      if (!el) return;
-                      const v = view.current,
-                        p = projection(el.clientWidth, el.clientHeight, v).project(
-                          issue.point.x,
-                          issue.point.y,
-                        );
-                      cameraTarget.current = {
-                        zoom: v.zoom,
-                        panX: v.panX + el.clientWidth * 0.61 - p.x,
-                        panY: v.panY + el.clientHeight * 0.5 - p.y,
-                      };
-                    }}
-                    onBin={() => pickTool("bin", "shops")}
-                    onStaff={() => {
-                      setTab("park");
-                      setSettings(true);
-                    }}
-                    onInspect={(id) => {
-                      setSelected(id);
-                      setCategory("detail");
-                      setTool("select");
-                    }}
-                    onRide={(id) => {
-                      setSelected(id);
-                      setCategory("detail");
-                      setTool("select");
-                      setSectionMode("profile");
-                      setCut({ id, from: 1, to: 3 });
-                    }}
-                  />
-                )}
-                {category === "guests" &&
-                  snapshot?.guests.slice(0, 7).map((g) => (
-                    <div key={g.id} className="guestrow">
-                      <img
-                        alt=""
-                        src={`${import.meta.env.BASE_URL}assets/pixel-v2/${g.skin === 1 ? "guest2-se" : g.skin === 0 ? "guest-se-a" : "guest-sw-a"}.png`}
+                  <>
+                    {traffic && (
+                      <ParkTrafficPanel
+                        report={traffic}
+                        mode={trafficMode}
+                        selected={selectedTraffic}
+                        onMode={(mode) => {
+                          setTrafficMode(mode);
+                          setTool("select");
+                          setSelected(null);
+                          setCut(null);
+                          setPodEdit(null);
+                          setAdjust(null);
+                        }}
+                        onZone={(zone) => inspectTrafficZone(zone)}
+                        onFocusBuilding={(id) => {
+                          const row = traffic.buildings.find((b) => b.id === id);
+                          if (row) {
+                            setTrafficPoint(row.point);
+                            focusMapPoint(row.point);
+                          }
+                        }}
+                        onInspect={(id) => {
+                          setTrafficMode(null);
+                          setSelected(id);
+                          setCategory("detail");
+                          setTool("select");
+                        }}
                       />
-                      <div>
-                        <strong>
-                          {g.name ?? guestName(g.id)} ·{" "}
-                          {g.profile === "thrill"
-                            ? "Nervenkitzel"
-                            : g.profile === "budget"
-                              ? "Sparfuchs"
-                              : "Familie"}
-                        </strong>
-                        <small>Budget {EUR(g.wallet ?? 60)}</small>
-                        <p>{g.thought}</p>
-                      </div>
-                      <span className="happiness">{Math.round(g.happiness)}%</span>
-                    </div>
-                  ))}
+                    )}
+                    <VisitorAudiencePanel park={snapshot} />
+                    <details className="traffic-care-details">
+                      <summary>Sauberkeit & Handlungsempfehlungen</summary>
+                      <ParkAnalysis
+                        park={snapshot}
+                        moods={showMoods}
+                        onMoods={setShowMoods}
+                        onFocus={(issue) => {
+                          const el = canvas.current;
+                          if (!el) return;
+                          const v = view.current,
+                            p = projection(el.clientWidth, el.clientHeight, v).project(
+                              issue.point.x,
+                              issue.point.y,
+                            );
+                          cameraTarget.current = {
+                            zoom: v.zoom,
+                            panX: v.panX + el.clientWidth * 0.61 - p.x,
+                            panY: v.panY + el.clientHeight * 0.5 - p.y,
+                          };
+                        }}
+                        onBin={() => pickTool("bin", "shops")}
+                        onStaff={() => {
+                          setTab("personal");
+                          setSettings(true);
+                        }}
+                        onInspect={(id) => {
+                          setTrafficMode(null);
+                          setSelected(id);
+                          setCategory("detail");
+                          setTool("select");
+                        }}
+                        onRide={(id) => {
+                          setTrafficMode(null);
+                          setSelected(id);
+                          setCategory("detail");
+                          setTool("select");
+                          setSectionMode("profile");
+                          setCut({ id, from: 1, to: 3 });
+                        }}
+                      />
+                    </details>
+                  </>
+                )}
+                {category === "guests" && snapshot && <VisitorPanel park={snapshot} />}
               </div>
             </aside>
           )}
@@ -3898,14 +4064,16 @@ export default function Home() {
           <div className={`build-status ${placement?.error ? "invalid" : ""}`} aria-live="polite">
             <div>
               <strong>
-                {podEdit
-                  ? `${podEdit.role === "entry" ? "Eingangs" : "Ausgangs"}pod versetzen`
-                  : (placement?.error ??
-                    (adjust
-                      ? `${adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
-                      : placement
-                        ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? COASTER_TYPES[coasterType].name : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Eingangsweg (blau)" : tool === "exit" ? "Ausgangsweg (rot)" : "Wasser"))} · ${EUR(placement.cost)}`
-                        : "Bewege den Zeiger auf den Bauplatz"))}
+                {tool === "viewpoint"
+                  ? "Beobachtungspunkt am Zaun platzieren"
+                  : podEdit
+                    ? `${podEdit.role === "entry" ? "Eingangs" : "Ausgangs"}pod versetzen`
+                    : (placement?.error ??
+                      (adjust
+                        ? `${adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
+                        : placement
+                          ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? COASTER_TYPES[coasterType].name : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Eingangsweg (blau)" : tool === "exit" ? "Ausgangsweg (rot)" : "Wasser"))} · ${EUR(placement.cost)}`
+                          : "Bewege den Zeiger auf den Bauplatz"))}
               </strong>
               <span>
                 {podEdit
@@ -4095,10 +4263,11 @@ export default function Home() {
             },
             {
               id: "analysis",
-              label: "Parkanalyse & Sauberkeit",
+              label: "Parkanalyse & Heatmap",
               Icon: TrendingUp,
               active: category === "analysis",
               run: () => {
+                setTrafficMode("crowd");
                 setCategory("analysis");
                 setTool("select");
                 setSelected(null);
@@ -4106,10 +4275,24 @@ export default function Home() {
               },
             },
             {
+              id: "finance",
+              label: "Finanzen & Kredit",
+              Icon: Wallet,
+              group: "manage",
+              description: "Kredit aufnehmen, tilgen und deine Tagesfinanzen prüfen.",
+              run: () => {
+                setTab("finance");
+                setSettings(true);
+              },
+            },
+            {
               id: "settings",
               label: "Parkverwaltung",
               Icon: Settings2,
-              run: () => setSettings(true),
+              run: () => {
+                setTab("park");
+                setSettings(true);
+              },
             },
             {
               id: "sound",
@@ -4339,6 +4522,7 @@ export default function Home() {
           <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
             <TabsList className="tabsrow">
               <TabsTrigger value="park">Parkbetrieb</TabsTrigger>
+              <TabsTrigger value="finance">Finanzen & Kredit</TabsTrigger>
               <TabsTrigger value="personal">Personal</TabsTrigger>
               <TabsTrigger value="entrance">Eingangstor</TabsTrigger>
               <TabsTrigger value="marketing">Werbung</TabsTrigger>
@@ -4414,10 +4598,32 @@ export default function Home() {
                 </section>
               )}
             </TabsContent>
+            <TabsContent value="finance">
+              {snapshot && (
+                <FinancePanel
+                  park={snapshot}
+                  onBorrow={(amount) => {
+                    const error = borrowLoan(park.current!, amount);
+                    sync();
+                    return error;
+                  }}
+                  onRepay={(amount) => {
+                    const error = repayLoan(park.current!, amount);
+                    sync();
+                    return error;
+                  }}
+                />
+              )}
+            </TabsContent>
             <TabsContent value="personal">
               {snapshot && (
                 <StaffPanel
                   park={snapshot}
+                  onAssignKeeper={(workerId, habitatId) => {
+                    const error = assignZooKeeperToHabitat(park.current!, workerId, habitatId);
+                    sync();
+                    return error;
+                  }}
                   onSpecialists={(role, count) => {
                     const error = setZooSpecialists(park.current!, role, count);
                     sync();
@@ -4579,6 +4785,33 @@ export default function Home() {
               ))}
             </TabsContent>
             <TabsContent value="park">
+              {snapshot && (
+                <section className="difficulty-panel">
+                  <h3>Schwierigkeitsgrad</h3>
+                  <button className="secondary" onClick={() => setTab("finance")}>
+                    Startkapital benötigt? Finanzen & Kredit öffnen
+                  </button>
+                  <p className="small">
+                    Jederzeit änderbar. Der gewählte Satz gilt für die nächste Tagesabrechnung.
+                  </p>
+                  <div className="difficulty-options">
+                    {(Object.keys(DIFFICULTIES) as Difficulty[]).map((level) => (
+                      <button
+                        key={level}
+                        aria-pressed={difficultyOf(snapshot) === level}
+                        onClick={() => {
+                          setDifficulty(park.current!, level);
+                          sync();
+                        }}
+                      >
+                        <strong>{DIFFICULTIES[level].label}</strong>
+                        <span>{DIFFICULTIES[level].costDescription}</span>
+                        <small>{DIFFICULTIES[level].description}</small>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
               <div className="controlrow">
                 <span>Parkeintritt</span>
                 <strong>{EUR(snapshot?.ticket ?? 6)}</strong>
@@ -4611,8 +4844,9 @@ export default function Home() {
                 }}
               />
               <p className="small">
-                80 € pro Mitarbeiter und Tag. Das Team sammelt Müll und leert erreichbare Mülleimer.
-                Ein Mitarbeiter betreut bis zu 25 Gäste. Unterbesetzung drückt die Stimmung.
+                {difficultyEuro(difficultyCost(snapshot ?? {}, 80, "wages"))} pro Mitarbeiter und
+                Tag. Das Team sammelt Müll und leert erreichbare Mülleimer. Ein Mitarbeiter betreut
+                bis zu 25 Gäste. Unterbesetzung drückt die Stimmung.
               </p>
               <div className="detailstats">
                 <div>

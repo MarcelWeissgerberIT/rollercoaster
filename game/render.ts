@@ -1,3 +1,6 @@
+import zooWalkSpecs from "./zoo-walk-sprites.json";
+import { guestAppearance } from "./visitors";
+import { paintedGuest, drawWalkingGuest } from "./guest-sprite";
 import zooV9Specs from "./zoo-v9-sprites.json";
 import { drawStationDirection } from "./station-direction";
 import { makeRidePath } from "./ride-path";
@@ -12,6 +15,8 @@ import { isHabitat } from "./zoo";
 import { animalPose, animalSprite } from "./zoo-motion";
 import { habitatSceneryLayers } from "./zoo-canvas";
 import type { ParkIssue } from "./park-insights";
+import { drawTrafficOverlay } from "./traffic-overlay";
+import type { TrafficMode, TrafficReport } from "./park-traffic";
 import experienceSpecs from "./experience-sprites.json";
 import { vehicleFor, VEHICLES } from "./vehicles";
 import { paintedCar } from "./vehicle-sprite";
@@ -51,6 +56,8 @@ export type View = {
   stationDirection?: Building;
   showMoods?: boolean;
   issues?: ParkIssue[];
+  traffic?: { report: TrafficReport; mode: TrafficMode; selected: string | null };
+  viewpointEdit?: Point[];
   podEdit?: { id: number; role: PodRole; clear?: boolean };
   zoom: number;
   panX: number;
@@ -162,6 +169,7 @@ export function previewBuilding(kind: Kind, x: number, y: number): Building {
 const sprites: Record<string, HTMLImageElement> = {};
 // Every number is in logical screen pixels for a 48 × 24 ground tile.
 const specs: Record<string, SpriteSpec> = {
+  ...zooWalkSpecs,
   ...zooV9Specs,
   ...lifeSpecs,
   ...experienceSpecs,
@@ -217,7 +225,7 @@ export function loadSprites(base = "/assets/pixel-v2") {
             resolve();
           };
           im.onerror = () => reject(Error(name));
-          im.src = `${name in zooV9Specs ? base.replace(/pixel-v2$/, "zoo-v9") : name in lifeSpecs ? base.replace(/pixel-v2$/, "park-v8") : name in zooSpecs ? base.replace(/pixel-v2$/, "zoo-v7") : name in experienceSpecs ? base.replace(/pixel-v2$/, "experience-v6") : name in parkSpecs ? base.replace(/pixel-v2$/, "park-v5") : name in expansionSpecs ? base.replace(/pixel-v2$/, "expansion-v4") : name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
+          im.src = `${name in zooWalkSpecs ? base.replace(/pixel-v2$/, "zoo-walk-v10") : name in zooV9Specs ? base.replace(/pixel-v2$/, "zoo-v9") : name in lifeSpecs ? base.replace(/pixel-v2$/, "park-v8") : name in zooSpecs ? base.replace(/pixel-v2$/, "zoo-v7") : name in experienceSpecs ? base.replace(/pixel-v2$/, "experience-v6") : name in parkSpecs ? base.replace(/pixel-v2$/, "park-v5") : name in expansionSpecs ? base.replace(/pixel-v2$/, "expansion-v4") : name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
         }),
     ),
   );
@@ -554,14 +562,25 @@ export function draw(
   ) => {
     if (id === undefined) return;
     const guest = s.guests.find((g) => g.id === id),
-      im = sprites[`rider-${guest?.skin === 1 ? "teal" : "red"}-${direction}`];
+      im = sprites[`rider-red-${direction}`];
     if (!im) return;
     ctx.save();
     ctx.globalAlpha *= alpha;
     ctx.translate(p.x, p.y);
     ctx.rotate(rotation);
-    ctx.scale(size, size);
-    ctx.drawImage(im, 0, 0, 80, 68, -10 * scale, -16 * scale, 20 * scale, 17 * scale);
+    const personScale = guestAppearance(guest).ageGroup === "child" ? 0.8 : 1;
+    ctx.scale(size * personScale, size * personScale);
+    ctx.drawImage(
+      guest ? paintedGuest(im, guest, true) : im,
+      0,
+      0,
+      80,
+      68,
+      -10 * scale,
+      -16 * scale,
+      20 * scale,
+      17 * scale,
+    );
     ctx.restore();
   };
   const wheel = (b: Building, p: Point, alpha = 1) => {
@@ -654,10 +673,51 @@ export function draw(
         if (hitOwner !== undefined) v.hitTargets!.push({ id: hitOwner, a, b: end });
       },
     });
+    if (b.habitat?.viewpoint) {
+      const q = b.habitat.viewpoint;
+      layers.push({
+        depth: q.x + q.y + 0.15,
+        draw: () => {
+          const p = project(q.x, q.y);
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          v.hitTargets!.push({
+            id: b.id,
+            a: { x: p.x, y: p.y - 29 * scale },
+            b: { x: p.x, y: p.y - 12 * scale },
+          });
+          tile(q.x, q.y, "#a8d4c355", "#eef6da");
+          ctx.fillStyle = "#7b6245";
+          ctx.fillRect(p.x - 1.5 * scale, p.y - 20 * scale, 3 * scale, 18 * scale);
+          ctx.fillStyle = "#326b5a";
+          ctx.strokeStyle = "#f9e6b0";
+          ctx.lineWidth = 1.2 * scale;
+          ctx.beginPath();
+          ctx.roundRect(p.x - 12 * scale, p.y - 29 * scale, 24 * scale, 15 * scale, 3 * scale);
+          ctx.fill();
+          ctx.stroke();
+          ctx.strokeStyle = "#f9edc9";
+          ctx.lineWidth = 1.5 * scale;
+          for (const x of [-4, 4]) {
+            ctx.beginPath();
+            ctx.arc(p.x + x * scale, p.y - 21 * scale, 3.3 * scale, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.beginPath();
+          ctx.moveTo(p.x - 2 * scale, p.y - 23 * scale);
+          ctx.lineTo(p.x + 2 * scale, p.y - 23 * scale);
+          ctx.stroke();
+          ctx.restore();
+        },
+      });
+    }
     for (let i = 0; i < (b.habitat?.count ?? 0); i++) {
       const animal = animalPose(b, i, s.time),
         dir = heading(animal.dx, animal.dy),
-        name = animalSprite(b.kind, i, dir);
+        name =
+          b.kind === "elephant"
+            ? `elephant-walk-${dir}-${animal.walk ? ((Math.floor((animal.gait / (Math.PI * 2)) * 4) % 4) + 4) % 4 : 1}`
+            : animalSprite(b.kind, i, dir);
       layers.push({
         depth: animal.x + animal.y + 0.1,
         draw: () => {
@@ -666,7 +726,7 @@ export function draw(
           ctx.beginPath();
           ctx.ellipse(p.x, p.y, 7 * scale, 3 * scale, 0, 0, Math.PI * 2);
           ctx.fill();
-          p.y -= animal.bob * 4.8 * scale;
+          p.y -= animal.bob * (b.kind === "elephant" ? 2 : 4.8) * scale;
           frame(name, p, specs[name], alpha);
         },
       });
@@ -1279,7 +1339,8 @@ export function draw(
         ? moved > 0.001
         : (g.state === "walk" || g.state === "leave") && g.route.length > 0 && g.timer <= 0;
     const step = moving ? Math.floor(old.phase) % 4 : 1;
-    const name = `walk-${g.skin === 1 ? "teal" : "red"}-${old.heading}-${step}`;
+    const name = `walk-red-${old.heading}-${step}`,
+      look = guestAppearance(g);
     objects.push({
       depth: visual.x + visual.y + 0.12,
       draw: () => {
@@ -1291,19 +1352,21 @@ export function draw(
         if (moving) p.y -= Math.abs(Math.sin((old.phase * Math.PI) / 2)) * 0.8 * scale;
         if (sitting) p.y -= sitting.height * 4 * scale;
         if (sitting?.seated) rider(g.id, p, sitting.yaw === 0 ? "nw" : "se", 1);
-        else
-          frame(
-            name,
-            p,
-            { width: 24, height: 32, anchorX: 12, anchorY: 28 },
-            1,
+        else if (sprites[name])
+          drawWalkingGuest(
+            ctx,
+            sprites[name],
+            g,
+            p.x,
+            p.y,
+            scale,
             moving ? Math.sin((old.phase * Math.PI) / 2) * 0.018 : 0,
           );
         if (g.food) {
           const food = FOOD[g.food.kind],
             lift = Math.max(0, Math.sin(s.time * 2.8 + g.id)) * 3;
           ctx.save();
-          ctx.translate(p.x + 3 * scale, p.y - (12 + lift) * scale);
+          ctx.translate(p.x + 3 * scale, p.y - (12 * look.heightScale + lift) * scale);
           ctx.scale(scale, scale);
           ctx.fillStyle = food.color;
           if (food.drink) {
@@ -1341,7 +1404,7 @@ export function draw(
         if (v.showMoods !== false && moodAlpha > 0) {
           ctx.save();
           ctx.globalAlpha *= moodAlpha;
-          ctx.translate(p.x, p.y - 29 * scale);
+          ctx.translate(p.x, p.y - (28 * look.heightScale + 2) * scale);
           ctx.scale(scale, scale);
           ctx.fillStyle = g.happiness >= 75 ? "#b8e38d" : g.happiness >= 45 ? "#ffe195" : "#f3967a";
           ctx.strokeStyle = "#395542";
@@ -1534,6 +1597,19 @@ export function draw(
       o.draw();
     });
   hitOwner = undefined;
+  if (v.traffic)
+    drawTrafficOverlay(
+      ctx,
+      v.traffic.report,
+      v.traffic.mode,
+      v.traffic.selected,
+      project,
+      scale,
+      w,
+      h,
+    );
+  for (const p of v.viewpointEdit ?? [])
+    tile(p.x, p.y, s.tiles[p.y]?.[p.x] === "path" ? "#7bd0b577" : "#f4d48277", "#fff6de");
   const stationFocus =
     v.stationDirection ?? s.buildings.find((b) => b.id === v.selected && b.kind === "coaster");
   if (stationFocus)
@@ -1681,7 +1757,9 @@ export function draw(
         points =
           preview?.points ??
           Array.from({ length: n * n }, (_, i) => ({ x: x + (i % n), y: y + Math.floor(i / n) }));
-      const invalid = !!preview?.error;
+      const invalid =
+        !!preview?.error ||
+        (v.tool === "viewpoint" && !v.viewpointEdit?.some((p) => p.x === x && p.y === y));
       for (const p of points)
         tile(
           p.x,

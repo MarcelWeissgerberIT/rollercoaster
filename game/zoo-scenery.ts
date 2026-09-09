@@ -523,6 +523,18 @@ export function createHabitatScenery(b: Building): THREE.Group {
     }
   };
   layout.fixtures.forEach(renderFixture);
+  if (b.habitat?.viewpoint) {
+    const x = (b.habitat.viewpoint.x - layout.center.x) * 5,
+      z = (b.habitat.viewpoint.y - layout.center.y) * 5;
+    // A small public viewing sign, outside the fence and clear of the standing area.
+    box("#b7d1b0", x, 0.13, z, 4.5, 0.1, 4.5);
+    post("#826449", x - 1.4, 0.9, z - 1.4, 0.1, 1.8);
+    box("#306754", x - 1.4, 1.95, z - 1.4, 1.45, 0.85, 0.14);
+    for (const dx of [-0.29, 0.29]) {
+      part(cylinder, "#f5e7bc", x - 1.4 + dx, 1.94, z - 1.49, 0.21, 0.05, 0.21, Math.PI / 2);
+      part(cylinder, "#4c8a79", x - 1.4 + dx, 1.94, z - 1.53, 0.12, 0.05, 0.12, Math.PI / 2);
+    }
+  }
   // Merge static pieces by material: a rich habitat costs dozens, not hundreds, of draw calls.
   for (const [key, batch] of batches) {
     const geometry = mergeGeometries(batch.geometries);

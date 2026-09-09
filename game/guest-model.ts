@@ -1,13 +1,15 @@
 import { FOOD } from "./park-life";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
-import { guestAppearance } from "./guest-identity";
+import { guestAppearance } from "./visitors";
 import type { Guest } from "./simulation";
+type GuestSource = Pick<Guest, "id" | "skin"> &
+  Partial<Pick<Guest, "food" | "ageGroup" | "appearance" | "party">>;
 type Part = { p: number[]; s: number[]; color: string; angle?: number; head?: boolean };
 const sphere = new THREE.SphereGeometry(1, 12, 8);
 /** Human proportions in metres, looking along -Z. Seated origin is the cushion. */
 export function personParts(
-  g: (Pick<Guest, "id" | "skin"> & Pick<Guest, "food">) | undefined,
+  g: GuestSource | undefined,
   seated: boolean,
   phase = 0,
   walking = true,
@@ -34,11 +36,24 @@ export function personParts(
   add(c.pants, [0, hip, 0.025], [0.205, 0.14, 0.135]);
   add(c.skin, [0, neck + 0.06, 0], [0.06, 0.09, 0.055]);
   add(c.skin, [0, headY, 0], [0.145, 0.175, 0.14], true);
-  add(c.hair, [0, headY + 0.113, 0.026], [0.15, 0.089, 0.133], true);
   add(
     c.hair,
-    [(g?.id ?? 0) % 2 ? 0.075 : -0.075, headY + 0.065, -0.102],
-    [0.077, 0.065, 0.05],
+    [0, headY + (c.hairStyle === 2 ? 0.07 : 0.113), c.hairStyle === 2 ? 0.07 : 0.026],
+    c.hairStyle === 2 ? [0.163, 0.15, 0.13] : [0.15, 0.089, 0.133],
+    true,
+  );
+  add(
+    c.hair,
+    [c.hairStyle % 2 ? 0.075 : -0.075, headY + 0.065, -0.102],
+    c.hairStyle === 1 ? [0.095, 0.075, 0.06] : [0.077, 0.065, 0.05],
+    true,
+  );
+  // One fixed slot provides longer hair or a ponytail. Hidden slots keep every
+  // person's instanced geometry count identical, regardless of outfit or age.
+  add(
+    c.hair,
+    [0, headY - (c.hairStyle === 2 ? 0.06 : 0.025), 0.135],
+    c.hairStyle === 2 ? [0.15, 0.145, 0.07] : c.hairStyle === 3 ? [0.073, 0.145, 0.095] : [0, 0, 0],
     true,
   );
   for (const side of [-1, 1]) {
@@ -66,6 +81,27 @@ export function personParts(
   }
   add(c.skin, [0, headY - 0.017, -0.146], [0.025, 0.041, 0.027], true);
   add("#9d6252", [0, headY - 0.075, -0.126], [0.035, 0.009, 0.009], true);
+  const striped = c.pattern === "stripe" ? 1 : 0;
+  for (const y of [hip + 0.25, hip + 0.39])
+    add("#f5f0dc", [0, y, -0.103], [0.215 * striped, 0.025 * striped, 0.043 * striped]);
+  // Accessories reuse exactly three geometry slots. Backpacks are tucked away
+  // in ride seats so their volume cannot penetrate the backrest.
+  const accessory = c.accessory === "backpack" && seated ? "none" : c.accessory;
+  if (accessory === "cap") {
+    add(c.shirt, [0, headY + 0.16, 0.015], [0.17, 0.07, 0.155], true);
+    add(c.pants, [0, headY + 0.135, -0.13], [0.165, 0.019, 0.095], true);
+    add(c.shirt, [0, headY + 0.22, 0.015], [0.022, 0.015, 0.022], true);
+  } else if (accessory === "glasses") {
+    for (const side of [-1, 1])
+      add("#344351", [side * 0.055, headY + 0.012, -0.156], [0.043, 0.031, 0.013], true);
+    add("#344351", [0, headY + 0.018, -0.158], [0.023, 0.007, 0.009], true);
+  } else if (accessory === "backpack") {
+    add(c.pants, [0, hip + 0.3, 0.17], [0.165, 0.19, 0.095]);
+    for (const side of [-1, 1])
+      add(c.pants, [side * 0.15, hip + 0.32, -0.078], [0.025, 0.2, 0.043]);
+  } else {
+    for (let i = 0; i < 3; i++) add(c.shirt, [0, hip, 0], [0, 0, 0]);
+  }
   const food = g?.food,
     enabled = food ? 1 : 0,
     info = food && FOOD[food.kind];
@@ -81,11 +117,42 @@ export function personParts(
     [0.2, fy + 0.06, -0.3],
     [0.08 * enabled, 0.009 * enabled, 0.06 * enabled],
   );
-  return parts;
+  const child = c.ageGroup === "child",
+    height = c.heightScale,
+    widthScale = height,
+    legScale = height * (child ? 0.86 : 1),
+    torsoScale = height * (child ? 0.92 : 1),
+    headScale = height * (child ? 1.2 : 1),
+    fittedHip = hip * (seated ? height : legScale),
+    fittedHead = fittedHip + 0.51 * torsoScale + 0.24 * headScale;
+  return parts.map((part) => {
+    const verticalScale = part.head ? headScale : part.p[1] >= hip ? torsoScale : legScale,
+      horizontalScale = part.head ? headScale : widthScale,
+      angle = part.angle ?? 0,
+      lengthScale = Math.hypot(Math.cos(angle) * verticalScale, Math.sin(angle) * horizontalScale);
+    return {
+      ...part,
+      p: [
+        part.p[0] * horizontalScale,
+        part.head
+          ? fittedHead + (part.p[1] - headY) * headScale
+          : fittedHip + (part.p[1] - hip) * verticalScale,
+        part.p[2] * horizontalScale,
+      ],
+      s: [part.s[0] * horizontalScale, part.s[1] * lengthScale, part.s[2] * horizontalScale],
+      angle: Math.atan2(Math.sin(angle) * horizontalScale, Math.cos(angle) * verticalScale),
+    };
+  });
 }
-export function createGuestModel(g?: Pick<Guest, "id" | "skin">, seated = true) {
+export function createGuestModel(g?: GuestSource, seated = true) {
   const root = new THREE.Group(),
-    material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 });
+    material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.88 }),
+    appearance = guestAppearance(g);
+  root.name = `guest-${appearance.ageGroup}-${g?.id ?? "empty"}`;
+  root.userData.guestId = g?.id ?? null;
+  root.userData.ageGroup = appearance.ageGroup;
+  root.userData.heightScale = appearance.heightScale;
+  root.userData.paletteIndex = appearance.paletteIndex;
   const parts = personParts(g, seated);
   for (const isHead of [false, true]) {
     const geometries = parts
@@ -120,6 +187,11 @@ export function createCrowd(guests: Guest[]) {
     new THREE.MeshStandardMaterial({ roughness: 0.85 }),
     guests.length * count,
   );
+  mesh.name = "visitor-crowd";
+  mesh.userData.visitors = guests.map((g) => {
+    const appearance = guestAppearance(g);
+    return { id: g.id, ageGroup: appearance.ageGroup, heightScale: appearance.heightScale };
+  });
   mesh.frustumCulled = false;
   const base = new THREE.Matrix4(),
     local = new THREE.Matrix4(),

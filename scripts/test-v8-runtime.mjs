@@ -88,6 +88,7 @@ globalThis.Image = class {
   naturalWidth = 4;
   naturalHeight = 4;
   complete = true;
+  bitmap = { width: 4, height: 4, data: new Uint8ClampedArray(4 * 4 * 4).fill(255) };
   set src(value) {
     this._src = value;
     queueMicrotask(() => this.onload?.());
@@ -96,7 +97,26 @@ globalThis.Image = class {
     return this._src;
   }
 };
-globalThis.document = { createElement: () => ({ getContext: () => null }) };
+const canvasDocument = {
+  createElement: () => {
+    const canvas = {
+      width: 0,
+      height: 0,
+      bitmap: null,
+      getContext: () => ({
+        drawImage: (image) => {
+          canvas.bitmap = { ...image.bitmap, data: image.bitmap.data.slice() };
+        },
+        getImageData: () => ({ data: canvas.bitmap.data.slice() }),
+        putImageData: ({ data }) => {
+          canvas.bitmap = { width: canvas.width, height: canvas.height, data: data.slice() };
+        },
+      }),
+    };
+    return canvas;
+  },
+};
+globalThis.document = canvasDocument;
 await Render.loadSprites();
 if (previousImage === undefined) delete globalThis.Image;
 else globalThis.Image = previousImage;
@@ -110,8 +130,17 @@ const ctx = new Proxy(
     createLinearGradient: () => gradient,
     createRadialGradient: () => gradient,
     measureText: () => ({ width: 20 }),
-    drawImage: (_image, ...numbers) =>
-      assert(numbers.every(Number.isFinite), "finite draw coordinates"),
+    drawImage: (image, ...numbers) => {
+      assert(
+        (image?.complete && image.naturalWidth > 0) ||
+          (typeof image?.getContext === "function" &&
+            image.width > 0 &&
+            image.height > 0 &&
+            image.bitmap?.data.length === image.width * image.height * 4),
+        "valid source image or painted canvas",
+      );
+      assert(numbers.every(Number.isFinite), "finite draw coordinates");
+    },
   },
   { get: (o, k) => (k in o ? o[k] : noop), set: (o, k, v) => ((o[k] = v), true) },
 );
@@ -156,7 +185,14 @@ for (const kind of ["bumper", "balloonride"])
       b.cycle = duration * (1 - phase);
       rig.update(duration * phase);
       const v = view();
-      Render.draw(ctx, 1280, 720, s, v, phase * duration);
+      // Pixel recolouring needs a canvas; 3D rigs retain their headless environment.
+      globalThis.document = canvasDocument;
+      try {
+        Render.draw(ctx, 1280, 720, s, v, phase * duration);
+      } finally {
+        if (previousDocument === undefined) delete globalThis.document;
+        else globalThis.document = previousDocument;
+      }
       const project = Render.projection(1280, 720, v).project;
       const hits = v.hitTargets.filter(
         (h) =>

@@ -94,7 +94,7 @@ test("Daily profit includes construction and running costs", () => {
     p = free(s);
   M.paint(s, p.x, p.y, "path");
   M.tick(s, 90);
-  assert.equal(s.lastProfit, s.cash - cash);
+  assert.equal(Math.round(s.lastProfit * 100), Math.round((s.cash - cash) * 100));
 });
 test("Scenario completion requires a tested fourth coaster", () => {
   const s = M.newPark();
@@ -187,7 +187,7 @@ test("Demolition refunds are included in daily profit", () => {
   const b = s.buildings.find((b) => b.kind === "carousel");
   M.remove(s, b.x, b.y);
   M.tick(s, 90);
-  assert.equal(s.lastProfit, s.cash - cash);
+  assert.equal(Math.round(s.lastProfit * 100), Math.round((s.cash - cash) * 100));
 });
 test("Guests released after a long queue resume immediately", () => {
   for (const demolish of [false, true]) {
