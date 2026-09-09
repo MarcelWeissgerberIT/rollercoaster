@@ -1,3 +1,4 @@
+import { bumperPose, balloonPose } from "./family-rides";
 import { createGuestModel } from "./guest-model";
 import { assetUrl } from "./assets";
 import * as THREE from "three";
@@ -74,10 +75,11 @@ export function createAttractionRig(b: Building, park: Park) {
     const index = seats.length;
     mesh(sphere, gold, 0, 0, 0, 0.4, 0.1, 0.37, mount);
     mesh(sphere, gold, 0, 0.38, 0.22, 0.38, 0.43, 0.1, mount);
-    const eye = group(mount, 0, .88, -.13);
+    const eye = group(mount, 0, 0.88, -0.13);
     seats.push(eye);
-    const person = createGuestModel(park.guests.find(g=>g.id===b.riders[index]));
-    mount.add(person); person.visible = index < b.riders.length;
+    const person = createGuestModel(park.guests.find((g) => g.id === b.riders[index]));
+    mount.add(person);
+    person.visible = index < b.riders.length;
     passengers.push(person);
     mesh(cube, "#345556", 0, 0.38, -0.45, 0.95, 0.1, 0.1, mount);
     return mount;
@@ -86,7 +88,47 @@ export function createAttractionRig(b: Building, park: Park) {
     capacity = rideCapacity(b),
     heightScale = b.design?.height ?? 1;
   mesh(cylinder, "#d0c3a2", 0, 0.16, 0, kind === "wheel" ? 5 : 6, 0.32, kind === "wheel" ? 4 : 6);
-  if (kind === "wheel") {
+  if (kind === "bumper") {
+    mesh(cube, "#96b6ba", 0, 0.2, 0, 13, 0.4, 11);
+    for (const dx of [-6.3, 6.3])
+      for (const dz of [-5.3, 5.3]) {
+        mesh(cylinder, teal, dx, 2.9, dz, 0.14, 5.8, 0.14);
+        mesh(sphere, gold, dx, 5.9, dz, 0.3, 0.3, 0.3);
+      }
+    for (const z of [-5.4, 5.4]) mesh(cube, "#d58c9c", 0, 0.5, z, 13, 0.45, 0.3);
+    for (let i = 0; i < 4; i++) {
+      const car = group(root),
+        paint = ["#dc8c9d", "#90b7d2", "#a4c795", "#e1c07e"][i];
+      mesh(cube, "#324c50", 0, 0.12, 0, 2.5, 0.45, 2.5, car);
+      mesh(sphere, paint, 0, 0.48, -0.35, 1.2, 0.5, 1.3, car);
+      mesh(cylinder, teal, 0.9, 2.5, 0.8, 0.035, 5, 0.035, car);
+      seat(car, -0.42, 0.65, 0.2);
+      seat(car, 0.42, 0.65, 0.2);
+      mesh(cylinder, "#36545d", 0, 0.99, -0.63, 0.22, 0.05, 0.22, car).rotation.x = Math.PI / 2;
+      updates.push((p) => {
+        const pose = bumperPose(i, p);
+        car.position.set(pose.x, pose.y, pose.z);
+        car.rotation.y = pose.yaw;
+      });
+    }
+  } else if (kind === "balloonride") {
+    mesh(cylinder, teal, 0, 3.5, 0, 0.42, 7, 0.42);
+    mesh(cone, gold, 0, 7.6, 0, 1.2, 1.6, 1.2);
+    for (let i = 0; i < 4; i++) {
+      const basket = group(root),
+        paint = ["#e4a39e", "#a4cbbd", "#c3b3d8", "#e6cc97"][i];
+      mesh(cube, "#ac8756", 0, 0, 0, 2.3, 0.6, 1.8, basket);
+      mesh(sphere, paint, 0, 3.5, 0, 1.7, 2.2, 1.7, basket);
+      for (const dx of [-0.8, 0.8]) mesh(cylinder, gold, dx, 1.1, 0, 0.045, 2.2, 0.045, basket);
+      seat(basket, -0.43, 0.45, 0);
+      seat(basket, 0.43, 0.45, 0);
+      updates.push((p) => {
+        const pose = balloonPose(i, p);
+        basket.position.set(pose.x, pose.y, pose.z);
+        basket.rotation.y = pose.yaw;
+      });
+    }
+  } else if (kind === "wheel") {
     const rotor = group(root, 0, 11, 0),
       cabins: THREE.Group[] = [];
     rotor.add(new THREE.Mesh(new THREE.TorusGeometry(8, 0.2, 8, 64), mat(color)));

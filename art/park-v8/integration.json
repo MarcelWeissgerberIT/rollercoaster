@@ -1,0 +1,157 @@
+{
+  "tileLogical": [
+    48,
+    24
+  ],
+  "fileScale": 4,
+  "recommendedCatalogSprites": {
+    "hotdog": "hotdog-shop",
+    "icecream": "icecream-shop",
+    "popcorn": "popcorn-shop",
+    "coffee": "coffee-shop",
+    "bumpercars": "bumper-pavilion",
+    "playground": "playground",
+    "picnic": "picnic-table",
+    "balloonride": "balloonride"
+  },
+  "entranceThemes": {
+    "safari": "gate-safari",
+    "festival": "gate-festival",
+    "classic": "entrance"
+  },
+  "animals": {
+    "species": [
+      "elephant",
+      "lion",
+      "panda"
+    ],
+    "directions": [
+      "se",
+      "sw",
+      "nw",
+      "ne"
+    ],
+    "spriteKey": "species-direction",
+    "sourceScale": "shared within each species",
+    "poseCountPerDirection": 1
+  },
+  "bumperPavilion": {
+    "baseSprite": "bumper-pavilion",
+    "frontSprite": "bumper-pavilion-front",
+    "floorQuadLogical": [
+      [
+        94.3,
+        121.93
+      ],
+      [
+        168.26,
+        150.52
+      ],
+      [
+        85.38,
+        179.9
+      ],
+      [
+        22.16,
+        150.79
+      ]
+    ],
+    "floorQuadOrder": [
+      "back",
+      "right",
+      "front",
+      "left"
+    ],
+    "drawOrder": [
+      "complete pavilion",
+      "cars sorted by floor y",
+      "occupied riders",
+      "front roof/post layer"
+    ],
+    "note": "Keep car center within inset polygon and allow room for rubber bumpers. Front sprite has identical canvas and anchor."
+  },
+  "bumperCars": {
+    "sw": {
+      "sprite": "bumper-car-sw",
+      "seatSurfaceCentersLogical": [
+        [
+          23.64,
+          31.15
+        ],
+        [
+          27.79,
+          29.3
+        ]
+      ]
+    },
+    "se": {
+      "sprite": "bumper-car-se",
+      "seatSurfaceCentersLogical": [
+        [
+          16.36,
+          31.15
+        ],
+        [
+          12.21,
+          29.3
+        ]
+      ]
+    },
+    "seats": 2,
+    "note": "Seat positions refer to butt/cushion contact; do not use as head centers. Only front SE/SW orientations provided."
+  },
+  "balloonRide": {
+    "previewSprite": "balloonride",
+    "gondolaSprite": "balloon-gondola",
+    "frontSprite": "balloon-gondola-front",
+    "seatSurfaceCentersLogical": [
+      [
+        20.78,
+        57.69
+      ],
+      [
+        26.25,
+        57.69
+      ]
+    ],
+    "basketAnchor": [
+      24,
+      72
+    ],
+    "basketMouthCenterLogical": [
+      23.61,
+      55.93
+    ],
+    "note": "Animate four gondolas around a runtime base and arms. Complete preview already contains four baskets and must not be drawn concurrently. For each basket draw gondola then actual riders then front wall."
+  },
+  "suggestedFootprints": {
+    "bumper-pavilion": [
+      4,
+      4
+    ],
+    "playground": [
+      3,
+      3
+    ],
+    "picnic-table": [
+      2,
+      2
+    ],
+    "balloonride": [
+      3,
+      3
+    ],
+    "shops": [
+      1,
+      1
+    ]
+  },
+  "limitations": [
+    "Animals have one pose per direction; use runtime translation, subtle bob and tilt, not a multi-frame walk.",
+    "Bumper car has front SE/SW views only; SE mirrors SW and therefore also mirrors baked lighting.",
+    "Balloonride is a complete static preview. Animate individual balloon-gondola sprites around a procedural base/arms; do not simultaneously draw complete preview.",
+    "Pavilion is one fixed southeast view. Draw complete pavilion, moving cars/riders, then bumper-pavilion-front for roof/post occlusion.",
+    "Buildings use measured ground-plane centers, not bottommost opaque pixels. Apply SpriteSpec anchors without retrimming.",
+    "Only architectural sprites are provided for playground; interactive children/3D geometry remain runtime work."
+  ]
+}

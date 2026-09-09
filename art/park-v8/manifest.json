@@ -1,0 +1,1779 @@
+{
+  "provider": "OpenArt MCP",
+  "fileScale": 4,
+  "tile": [
+    48,
+    24
+  ],
+  "processing": "OpenArt originals only. Technical chroma key including dark magenta spill (r>g+24,b>g+24,r+b>90) and gutter-aware extraction; one source scale per animal species; measured ground-plane anchors for buildings; nearest-neighbor logical normalization and exact4x files. Bumper SE is a horizontal mirror of genuine SW. Front layers are alpha-only selections of existing pixels, never repainted.",
+  "assets": [
+    {
+      "name": "elephant-se",
+      "atlas": "animals",
+      "group": "elephant",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 0,
+      "cellBounds": [
+        0,
+        0,
+        474,
+        485
+      ],
+      "trimBoundsInCell": [
+        104,
+        137,
+        407,
+        431
+      ],
+      "sourceCropDimensions": [
+        303,
+        294
+      ],
+      "sourceAnchorInCrop": [
+        182.36876750700281,
+        294
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "logicalBounds": [
+        6,
+        8,
+        35,
+        36
+      ],
+      "opaqueBounds": [
+        6,
+        8,
+        35,
+        36
+      ],
+      "sourceToLogicalScale": 0.0963855421686747,
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        144
+      ],
+      "asset": "assets/elephant-se.png",
+      "logical": "logical/elephant-se.png",
+      "sha256": "59f23cf35ed0a5b124e6bf9118a41055de8aaa94564ca1b456f41465b0c7e008"
+    },
+    {
+      "name": "elephant-sw",
+      "atlas": "animals",
+      "group": "elephant",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 1,
+      "cellBounds": [
+        474,
+        0,
+        901,
+        485
+      ],
+      "trimBoundsInCell": [
+        66,
+        142,
+        364,
+        431
+      ],
+      "sourceCropDimensions": [
+        298,
+        289
+      ],
+      "sourceAnchorInCrop": [
+        130.59597615499254,
+        289
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "logicalBounds": [
+        11,
+        8,
+        40,
+        36
+      ],
+      "opaqueBounds": [
+        11,
+        8,
+        40,
+        36
+      ],
+      "sourceToLogicalScale": 0.0963855421686747,
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        144
+      ],
+      "asset": "assets/elephant-sw.png",
+      "logical": "logical/elephant-sw.png",
+      "sha256": "3c6a4dcfee1c0afd18fe95a0eaf648feba910a287d2e4ca8b80419711df3ea4f"
+    },
+    {
+      "name": "elephant-nw",
+      "atlas": "animals",
+      "group": "elephant",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 2,
+      "cellBounds": [
+        901,
+        0,
+        1328,
+        485
+      ],
+      "trimBoundsInCell": [
+        57,
+        118,
+        330,
+        450
+      ],
+      "sourceCropDimensions": [
+        273,
+        332
+      ],
+      "sourceAnchorInCrop": [
+        182.08980543495738,
+        332
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "logicalBounds": [
+        6,
+        4,
+        32,
+        36
+      ],
+      "opaqueBounds": [
+        6,
+        4,
+        32,
+        36
+      ],
+      "sourceToLogicalScale": 0.0963855421686747,
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        144
+      ],
+      "asset": "assets/elephant-nw.png",
+      "logical": "logical/elephant-nw.png",
+      "sha256": "96df2a9db06b7cfd9f555a60d5462a69e646b1b22d023c233ecd4b2d1a654a4f"
+    },
+    {
+      "name": "elephant-ne",
+      "atlas": "animals",
+      "group": "elephant",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 3,
+      "cellBounds": [
+        1328,
+        0,
+        1792,
+        485
+      ],
+      "trimBoundsInCell": [
+        98,
+        127,
+        356,
+        455
+      ],
+      "sourceCropDimensions": [
+        258,
+        328
+      ],
+      "sourceAnchorInCrop": [
+        92.93621973929237,
+        328
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        36
+      ],
+      "logicalBounds": [
+        15,
+        4,
+        40,
+        36
+      ],
+      "opaqueBounds": [
+        15,
+        4,
+        40,
+        36
+      ],
+      "sourceToLogicalScale": 0.0963855421686747,
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        144
+      ],
+      "asset": "assets/elephant-ne.png",
+      "logical": "logical/elephant-ne.png",
+      "sha256": "9bde4d5ce8507d43d685992fcf7c4963903e47ba35be2f0e219016c953fe3db1"
+    },
+    {
+      "name": "lion-se",
+      "atlas": "animals",
+      "group": "lion",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 4,
+      "cellBounds": [
+        0,
+        485,
+        474,
+        888
+      ],
+      "trimBoundsInCell": [
+        96,
+        61,
+        394,
+        314
+      ],
+      "sourceCropDimensions": [
+        298,
+        253
+      ],
+      "sourceAnchorInCrop": [
+        209.28061868686868,
+        253
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalBounds": [
+        4,
+        8,
+        27,
+        28
+      ],
+      "opaqueBounds": [
+        4,
+        8,
+        27,
+        28
+      ],
+      "sourceToLogicalScale": 0.078125,
+      "fileScale": 4,
+      "canvas": [
+        160,
+        128
+      ],
+      "pivot": [
+        80,
+        112
+      ],
+      "asset": "assets/lion-se.png",
+      "logical": "logical/lion-se.png",
+      "sha256": "13b72279d189ed5d33fafcf8452284066805eba582545367c2b1721b187b1bfa"
+    },
+    {
+      "name": "lion-sw",
+      "atlas": "animals",
+      "group": "lion",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 5,
+      "cellBounds": [
+        474,
+        485,
+        901,
+        888
+      ],
+      "trimBoundsInCell": [
+        72,
+        73,
+        370,
+        314
+      ],
+      "sourceCropDimensions": [
+        298,
+        241
+      ],
+      "sourceAnchorInCrop": [
+        87.9026423403586,
+        241
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalBounds": [
+        13,
+        9,
+        36,
+        28
+      ],
+      "opaqueBounds": [
+        13,
+        9,
+        36,
+        28
+      ],
+      "sourceToLogicalScale": 0.078125,
+      "fileScale": 4,
+      "canvas": [
+        160,
+        128
+      ],
+      "pivot": [
+        80,
+        112
+      ],
+      "asset": "assets/lion-sw.png",
+      "logical": "logical/lion-sw.png",
+      "sha256": "fcdff603e5e64b7dfc12fd8dcd2247ca3f099010d13e2d82a87894c44cacb829"
+    },
+    {
+      "name": "lion-nw",
+      "atlas": "animals",
+      "group": "lion",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 6,
+      "cellBounds": [
+        901,
+        485,
+        1328,
+        888
+      ],
+      "trimBoundsInCell": [
+        104,
+        30,
+        329,
+        350
+      ],
+      "sourceCropDimensions": [
+        225,
+        320
+      ],
+      "sourceAnchorInCrop": [
+        156.30089485458612,
+        320
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        3,
+        26,
+        28
+      ],
+      "opaqueBounds": [
+        8,
+        3,
+        26,
+        28
+      ],
+      "sourceToLogicalScale": 0.078125,
+      "fileScale": 4,
+      "canvas": [
+        160,
+        128
+      ],
+      "pivot": [
+        80,
+        112
+      ],
+      "asset": "assets/lion-nw.png",
+      "logical": "logical/lion-nw.png",
+      "sha256": "65abb07fe75a80c4f93c72d6804f066e57bbb978b2f3caf02dab724ec0a6cfb6"
+    },
+    {
+      "name": "lion-ne",
+      "atlas": "animals",
+      "group": "lion",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 7,
+      "cellBounds": [
+        1328,
+        485,
+        1792,
+        888
+      ],
+      "trimBoundsInCell": [
+        102,
+        38,
+        335,
+        357
+      ],
+      "sourceCropDimensions": [
+        233,
+        319
+      ],
+      "sourceAnchorInCrop": [
+        75.41290661070305,
+        319
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalBounds": [
+        14,
+        3,
+        32,
+        28
+      ],
+      "opaqueBounds": [
+        14,
+        3,
+        32,
+        28
+      ],
+      "sourceToLogicalScale": 0.078125,
+      "fileScale": 4,
+      "canvas": [
+        160,
+        128
+      ],
+      "pivot": [
+        80,
+        112
+      ],
+      "asset": "assets/lion-ne.png",
+      "logical": "logical/lion-ne.png",
+      "sha256": "cf28e2ff220571015018537566089fde7913b58fdfb26d09d3bbb9b0017345bb"
+    },
+    {
+      "name": "panda-se",
+      "atlas": "animals",
+      "group": "panda",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 8,
+      "cellBounds": [
+        0,
+        888,
+        474,
+        1344
+      ],
+      "trimBoundsInCell": [
+        109,
+        67,
+        366,
+        320
+      ],
+      "sourceCropDimensions": [
+        257,
+        253
+      ],
+      "sourceAnchorInCrop": [
+        155.34990378447722,
+        253
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        32,
+        32
+      ],
+      "logicalPivot": [
+        16,
+        28
+      ],
+      "logicalBounds": [
+        2,
+        6,
+        25,
+        28
+      ],
+      "opaqueBounds": [
+        2,
+        6,
+        25,
+        28
+      ],
+      "sourceToLogicalScale": 0.08865248226950355,
+      "fileScale": 4,
+      "canvas": [
+        128,
+        128
+      ],
+      "pivot": [
+        64,
+        112
+      ],
+      "asset": "assets/panda-se.png",
+      "logical": "logical/panda-se.png",
+      "sha256": "24ad4533ee04f2910a350eac8fcc034c4d546069038a43e3c46905437a586095"
+    },
+    {
+      "name": "panda-sw",
+      "atlas": "animals",
+      "group": "panda",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 9,
+      "cellBounds": [
+        474,
+        888,
+        901,
+        1344
+      ],
+      "trimBoundsInCell": [
+        87,
+        66,
+        346,
+        324
+      ],
+      "sourceCropDimensions": [
+        259,
+        258
+      ],
+      "sourceAnchorInCrop": [
+        102.42005103125665,
+        258
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        32,
+        32
+      ],
+      "logicalPivot": [
+        16,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        5,
+        30,
+        28
+      ],
+      "opaqueBounds": [
+        7,
+        5,
+        30,
+        28
+      ],
+      "sourceToLogicalScale": 0.08865248226950355,
+      "fileScale": 4,
+      "canvas": [
+        128,
+        128
+      ],
+      "pivot": [
+        64,
+        112
+      ],
+      "asset": "assets/panda-sw.png",
+      "logical": "logical/panda-sw.png",
+      "sha256": "758a2d1f142774b0dd308ff793d164fd2fbcf47bb18b68d783d22439713c0ff8"
+    },
+    {
+      "name": "panda-nw",
+      "atlas": "animals",
+      "group": "panda",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 10,
+      "cellBounds": [
+        901,
+        888,
+        1328,
+        1344
+      ],
+      "trimBoundsInCell": [
+        93,
+        44,
+        315,
+        325
+      ],
+      "sourceCropDimensions": [
+        222,
+        281
+      ],
+      "sourceAnchorInCrop": [
+        145.85863377609107,
+        281
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        32,
+        32
+      ],
+      "logicalPivot": [
+        16,
+        28
+      ],
+      "logicalBounds": [
+        3,
+        3,
+        23,
+        28
+      ],
+      "opaqueBounds": [
+        3,
+        3,
+        23,
+        28
+      ],
+      "sourceToLogicalScale": 0.08865248226950355,
+      "fileScale": 4,
+      "canvas": [
+        128,
+        128
+      ],
+      "pivot": [
+        64,
+        112
+      ],
+      "asset": "assets/panda-nw.png",
+      "logical": "logical/panda-nw.png",
+      "sha256": "a31ada18c570e6777d897e05facac4c53e022dcbaced624b4667c7edbaa26f35"
+    },
+    {
+      "name": "panda-ne",
+      "atlas": "animals",
+      "group": "panda",
+      "sourceAtlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 11,
+      "cellBounds": [
+        1328,
+        888,
+        1792,
+        1344
+      ],
+      "trimBoundsInCell": [
+        119,
+        52,
+        330,
+        334
+      ],
+      "sourceCropDimensions": [
+        211,
+        282
+      ],
+      "sourceAnchorInCrop": [
+        80.00156347717324,
+        282
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; bottom contact y",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        32,
+        32
+      ],
+      "logicalPivot": [
+        16,
+        28
+      ],
+      "logicalBounds": [
+        9,
+        3,
+        28,
+        28
+      ],
+      "opaqueBounds": [
+        9,
+        3,
+        28,
+        28
+      ],
+      "sourceToLogicalScale": 0.08865248226950355,
+      "fileScale": 4,
+      "canvas": [
+        128,
+        128
+      ],
+      "pivot": [
+        64,
+        112
+      ],
+      "asset": "assets/panda-ne.png",
+      "logical": "logical/panda-ne.png",
+      "sha256": "456d90c0ab3e54b0ee996876eeee6e6a6d011196479dac48f1bec43f364a0bea"
+    },
+    {
+      "name": "hotdog-shop",
+      "atlas": "shops",
+      "group": "hotdog-shop",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 0,
+      "cellBounds": [
+        0,
+        0,
+        666,
+        664
+      ],
+      "trimBoundsInCell": [
+        155,
+        106,
+        555,
+        607
+      ],
+      "sourceCropDimensions": [
+        400,
+        501
+      ],
+      "sourceAnchorInCrop": [
+        201,
+        433
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        72,
+        104
+      ],
+      "logicalPivot": [
+        36,
+        88
+      ],
+      "logicalBounds": [
+        4,
+        19,
+        68,
+        99
+      ],
+      "opaqueBounds": [
+        4,
+        19,
+        68,
+        99
+      ],
+      "sourceToLogicalScale": 0.16,
+      "fileScale": 4,
+      "canvas": [
+        288,
+        416
+      ],
+      "pivot": [
+        144,
+        352
+      ],
+      "asset": "assets/hotdog-shop.png",
+      "logical": "logical/hotdog-shop.png",
+      "sha256": "81603405fcbfb33853170d7db1f89c1ad74b7f26e9ddb7f23601eae1e1b3c285"
+    },
+    {
+      "name": "icecream-shop",
+      "atlas": "shops",
+      "group": "icecream-shop",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 1,
+      "cellBounds": [
+        666,
+        0,
+        1360,
+        664
+      ],
+      "trimBoundsInCell": [
+        114,
+        111,
+        526,
+        624
+      ],
+      "sourceCropDimensions": [
+        412,
+        513
+      ],
+      "sourceAnchorInCrop": [
+        209,
+        444
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        72,
+        104
+      ],
+      "logicalPivot": [
+        36,
+        88
+      ],
+      "logicalBounds": [
+        4,
+        19,
+        68,
+        99
+      ],
+      "opaqueBounds": [
+        4,
+        19,
+        68,
+        99
+      ],
+      "sourceToLogicalScale": 0.1553398058252427,
+      "fileScale": 4,
+      "canvas": [
+        288,
+        416
+      ],
+      "pivot": [
+        144,
+        352
+      ],
+      "asset": "assets/icecream-shop.png",
+      "logical": "logical/icecream-shop.png",
+      "sha256": "8b20974169d03d3c2019290ba7e4230a28cc5d1d9d5a076a79fc8969abe8d1b5"
+    },
+    {
+      "name": "popcorn-shop",
+      "atlas": "shops",
+      "group": "popcorn-shop",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 2,
+      "cellBounds": [
+        0,
+        664,
+        666,
+        1360
+      ],
+      "trimBoundsInCell": [
+        155,
+        41,
+        555,
+        575
+      ],
+      "sourceCropDimensions": [
+        400,
+        534
+      ],
+      "sourceAnchorInCrop": [
+        200,
+        457
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        72,
+        104
+      ],
+      "logicalPivot": [
+        36,
+        88
+      ],
+      "logicalBounds": [
+        4,
+        15,
+        68,
+        100
+      ],
+      "opaqueBounds": [
+        4,
+        15,
+        68,
+        100
+      ],
+      "sourceToLogicalScale": 0.16,
+      "fileScale": 4,
+      "canvas": [
+        288,
+        416
+      ],
+      "pivot": [
+        144,
+        352
+      ],
+      "asset": "assets/popcorn-shop.png",
+      "logical": "logical/popcorn-shop.png",
+      "sha256": "31ec68cf21fb2d07b4ee3439abd8fd0df7b9a9afee3172315b927aa1030336e9"
+    },
+    {
+      "name": "coffee-shop",
+      "atlas": "shops",
+      "group": "coffee-shop",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 3,
+      "cellBounds": [
+        666,
+        664,
+        1360,
+        1360
+      ],
+      "trimBoundsInCell": [
+        112,
+        65,
+        540,
+        595
+      ],
+      "sourceCropDimensions": [
+        428,
+        530
+      ],
+      "sourceAnchorInCrop": [
+        213,
+        451
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        72,
+        104
+      ],
+      "logicalPivot": [
+        36,
+        88
+      ],
+      "logicalBounds": [
+        4,
+        21,
+        68,
+        100
+      ],
+      "opaqueBounds": [
+        4,
+        21,
+        68,
+        100
+      ],
+      "sourceToLogicalScale": 0.14953271028037382,
+      "fileScale": 4,
+      "canvas": [
+        288,
+        416
+      ],
+      "pivot": [
+        144,
+        352
+      ],
+      "asset": "assets/coffee-shop.png",
+      "logical": "logical/coffee-shop.png",
+      "sha256": "401198cbde5838b61ec7ceb6e974be18e7b5256aca48364d64ad979defac30b1"
+    },
+    {
+      "name": "bumper-pavilion",
+      "atlas": "leisure",
+      "group": "bumper-pavilion",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 0,
+      "cellBounds": [
+        0,
+        0,
+        760,
+        797
+      ],
+      "trimBoundsInCell": [
+        65,
+        117,
+        736,
+        695
+      ],
+      "sourceCropDimensions": [
+        671,
+        578
+      ],
+      "sourceAnchorInCrop": [
+        334,
+        435
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        192,
+        192
+      ],
+      "logicalPivot": [
+        96,
+        152
+      ],
+      "logicalBounds": [
+        8,
+        38,
+        184,
+        190
+      ],
+      "opaqueBounds": [
+        8,
+        38,
+        184,
+        190
+      ],
+      "sourceToLogicalScale": 0.26229508196721313,
+      "fileScale": 4,
+      "canvas": [
+        768,
+        768
+      ],
+      "pivot": [
+        384,
+        608
+      ],
+      "asset": "assets/bumper-pavilion.png",
+      "logical": "logical/bumper-pavilion.png",
+      "sha256": "77bcd603cde9393c9bd1df2f41fd1235c20b58a3a9db5061dab0520f196e9e31"
+    },
+    {
+      "name": "bumper-pavilion-front",
+      "atlas": "leisure",
+      "group": "bumper-pavilion",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 0,
+      "cellBounds": [
+        0,
+        0,
+        760,
+        797
+      ],
+      "trimBoundsInCell": [
+        65,
+        117,
+        736,
+        695
+      ],
+      "sourceCropDimensions": [
+        671,
+        578
+      ],
+      "sourceAnchorInCrop": [
+        334,
+        435
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "technical alpha-only occlusion mask, no painted pixels",
+      "logicalCanvas": [
+        192,
+        192
+      ],
+      "logicalPivot": [
+        96,
+        152
+      ],
+      "logicalBounds": [
+        8,
+        38,
+        184,
+        190
+      ],
+      "opaqueBounds": [
+        8,
+        38,
+        184,
+        190
+      ],
+      "sourceToLogicalScale": 0.26229508196721313,
+      "fileScale": 4,
+      "canvas": [
+        768,
+        768
+      ],
+      "pivot": [
+        384,
+        608
+      ],
+      "asset": "assets/bumper-pavilion-front.png",
+      "logical": "logical/bumper-pavilion-front.png",
+      "sha256": "bcc6a5d5b2bd13a99a1dec4e9956d3993d272aadfd1cfadc8e807d815274cca6",
+      "derivedFrom": "bumper-pavilion",
+      "selection": "source y<=459 plus measured nearest-post rectangles: roof and nearest corner post"
+    },
+    {
+      "name": "playground",
+      "atlas": "leisure",
+      "group": "playground",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 1,
+      "cellBounds": [
+        760,
+        0,
+        1360,
+        797
+      ],
+      "trimBoundsInCell": [
+        25,
+        165,
+        515,
+        720
+      ],
+      "sourceCropDimensions": [
+        490,
+        555
+      ],
+      "sourceAnchorInCrop": [
+        233,
+        477
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        144,
+        176
+      ],
+      "logicalPivot": [
+        72,
+        144
+      ],
+      "logicalBounds": [
+        11,
+        19,
+        139,
+        164
+      ],
+      "opaqueBounds": [
+        11,
+        19,
+        139,
+        164
+      ],
+      "sourceToLogicalScale": 0.2612244897959184,
+      "fileScale": 4,
+      "canvas": [
+        576,
+        704
+      ],
+      "pivot": [
+        288,
+        576
+      ],
+      "asset": "assets/playground.png",
+      "logical": "logical/playground.png",
+      "sha256": "a791132428b95f52a353af6956f35762c5fbd8132eb3da5404065c89636b4a2d"
+    },
+    {
+      "name": "picnic-table",
+      "atlas": "leisure",
+      "group": "picnic-table",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 2,
+      "cellBounds": [
+        0,
+        797,
+        760,
+        1360
+      ],
+      "trimBoundsInCell": [
+        160,
+        110,
+        605,
+        412
+      ],
+      "sourceCropDimensions": [
+        445,
+        302
+      ],
+      "sourceAnchorInCrop": [
+        220,
+        250
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        80,
+        64
+      ],
+      "logicalPivot": [
+        40,
+        44
+      ],
+      "logicalBounds": [
+        4,
+        4,
+        76,
+        53
+      ],
+      "opaqueBounds": [
+        4,
+        4,
+        76,
+        53
+      ],
+      "sourceToLogicalScale": 0.16179775280898875,
+      "fileScale": 4,
+      "canvas": [
+        320,
+        256
+      ],
+      "pivot": [
+        160,
+        176
+      ],
+      "asset": "assets/picnic-table.png",
+      "logical": "logical/picnic-table.png",
+      "sha256": "47c3d27f507500779fbf20cac7942decc72f20885d304776559c54c7fc9fed03"
+    },
+    {
+      "name": "bumper-car-sw",
+      "atlas": "leisure",
+      "group": "bumper-car",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 3,
+      "cellBounds": [
+        760,
+        797,
+        1360,
+        1360
+      ],
+      "trimBoundsInCell": [
+        76,
+        78,
+        369,
+        396
+      ],
+      "sourceCropDimensions": [
+        293,
+        318
+      ],
+      "sourceAnchorInCrop": [
+        152,
+        293
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        40,
+        48
+      ],
+      "logicalPivot": [
+        20,
+        40
+      ],
+      "logicalBounds": [
+        3,
+        8,
+        35,
+        43
+      ],
+      "opaqueBounds": [
+        3,
+        8,
+        35,
+        43
+      ],
+      "sourceToLogicalScale": 0.10921501706484642,
+      "fileScale": 4,
+      "canvas": [
+        160,
+        192
+      ],
+      "pivot": [
+        80,
+        160
+      ],
+      "asset": "assets/bumper-car-sw.png",
+      "logical": "logical/bumper-car-sw.png",
+      "sha256": "5e8ffbd4a4a9058680a3cc1c05f4f7e4d7f433a07472e713ed1352beee759ade"
+    },
+    {
+      "name": "bumper-car-se",
+      "atlas": "leisure",
+      "group": "bumper-car",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 3,
+      "cellBounds": [
+        760,
+        797,
+        1360,
+        1360
+      ],
+      "trimBoundsInCell": [
+        76,
+        78,
+        369,
+        396
+      ],
+      "sourceCropDimensions": [
+        293,
+        318
+      ],
+      "sourceAnchorInCrop": [
+        152,
+        293
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "horizontal mirror of generated SW view",
+      "logicalCanvas": [
+        40,
+        48
+      ],
+      "logicalPivot": [
+        20,
+        40
+      ],
+      "logicalBounds": [
+        5,
+        8,
+        37,
+        43
+      ],
+      "opaqueBounds": [
+        5,
+        8,
+        37,
+        43
+      ],
+      "sourceToLogicalScale": 0.10921501706484642,
+      "fileScale": 4,
+      "canvas": [
+        160,
+        192
+      ],
+      "pivot": [
+        80,
+        160
+      ],
+      "asset": "assets/bumper-car-se.png",
+      "logical": "logical/bumper-car-se.png",
+      "sha256": "a0ac821e898026ad0a362e7a59b1ead82f30b6105e720e0dd1fdadad4e31f855",
+      "derivedFrom": "bumper-car-sw"
+    },
+    {
+      "name": "gate-safari",
+      "atlas": "gates-balloon",
+      "group": "gate-safari",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 0,
+      "cellBounds": [
+        0,
+        0,
+        725,
+        669
+      ],
+      "trimBoundsInCell": [
+        143,
+        119,
+        599,
+        594
+      ],
+      "sourceCropDimensions": [
+        456,
+        475
+      ],
+      "sourceAnchorInCrop": [
+        222,
+        420
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        112,
+        176
+      ],
+      "logicalPivot": [
+        56,
+        136
+      ],
+      "logicalBounds": [
+        9,
+        48,
+        105,
+        148
+      ],
+      "opaqueBounds": [
+        9,
+        48,
+        105,
+        148
+      ],
+      "sourceToLogicalScale": 0.21052631578947367,
+      "fileScale": 4,
+      "canvas": [
+        448,
+        704
+      ],
+      "pivot": [
+        224,
+        544
+      ],
+      "asset": "assets/gate-safari.png",
+      "logical": "logical/gate-safari.png",
+      "sha256": "8998a435332d80dc7b233eca395e04f62c302289e524ca5e80e0c06c1ad8e651"
+    },
+    {
+      "name": "gate-festival",
+      "atlas": "gates-balloon",
+      "group": "gate-festival",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 1,
+      "cellBounds": [
+        725,
+        0,
+        1360,
+        669
+      ],
+      "trimBoundsInCell": [
+        80,
+        137,
+        499,
+        595
+      ],
+      "sourceCropDimensions": [
+        419,
+        458
+      ],
+      "sourceAnchorInCrop": [
+        204,
+        405
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        112,
+        176
+      ],
+      "logicalPivot": [
+        56,
+        136
+      ],
+      "logicalBounds": [
+        9,
+        43,
+        105,
+        148
+      ],
+      "opaqueBounds": [
+        9,
+        43,
+        105,
+        148
+      ],
+      "sourceToLogicalScale": 0.22911694510739858,
+      "fileScale": 4,
+      "canvas": [
+        448,
+        704
+      ],
+      "pivot": [
+        224,
+        544
+      ],
+      "asset": "assets/gate-festival.png",
+      "logical": "logical/gate-festival.png",
+      "sha256": "f5cf2300bcdb12d119aabe4ef5341b265cd174fb2bc752bccf3038e133f21bc3"
+    },
+    {
+      "name": "balloonride",
+      "atlas": "gates-balloon",
+      "group": "balloonride",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 2,
+      "cellBounds": [
+        0,
+        669,
+        725,
+        1360
+      ],
+      "trimBoundsInCell": [
+        109,
+        75,
+        644,
+        565
+      ],
+      "sourceCropDimensions": [
+        535,
+        490
+      ],
+      "sourceAnchorInCrop": [
+        277,
+        414
+      ],
+      "anchorMethod": "manually measured ground-plane center on source atlas",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        160,
+        176
+      ],
+      "logicalPivot": [
+        80,
+        144
+      ],
+      "logicalBounds": [
+        5,
+        33,
+        149,
+        165
+      ],
+      "opaqueBounds": [
+        5,
+        33,
+        149,
+        165
+      ],
+      "sourceToLogicalScale": 0.2691588785046729,
+      "fileScale": 4,
+      "canvas": [
+        640,
+        704
+      ],
+      "pivot": [
+        320,
+        576
+      ],
+      "asset": "assets/balloonride.png",
+      "logical": "logical/balloonride.png",
+      "sha256": "2b6f37def1231d1cf944cc7189738ae87a6dfe26e135bba82cbc6595aea23e47"
+    },
+    {
+      "name": "balloon-gondola",
+      "atlas": "gates-balloon",
+      "group": "balloon-gondola",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 3,
+      "cellBounds": [
+        725,
+        669,
+        1360,
+        1360
+      ],
+      "trimBoundsInCell": [
+        185,
+        127,
+        404,
+        512
+      ],
+      "sourceCropDimensions": [
+        219,
+        385
+      ],
+      "sourceAnchorInCrop": [
+        111,
+        384
+      ],
+      "anchorMethod": "lowest basket contact, centered basket x",
+      "sourceTransform": "identity",
+      "logicalCanvas": [
+        48,
+        80
+      ],
+      "logicalPivot": [
+        24,
+        72
+      ],
+      "logicalBounds": [
+        4,
+        4,
+        43,
+        72
+      ],
+      "opaqueBounds": [
+        4,
+        4,
+        43,
+        72
+      ],
+      "sourceToLogicalScale": 0.17662337662337663,
+      "fileScale": 4,
+      "canvas": [
+        192,
+        320
+      ],
+      "pivot": [
+        96,
+        288
+      ],
+      "asset": "assets/balloon-gondola.png",
+      "logical": "logical/balloon-gondola.png",
+      "sha256": "83a51d9cef3e2fcaf2f1776ac5f8d6afdf46308576443392b28644a8b8cedc24"
+    },
+    {
+      "name": "balloon-gondola-front",
+      "atlas": "gates-balloon",
+      "group": "balloon-gondola",
+      "sourceAtlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 3,
+      "cellBounds": [
+        725,
+        669,
+        1360,
+        1360
+      ],
+      "trimBoundsInCell": [
+        185,
+        127,
+        404,
+        512
+      ],
+      "sourceCropDimensions": [
+        219,
+        385
+      ],
+      "sourceAnchorInCrop": [
+        111,
+        384
+      ],
+      "anchorMethod": "lowest basket contact, centered basket x",
+      "sourceTransform": "technical alpha-only occlusion mask, no painted pixels",
+      "logicalCanvas": [
+        48,
+        80
+      ],
+      "logicalPivot": [
+        24,
+        72
+      ],
+      "logicalBounds": [
+        4,
+        4,
+        43,
+        72
+      ],
+      "opaqueBounds": [
+        12,
+        58,
+        35,
+        72
+      ],
+      "sourceToLogicalScale": 0.17662337662337663,
+      "fileScale": 4,
+      "canvas": [
+        192,
+        320
+      ],
+      "pivot": [
+        96,
+        288
+      ],
+      "asset": "assets/balloon-gondola-front.png",
+      "logical": "logical/balloon-gondola-front.png",
+      "sha256": "e819f5810a5f13c73df5f6fdb1a3ecf44a31bf8dee4e467f25247ec9d9ca729e",
+      "derivedFrom": "balloon-gondola",
+      "selection": "source y>=1105: front basket wall below seating opening"
+    }
+  ],
+  "limits": [
+    "Animals have one pose per direction; use runtime translation, subtle bob and tilt, not a multi-frame walk.",
+    "Bumper car has front SE/SW views only; SE mirrors SW and therefore also mirrors baked lighting.",
+    "Balloonride is a complete static preview. Animate individual balloon-gondola sprites around a procedural base/arms; do not simultaneously draw complete preview.",
+    "Pavilion is one fixed southeast view. Draw complete pavilion, moving cars/riders, then bumper-pavilion-front for roof/post occlusion.",
+    "Buildings use measured ground-plane centers, not bottommost opaque pixels. Apply SpriteSpec anchors without retrimming.",
+    "Only architectural sprites are provided for playground; interactive children/3D geometry remain runtime work."
+  ]
+}

@@ -1,3 +1,4 @@
+import { hasOperator } from "./operations";
 /** Campaign costs, demand and attribution share the park's simulation clock. */
 import type { Park, Guest, Building } from "./simulation";
 export const MARKETING_DAY = 90;
@@ -37,6 +38,9 @@ export type MarketingGuest = Guest & { campaignId?: number | null };
 export type RideAvailable = (s: MarketingPark, b: Building) => boolean;
 const rideKinds = new Set([
   "zebra",
+  "elephant",
+  "lion",
+  "panda",
   "giraffe",
   "flamingo",
   "penguin",
@@ -47,11 +51,17 @@ const rideKinds = new Set([
   "drop",
   "pirate",
   "teacups",
+  "bumper",
+  "balloonride",
   "spinner",
   "custom",
 ]);
 const defaultRideAvailable: RideAvailable = (_s, b) =>
-  rideKinds.has(b.kind) && b.open && b.tested && (!b.habitat || b.habitat.count > 0);
+  rideKinds.has(b.kind) &&
+  hasOperator(b) &&
+  b.open &&
+  b.tested &&
+  (!b.habitat || b.habitat.count > 0);
 const zeroRevenue = (): MarketingRevenue => ({ ticket: 0, ride: 0, shop: 0 });
 const zeroTotals = (): MarketingTotals => ({ cost: 0, visitors: 0, revenue: zeroRevenue() });
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);

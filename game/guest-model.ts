@@ -1,3 +1,4 @@
+import { FOOD } from "./park-life";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { guestAppearance } from "./guest-identity";
@@ -6,9 +7,10 @@ type Part = { p: number[]; s: number[]; color: string; angle?: number; head?: bo
 const sphere = new THREE.SphereGeometry(1, 12, 8);
 /** Human proportions in metres, looking along -Z. Seated origin is the cushion. */
 export function personParts(
-  g: Pick<Guest, "id" | "skin"> | undefined,
+  g: (Pick<Guest, "id" | "skin"> & Pick<Guest, "food">) | undefined,
   seated: boolean,
   phase = 0,
+  walking = true,
 ): Part[] {
   const c = guestAppearance(g),
     hip = seated ? 0.12 : 0.85,
@@ -44,10 +46,13 @@ export function personParts(
     add("#fef9ed", [side * 0.055, headY + 0.012, -0.132], [0.034, 0.024, 0.013], true);
     add("#343531", [side * 0.055, headY + 0.012, -0.144], [0.011, 0.016, 0.006], true);
     add(c.hair, [side * 0.055, headY + 0.052, -0.128], [0.04, 0.01, 0.011], true);
-    const swing = seated ? 0 : Math.sin(phase + (side > 0 ? Math.PI : 0));
+    const swing = seated || !walking ? 0 : Math.sin(phase + (side > 0 ? Math.PI : 0));
     const shoulder = [side * 0.215, neck - 0.06, 0.03],
       elbow = [side * 0.27, hip + 0.27, seated ? -0.14 : 0.03 + swing * 0.12],
-      hand = [side * 0.27, hip + 0.12, seated ? -0.32 : swing * 0.21];
+      hand =
+        g?.food && side > 0
+          ? [side * 0.2, hip + 0.36 + Math.max(0, Math.sin(phase * 1.1)) * 0.3, -0.29]
+          : [side * 0.27, hip + 0.12, seated ? -0.32 : swing * 0.21];
     limb(c.shirt, shoulder, [side * 0.25, hip + 0.37, seated ? -0.08 : swing * 0.06], 0.07, 0.073);
     limb(c.skin, [side * 0.25, hip + 0.37, seated ? -0.08 : swing * 0.06], elbow, 0.046);
     limb(c.skin, elbow, hand, 0.039);
@@ -61,6 +66,21 @@ export function personParts(
   }
   add(c.skin, [0, headY - 0.017, -0.146], [0.025, 0.041, 0.027], true);
   add("#9d6252", [0, headY - 0.075, -0.126], [0.035, 0.009, 0.009], true);
+  const food = g?.food,
+    enabled = food ? 1 : 0,
+    info = food && FOOD[food.kind];
+  const fy = hip + 0.36 + Math.max(0, Math.sin(phase * 1.1)) * 0.3;
+  add(info?.color ?? "#ffffff", [0.2, fy, -0.3], [0.11 * enabled, 0.08 * enabled, 0.075 * enabled]);
+  add(
+    food?.kind === "hotdog" ? "#b75d3c" : food?.kind === "icecream" ? "#fff0cd" : "#eadcb9",
+    [0.2, fy + 0.045, -0.32],
+    [0.09 * enabled, 0.035 * enabled, 0.05 * enabled],
+  );
+  add(
+    info?.drink ? "#684533" : "#edca67",
+    [0.2, fy + 0.06, -0.3],
+    [0.08 * enabled, 0.009 * enabled, 0.06 * enabled],
+  );
   return parts;
 }
 export function createGuestModel(g?: Pick<Guest, "id" | "skin">, seated = true) {
@@ -115,13 +135,22 @@ export function createCrowd(guests: Guest[]) {
   );
   return {
     mesh,
-    pose(i: number, x: number, z: number, yaw: number, phase: number, walking: boolean) {
+    pose(
+      i: number,
+      x: number,
+      z: number,
+      yaw: number,
+      phase: number,
+      walking: boolean,
+      seated = false,
+      height = 0,
+    ) {
       base.compose(
-        p.set(x, walking ? Math.abs(Math.sin(phase)) * 0.025 : 0, z),
+        p.set(x, height + (walking ? Math.abs(Math.sin(phase)) * 0.025 : 0), z),
         q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, yaw),
         s.set(1, 1, 1),
       );
-      personParts(guests[i], false, walking ? phase : 0).forEach((part, j) => {
+      personParts(guests[i], seated, phase, walking).forEach((part, j) => {
         local.compose(
           p.fromArray(part.p),
           r.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -(part.angle ?? 0)),

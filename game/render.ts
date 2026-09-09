@@ -1,3 +1,11 @@
+import { drawStationDirection } from "./station-direction";
+import { makeRidePath } from "./ride-path";
+import { photoHardwarePoints, isPhotoPoint } from "./coaster-photo";
+import { GATES, gateStyle } from "./entrance";
+import { operatorState } from "./operations";
+import lifeSpecs from "./life-sprites.json";
+import { bumperPose, balloonPose } from "./family-rides";
+import { FOOD, isFood, restPose, PATH_STYLES, pathStyleAt } from "./park-life";
 import zooSpecs from "./zoo-sprites.json";
 import { isHabitat } from "./zoo";
 import { animalPose } from "./zoo-motion";
@@ -36,7 +44,9 @@ import {
   routePosition,
   type Spin,
 } from "./motion";
+const photoPaths = new WeakMap<Point[], ReturnType<typeof makeRidePath>>();
 export type View = {
+  stationDirection?: Building;
   showMoods?: boolean;
   issues?: ParkIssue[];
   podEdit?: { id: number; role: PodRole; clear?: boolean };
@@ -150,6 +160,7 @@ export function previewBuilding(kind: Kind, x: number, y: number): Building {
 const sprites: Record<string, HTMLImageElement> = {};
 // Every number is in logical screen pixels for a 48 × 24 ground tile.
 const specs: Record<string, SpriteSpec> = {
+  ...lifeSpecs,
   ...experienceSpecs,
   ...zooSpecs,
   ...expansionSpecs,
@@ -203,7 +214,7 @@ export function loadSprites(base = "/assets/pixel-v2") {
             resolve();
           };
           im.onerror = () => reject(Error(name));
-          im.src = `${name in zooSpecs ? base.replace(/pixel-v2$/, "zoo-v7") : name in experienceSpecs ? base.replace(/pixel-v2$/, "experience-v6") : name in parkSpecs ? base.replace(/pixel-v2$/, "park-v5") : name in expansionSpecs ? base.replace(/pixel-v2$/, "expansion-v4") : name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
+          im.src = `${name in lifeSpecs ? base.replace(/pixel-v2$/, "park-v8") : name in zooSpecs ? base.replace(/pixel-v2$/, "zoo-v7") : name in experienceSpecs ? base.replace(/pixel-v2$/, "experience-v6") : name in parkSpecs ? base.replace(/pixel-v2$/, "park-v5") : name in expansionSpecs ? base.replace(/pixel-v2$/, "expansion-v4") : name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
         }),
     ),
   );
@@ -331,7 +342,7 @@ export function draw(
         type === "water"
           ? ["#4babc1", "#49a6bb", "#50b2c5"][n % 3]
           : type === "path"
-            ? "#d9bb83"
+            ? PATH_STYLES[pathStyleAt(s, x, y)].color
             : type === "queue"
               ? "#79aadd"
               : type === "exit"
@@ -356,6 +367,21 @@ export function draw(
               color,
               1.2,
             );
+        if (type === "path") {
+          const style = pathStyleAt(s, x, y),
+            edge = PATH_STYLES[style].edge;
+          if (style !== "garden")
+            for (const f of style === "boardwalk" ? [-0.3, -0.1, 0.1, 0.3] : [-0.16, 0.17])
+              line(
+                project(x - 0.48, y + f),
+                project(x + 0.48, y + f),
+                edge,
+                style === "boardwalk" ? 0.7 : 0.55,
+              );
+          if (style === "brick" || style === "stone")
+            for (const f of [-0.25, 0.25])
+              line(project(x + f, y - 0.48), project(x + f, y + 0.48), edge, 0.5);
+        }
         if (type === "queue" || type === "exit")
           for (const [dx, dy] of [
             [1, 0],
@@ -639,8 +665,8 @@ export function draw(
         ctx.ellipse(
           water.x,
           water.y,
-          n * (b.kind === "zebra" || b.kind === "giraffe" ? 4 : 10) * scale,
-          n * (b.kind === "zebra" || b.kind === "giraffe" ? 2 : 5) * scale,
+          n * (b.kind === "flamingo" || b.kind === "penguin" ? 10 : 4) * scale,
+          n * (b.kind === "flamingo" || b.kind === "penguin" ? 5 : 2) * scale,
           0,
           0,
           Math.PI * 2,
@@ -711,7 +737,58 @@ export function draw(
       habitatLayers(b, alpha)
         .sort((a, b) => a.depth - b.depth)
         .forEach((layer) => layer.draw());
-    else if (kind === "wheel") wheel(b, p, alpha);
+    else if (kind === "bumper" || kind === "balloonride") {
+      const phase =
+        b.open && b.riders.length
+          ? ((rideDuration(b) - Math.max(0, b.cycle)) / rideDuration(b)) % 1
+          : 0;
+      if (kind === "bumper") frame("bumper-pavilion", p, specs["bumper-pavilion"], alpha);
+      else {
+        const top = project(b.x + (n - 1) / 2, b.y + (n - 1) / 2, 1.5);
+        line(p, top, "#448985", 6);
+        ctx.fillStyle = "#e5c781";
+        ctx.beginPath();
+        ctx.arc(top.x, top.y, 6 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const cars = Array.from({ length: 4 }, (_, i) => ({
+        i,
+        ...(kind === "bumper" ? bumperPose(i, phase) : balloonPose(i, phase)),
+      })).sort((a, b) => a.x + a.z - b.x - b.z);
+      for (const car of cars) {
+        const q = project(b.x + (n - 1) / 2 + car.x / 5, b.y + (n - 1) / 2 + car.z / 5, car.y / 5);
+        const name =
+          kind === "bumper" ? (car.yaw > 0 ? "bumper-car-se" : "bumper-car-sw") : "balloon-gondola";
+        frame(name, q, specs[name], alpha);
+        for (let side = 0; side < 2; side++) {
+          const seat =
+            kind === "bumper"
+              ? name.endsWith("se")
+                ? side
+                  ? [12.21, 29.3]
+                  : [16.36, 31.15]
+                : side
+                  ? [27.79, 29.3]
+                  : [23.64, 31.15]
+              : side
+                ? [26.25, 57.69]
+                : [20.78, 57.69];
+          rider(
+            b.riders[car.i * 2 + side],
+            {
+              x: q.x + (seat[0] - specs[name].anchorX) * scale,
+              y: q.y + (seat[1] - specs[name].anchorY) * scale,
+            },
+            name.endsWith("sw") ? "sw" : "se",
+            alpha,
+          );
+        }
+        if (kind === "balloonride")
+          frame("balloon-gondola-front", q, specs["balloon-gondola-front"], alpha);
+      }
+      if (kind === "bumper")
+        frame("bumper-pavilion-front", p, specs["bumper-pavilion-front"], alpha);
+    } else if (kind === "wheel") wheel(b, p, alpha);
     else if (kind === "carousel") carousel(b, p, alpha);
     else if (kind === "swing") {
       const phase = motor(b).angle,
@@ -1209,10 +1286,14 @@ export function draw(
       !s.buildings.some((b) => isHabitat(b.kind) && b.riders.includes(g.id))
     )
       continue;
-    const target = queued.get(g.id) ?? {
-      x: g.x + ((g.id % 3) - 1) * 0.13,
-      y: g.y + ((Math.floor(g.id / 3) % 3) - 1) * 0.1,
-    };
+    const restBuilding =
+      g.state === "rest" ? s.buildings.find((b) => b.id === g.target) : undefined;
+    const sitting = restBuilding ? restPose(restBuilding, g, s.time) : undefined;
+    const target = sitting ??
+      queued.get(g.id) ?? {
+        x: g.x + ((g.id % 3) - 1) * 0.13,
+        y: g.y + ((Math.floor(g.id / 3) % 3) - 1) * 0.1,
+      };
     const old = guestMotion.get(g) ?? {
       x: g.x,
       y: g.y,
@@ -1264,13 +1345,51 @@ export function draw(
         ctx.ellipse(p.x, p.y, 4.3 * scale, 1.6 * scale, 0, 0, Math.PI * 2);
         ctx.fill();
         if (moving) p.y -= Math.abs(Math.sin((old.phase * Math.PI) / 2)) * 0.8 * scale;
-        frame(
-          name,
-          p,
-          { width: 24, height: 32, anchorX: 12, anchorY: 28 },
-          1,
-          moving ? Math.sin((old.phase * Math.PI) / 2) * 0.018 : 0,
-        );
+        if (sitting) p.y -= sitting.height * 4 * scale;
+        if (sitting?.seated) rider(g.id, p, sitting.yaw === 0 ? "nw" : "se", 1);
+        else
+          frame(
+            name,
+            p,
+            { width: 24, height: 32, anchorX: 12, anchorY: 28 },
+            1,
+            moving ? Math.sin((old.phase * Math.PI) / 2) * 0.018 : 0,
+          );
+        if (g.food) {
+          const food = FOOD[g.food.kind],
+            lift = Math.max(0, Math.sin(s.time * 2.8 + g.id)) * 3;
+          ctx.save();
+          ctx.translate(p.x + 3 * scale, p.y - (12 + lift) * scale);
+          ctx.scale(scale, scale);
+          ctx.fillStyle = food.color;
+          if (food.drink) {
+            ctx.fillRect(-2, -4, 4, 6);
+            ctx.fillStyle = "#f4edda";
+            ctx.fillRect(-2, -5, 4, 1);
+          } else if (g.food.kind === "hotdog") {
+            ctx.fillRect(-4, -1, 8, 3);
+            ctx.fillStyle = "#ac503c";
+            ctx.fillRect(-3, -1, 6, 1);
+            ctx.fillStyle = "#f1d75d";
+            ctx.fillRect(-2, -1, 3, 1);
+          } else if (g.food.kind === "icecream") {
+            ctx.fillStyle = "#ba8d55";
+            ctx.beginPath();
+            ctx.moveTo(-2, 0);
+            ctx.lineTo(2, 0);
+            ctx.lineTo(0, 5);
+            ctx.fill();
+            ctx.fillStyle = food.color;
+            ctx.beginPath();
+            ctx.arc(0, -1, 3, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillRect(-3, -2, 6, 4);
+            ctx.fillStyle = "#f6e4b9";
+            ctx.fillRect(-3, -3, 6, 2);
+          }
+          ctx.restore();
+        }
         // Four seconds per twenty-second cycle, staggered by stable guest IDs.
         // Simulation time keeps the cues still when paused and stable across saves.
         const moodPhase = (s.time + ((g.id * 7) % 20)) % 20;
@@ -1329,6 +1448,70 @@ export function draw(
         ctx.restore();
       },
     });
+  for (const b of s.buildings) {
+    if (!b.track || !isPhotoPoint(b.photoPoint)) continue;
+    let path = photoPaths.get(b.track);
+    if (!path) {
+      path = makeRidePath(b.track);
+      photoPaths.set(b.track, path);
+    }
+    const q = photoHardwarePoints(path, b.photoPoint)!;
+    const proj = (p: { x: number; y: number; z: number }) => {
+      const v = project(p.x / 5, p.z / 5);
+      v.y -= ((p.y - 1.1) / 5) * 24 * scale;
+      return v;
+    };
+    objects.push({
+      depth: q.center.x / 5 + q.center.z / 5 + 0.3,
+      draw: () => {
+        const line = (a: typeof q.center, b: typeof q.center, color: string, width: number) => {
+          const pa = proj(a),
+            pb = proj(b);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = width * scale;
+          ctx.beginPath();
+          ctx.moveTo(pa.x, pa.y);
+          ctx.lineTo(pb.x, pb.y);
+          ctx.stroke();
+        };
+        line(q.leftBase, q.leftTop, "#34494b", 2);
+        line(q.rightBase, q.rightTop, "#34494b", 2);
+        line(q.leftTop, q.rightTop, "#edc75c", 2);
+        line(q.beamA, q.beamB, "#61e3ed", 1);
+        const cam = proj(q.camera);
+        ctx.fillStyle = "#263d46";
+        ctx.fillRect(cam.x - 3 * scale, cam.y - 2 * scale, 6 * scale, 4 * scale);
+        ctx.fillStyle = "#a5ecf0";
+        ctx.fillRect(cam.x - 2 * scale, cam.y - scale, 2 * scale, 2 * scale);
+      },
+    });
+  }
+  for (const b of s.buildings) {
+    const staff = operatorState(b);
+    if (!staff) continue;
+    const pod = podPose(b, CATALOG[b.kind].size, effectivePods(s, b).entry);
+    const x = pod.x - pod.dy * 0.23,
+      y = pod.y + pod.dx * 0.23;
+    objects.push({
+      depth: x + y + 0.2,
+      draw: () => {
+        const p = project(x, y);
+        frame("keeper-se", p, specs["keeper-se"]);
+        ctx.fillStyle = "#325875";
+        ctx.fillRect(p.x - 3 * scale, p.y - 18 * scale, 6 * scale, 5 * scale);
+        ctx.fillStyle = staff.phase === "running" ? "#8acf85" : "#f2cc74";
+        ctx.fillRect(p.x + 4 * scale, p.y - 12 * scale, 5 * scale, 4 * scale);
+        if (staff.phase === "boarding" || staff.phase === "checking") {
+          ctx.strokeStyle = "#e0b285";
+          ctx.lineWidth = 2 * scale;
+          ctx.beginPath();
+          ctx.moveTo(p.x + 3 * scale, p.y - 12 * scale);
+          ctx.lineTo(p.x + 7 * scale, p.y - (13 + Math.sin(s.time * 5) * 3) * scale);
+          ctx.stroke();
+        }
+      },
+    });
+  }
   for (const worker of s.zoo?.workers ?? [])
     objects.push({
       depth: worker.x + worker.y + 0.13,
@@ -1398,7 +1581,8 @@ export function draw(
         },
       });
   }
-  objects.push({ depth: 43.9, draw: () => frame("entrance", project(15, 29), specs.entrance) });
+  const gate = GATES[gateStyle(s)].sprite;
+  objects.push({ depth: 43.9, draw: () => frame(gate, project(15, 29), specs[gate]) });
   objects
     .sort((a, b) => a.depth - b.depth)
     .forEach((o) => {
@@ -1406,6 +1590,16 @@ export function draw(
       o.draw();
     });
   hitOwner = undefined;
+  const stationFocus =
+    v.stationDirection ?? s.buildings.find((b) => b.id === v.selected && b.kind === "coaster");
+  if (stationFocus)
+    drawStationDirection(
+      ctx,
+      stationFocus,
+      project,
+      scale,
+      v.stationDirection ? "#bc7849" : "#238471",
+    );
   for (const [i, issue] of (v.issues ?? []).entries()) {
     const p = project(issue.point.x, issue.point.y);
     ctx.fillStyle =

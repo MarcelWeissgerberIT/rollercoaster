@@ -1,3 +1,4 @@
+import { PATH_STYLES, pathStyleAt } from "./park-life";
 import * as THREE from "three";
 import { populatePark } from "./park-scene";
 import { mapWidth, mapHeight } from "./grid";
@@ -54,7 +55,7 @@ export function createWorld(park: Park, exclude = -1) {
         cube,
         mat(
           type === "path"
-            ? "#ddc18c"
+            ? "#ffffff"
             : type === "queue"
               ? "#79aadd"
               : type === "exit"
@@ -68,6 +69,8 @@ export function createWorld(park: Park, exclude = -1) {
       matrix.makeScale(4.96, 0.12, 4.96);
       matrix.setPosition(p.x * 5, 0, p.y * 5);
       m.setMatrixAt(i, matrix);
+      if (type === "path")
+        m.setColorAt(i, new THREE.Color(PATH_STYLES[pathStyleAt(park, p.x, p.y)].color));
     });
     scene.add(m);
   }

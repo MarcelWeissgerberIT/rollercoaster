@@ -12,6 +12,9 @@ const duration: Record<Species, number> = {
   giraffe: 1.28,
   flamingo: 0.78,
   penguin: 1.08,
+  elephant: 1.3,
+  lion: 1.3,
+  panda: 0.93,
 };
 const smooth = (t: number) => {
   const x = clamp(t, 0, 1);
@@ -34,9 +37,15 @@ export function synthesizeAnimalCall(
   const v = Number.isFinite(variant) ? Math.trunc(variant) : 0;
   let seed =
     ((v >>> 0) ^
-      { zebra: 0x5932197, giraffe: 0x4fabd12, flamingo: 0x157e039, penguin: 0x17d912f }[
-        species
-      ]) >>>
+      {
+        zebra: 0x5932197,
+        giraffe: 0x4fabd12,
+        flamingo: 0x157e039,
+        penguin: 0x17d912f,
+        elephant: 0x257acd1,
+        lion: 0x352bd17,
+        panda: 0x783fad9,
+      }[species]) >>>
     0;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -47,7 +56,19 @@ export function synthesizeAnimalCall(
     phaseOffset = random() * TAU;
   const seconds = duration[species] * lengthScale,
     samples = new Float32Array(Math.ceil(seconds * sampleRate));
-  const lowAlpha = 1 - Math.exp((-TAU * (species === "giraffe" ? 420 : 1900)) / sampleRate);
+  const lowAlpha =
+    1 -
+    Math.exp(
+      (-TAU *
+        (species === "giraffe"
+          ? 420
+          : species === "lion"
+            ? 750
+            : species === "panda"
+              ? 1200
+              : 1900)) /
+        sampleRate,
+    );
   const highAlpha = 1 - Math.exp((-TAU * 120) / sampleRate),
     dcAlpha = 1 - Math.exp((-TAU * 18) / sampleRate);
   let phase = 0,
@@ -86,6 +107,26 @@ export function synthesizeAnimalCall(
         430 + 170 * Math.sin(clamp(local / 0.23, 0, 1) * Math.PI) - 140 * clamp(local / 0.23, 0, 1);
       rough = 0.08;
       air = 0.15;
+    } else if (species === "elephant") {
+      // Bright brassy rising call, with a breathy break before its falling tail.
+      env = pulse(u, 0.03, 0.83, 0.12, 0.09) + pulse(u, 0.9, 1.26, 0.03, 0.14) * 0.8;
+      fundamental = u < 0.86 ? 235 + 195 * smooth(u / 0.8) : 365 - 185 * smooth((u - 0.9) / 0.36);
+      rough = 0.1;
+      air = 0.18;
+    } else if (species === "lion") {
+      // Low chesty growl with two softly articulated roars; never a sustained drone.
+      env = pulse(u, 0.03, 0.73, 0.09, 0.17) + pulse(u, 0.82, 1.26, 0.065, 0.19) * 0.76;
+      const local = u < 0.77 ? u : u - 0.79;
+      fundamental = 93 - 28 * smooth(local / 0.7) + 8 * Math.sin(local * 8);
+      rough = 0.38;
+      air = 0.4;
+    } else if (species === "panda") {
+      // Quiet rounded, breathy bleat with a small second syllable.
+      env = pulse(u, 0.025, 0.49, 0.055, 0.13) + pulse(u, 0.6, 0.89, 0.04, 0.12) * 0.66;
+      const local = u < 0.55 ? u : u - 0.57;
+      fundamental = 220 + 42 * Math.sin(local * 9) - 65 * smooth(local / 0.48);
+      rough = 0.12;
+      air = 0.25;
     } else {
       env = pulse(u, 0.025, 0.38, 0.022, 0.11) * 0.9 + pulse(u, 0.46, 1.04, 0.032, 0.13);
       const local = u < 0.42 ? u - 0.025 : u - 0.46;
@@ -104,6 +145,14 @@ export function synthesizeAnimalCall(
       const hz = h * f;
       let weight: number;
       if (species === "giraffe") weight = h === 1 ? 1 : h === 2 ? 0.33 : h === 3 ? 0.12 : 0.025 / h;
+      else if (species === "elephant")
+        weight = (0.42 + 1.4 * Math.exp(-Math.pow((hz - 1350) / 850, 2))) / Math.pow(h, 0.85);
+      else if (species === "lion")
+        weight = (h === 1 ? 0.86 : 0.56 / h) * (0.75 + Math.exp(-Math.pow((hz - 350) / 230, 2)));
+      else if (species === "panda")
+        weight =
+          (h === 1 ? 0.8 : (h % 2 ? 0.4 : 0.15) / h) *
+          (0.8 + 0.45 * Math.exp(-Math.pow((hz - 600) / 400, 2)));
       else if (species === "flamingo")
         weight =
           ((h % 2 ? 0.5 : 0.95) / h) * (0.3 + 1.2 * Math.exp(-Math.pow((hz - 1150) / 650, 2)));
@@ -122,8 +171,28 @@ export function synthesizeAnimalCall(
     const rasp =
       1 -
       rough +
-      rough * Math.sin(TAU * (species === "zebra" ? 31 : species === "penguin" ? 22 : 13) * u);
-    const volume = species === "giraffe" ? 0.13 : species === "flamingo" ? 0.24 : 0.27;
+      rough *
+        Math.sin(
+          TAU *
+            (species === "zebra"
+              ? 31
+              : species === "penguin"
+                ? 22
+                : species === "lion"
+                  ? 27
+                  : species === "panda"
+                    ? 18
+                    : 13) *
+            u,
+        );
+    const volume =
+      species === "giraffe"
+        ? 0.13
+        : species === "panda"
+          ? 0.19
+          : species === "flamingo"
+            ? 0.24
+            : 0.27;
     let sample = Math.tanh((body * rasp + breath * air) * 1.5) * volume * env;
     // High-pass the final signal below 18Hz to suppress any DC bias.
     dc += dcAlpha * (sample - dc);
@@ -141,7 +210,7 @@ export function synthesizeAnimalCall(
   samples[samples.length - 1] = 0;
   return samples;
 }
-// Cache three variants of each species per context (maximum 12 mono clips).
+// Cache three variants of each species per context (maximum 21 mono clips for the seven species).
 // Weak keys allow a closed/discarded context and its cached audio to be collected.
 const callBuffers = new WeakMap<BaseAudioContext, Map<string, AudioBuffer>>();
 export function clearAnimalCallCache(ctx: BaseAudioContext): void {

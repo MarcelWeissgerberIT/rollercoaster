@@ -6,7 +6,8 @@ process.on("uncaughtException", (e) => {
 });
 const S = await import(moduleURL("game/simulation.ts")),
   M = await import(moduleURL("game/marketing.ts")),
-  T = await import(moduleURL("game/transit.ts"));
+  T = await import(moduleURL("game/transit.ts")),
+  O = await import(moduleURL("game/operations.ts"));
 const tests = [];
 const clone = structuredClone;
 function test(name, fn) {
@@ -119,7 +120,13 @@ test("Ride boarding charges actual guest once; finish after campaign expiration 
     wal = g.wallet,
     op = s.operatingIncomeToday,
     price = b.price;
-  random([], () => S.tick(s, 0.01));
+  const dispatch = O.BOARDING_SECONDS + O.CHECKING_SECONDS;
+  random([], () => S.tick(s, dispatch - 0.01));
+  assert.equal(g.state, "queue");
+  assert.equal(c.revenue.ride, 0);
+  assert.equal(g.wallet, wal);
+  assert.equal(s.cash, cash);
+  random([], () => S.tick(s, 0.02));
   assert.equal(g.state, "ride");
   assert.equal(c.revenue.ride, price);
   assert.equal(g.wallet, wal - price);
@@ -295,8 +302,12 @@ test("Actual choice changes only for attributed ride guests; organic score and p
   const base = S.guestScore(a, ad, s);
   a.price += 10;
   assert(S.guestScore(a, ad, s) < base - 3);
-  a.cycle += 100;
-  assert(S.guestScore(a, ad, s) < base - 8);
+  // A running cycle now belongs to an occupied dispatch, not an empty ride.
+  const occupied = clone(a);
+  occupied.riders = [organic.id];
+  occupied.cycle = 100;
+  O.startRideProgram(occupied);
+  assert(S.guestScore(occupied, ad, s) < base - 8);
   return { organic: organic.target, advertised: ad.target, bonus: 2 };
 });
 test("Integrated campaign increases admission demand and shortens real first-arrival interval", () => {

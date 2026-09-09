@@ -4,6 +4,39 @@
 import type { Park, Building, Point } from "./simulation";
 
 export const SPECIES = {
+  elephant: {
+    name: "Elefantengehege",
+    animalName: "Elefant",
+    size: 7,
+    cost: 6200,
+    adoption: 1600,
+    capacity: 3,
+    upkeep: 26,
+    description: "Große Wasserstelle, Futter und Platz für bis zu drei Elefanten.",
+    sprite: "elephant-se",
+  },
+  lion: {
+    name: "Löwenanlage",
+    animalName: "Löwe",
+    size: 6,
+    cost: 5100,
+    adoption: 1300,
+    capacity: 4,
+    upkeep: 23,
+    description: "Vier Löwen mit Rückzugsmöglichkeiten und Beschäftigung.",
+    sprite: "lion-se",
+  },
+  panda: {
+    name: "Pandagehege",
+    animalName: "Panda",
+    size: 5,
+    cost: 4900,
+    adoption: 1400,
+    capacity: 3,
+    upkeep: 21,
+    description: "Schattiger Bambusgarten für bis zu drei Pandas.",
+    sprite: "panda-se",
+  },
   zebra: {
     name: "Zebragehege",
     animalName: "Zebra",

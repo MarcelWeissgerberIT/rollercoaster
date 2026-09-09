@@ -1,3 +1,4 @@
+import { needsOperator, operationsOf } from "../game/operations";
 import { createTransportRig } from "@/game/transport-rig";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
@@ -19,11 +20,21 @@ type Props = {
 export default function FlatRideView({ park, building, audio, muted, onMute, onClose }: Props) {
   const host = useRef<HTMLDivElement>(null),
     control = useRef({ time: 0, playing: true, mode: "seat", seat: 0, yaw: 0, pitch: 0 });
+  const timeline = useRef({ base: 1, total: 1, rounds: 1, finite: false });
   const [mode, setMode] = useState("seat"),
     [playing, setPlaying] = useState(true),
     [seat, setSeat] = useState(0),
     [error, setError] = useState(""),
-    [hud, setHud] = useState({ height: 0, progress: 0, seats: 1, speed: 0 });
+    [hud, setHud] = useState({
+      height: 0,
+      progress: 0,
+      seats: 1,
+      speed: 0,
+      round: 1,
+      rounds: 1,
+      programProgress: 0,
+      done: false,
+    });
   useEffect(() => {
     if (!host.current) return;
     const target = host.current;
@@ -61,6 +72,10 @@ export default function FlatRideView({ park, building, audio, muted, onMute, onC
       people = rig.passengers;
       scene.add(root);
     }
+    const finite = needsOperator(building.kind),
+      rounds = finite ? operationsOf(building).rounds : 1,
+      total = duration * rounds;
+    timeline.current = { base: duration, total, rounds, finite };
     seats[0].getWorldPosition(orbit.target);
     orbit.target.y += 4;
     camera.position.copy(orbit.target).add(new THREE.Vector3(25, 18, 25));
@@ -112,7 +127,16 @@ export default function FlatRideView({ park, building, audio, muted, onMute, onC
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       const c = control.current;
-      if (c.playing) c.time += dt;
+      if (document.hidden) {
+        audio?.ride(0, false);
+        return;
+      }
+      if (c.playing) c.time = finite ? Math.min(total, c.time + dt) : c.time + dt;
+      const done = finite && c.time >= total;
+      if (done && c.playing) {
+        c.playing = false;
+        setPlaying(false);
+      }
       update(c.time);
       world.update(c.time);
       const selected = Math.min(seats.length - 1, c.seat),
@@ -149,7 +173,11 @@ export default function FlatRideView({ park, building, audio, muted, onMute, onC
         report = now;
         setHud({
           height: Math.max(0, Math.round(position.y)),
-          progress: (c.time % duration) / duration,
+          progress: done ? 1 : (c.time % duration) / duration,
+          programProgress: finite ? c.time / total : (c.time % duration) / duration,
+          round: done ? rounds : Math.min(rounds, Math.floor(c.time / duration) + 1),
+          rounds,
+          done,
           seats: seats.length,
           speed: Math.round(speed * 3.6),
         });
@@ -187,7 +215,13 @@ export default function FlatRideView({ park, building, audio, muted, onMute, onC
         <strong>
           {hud.height} m · {hud.speed} km/h
         </strong>
-        <span>{Math.round(hud.progress * 100)} % der Runde</span>
+        <span>
+          {hud.done
+            ? `Programm beendet · ${hud.rounds} Runden`
+            : needsOperator(building.kind)
+              ? `Runde ${hud.round}/${hud.rounds} · ${Math.round(hud.progress * 100)} %`
+              : `${Math.round(hud.progress * 100)} % der Rundfahrt`}
+        </span>
       </div>
       <input
         className="ride-timeline"
@@ -195,13 +229,9 @@ export default function FlatRideView({ park, building, audio, muted, onMute, onC
         type="range"
         min={0}
         max={1000}
-        value={Math.round(hud.progress * 1000)}
+        value={Math.round(hud.programProgress * 1000)}
         onChange={(e) => {
-          const line = park.transitLines?.find((l) => l.a === building.id || l.b === building.id);
-          const duration = line
-            ? ((line.route.length - 1) / transportSpeed(line.kind)) * 2 + 8
-            : rideDuration(building);
-          control.current.time = (Number(e.target.value) / 1000) * duration;
+          control.current.time = (Number(e.target.value) / 1000) * timeline.current.total;
           control.current.playing = false;
           setPlaying(false);
         }}
@@ -210,6 +240,12 @@ export default function FlatRideView({ park, building, audio, muted, onMute, onC
         <button
           className="primary"
           onClick={() => {
+            if (
+              !playing &&
+              timeline.current.finite &&
+              control.current.time >= timeline.current.total
+            )
+              control.current.time = 0;
             control.current.playing = !playing;
             setPlaying(!playing);
           }}

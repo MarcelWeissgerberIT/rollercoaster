@@ -1,0 +1,164 @@
+{
+  "elephant-se": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-sw": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-nw": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "elephant-ne": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 36
+  },
+  "lion-se": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "lion-sw": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "lion-nw": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "lion-ne": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "panda-se": {
+    "width": 32,
+    "height": 32,
+    "anchorX": 16,
+    "anchorY": 28
+  },
+  "panda-sw": {
+    "width": 32,
+    "height": 32,
+    "anchorX": 16,
+    "anchorY": 28
+  },
+  "panda-nw": {
+    "width": 32,
+    "height": 32,
+    "anchorX": 16,
+    "anchorY": 28
+  },
+  "panda-ne": {
+    "width": 32,
+    "height": 32,
+    "anchorX": 16,
+    "anchorY": 28
+  },
+  "hotdog-shop": {
+    "width": 72,
+    "height": 104,
+    "anchorX": 36,
+    "anchorY": 88
+  },
+  "icecream-shop": {
+    "width": 72,
+    "height": 104,
+    "anchorX": 36,
+    "anchorY": 88
+  },
+  "popcorn-shop": {
+    "width": 72,
+    "height": 104,
+    "anchorX": 36,
+    "anchorY": 88
+  },
+  "coffee-shop": {
+    "width": 72,
+    "height": 104,
+    "anchorX": 36,
+    "anchorY": 88
+  },
+  "bumper-pavilion": {
+    "width": 192,
+    "height": 192,
+    "anchorX": 96,
+    "anchorY": 152
+  },
+  "bumper-pavilion-front": {
+    "width": 192,
+    "height": 192,
+    "anchorX": 96,
+    "anchorY": 152
+  },
+  "playground": {
+    "width": 144,
+    "height": 176,
+    "anchorX": 72,
+    "anchorY": 144
+  },
+  "picnic-table": {
+    "width": 80,
+    "height": 64,
+    "anchorX": 40,
+    "anchorY": 44
+  },
+  "bumper-car-sw": {
+    "width": 40,
+    "height": 48,
+    "anchorX": 20,
+    "anchorY": 40
+  },
+  "bumper-car-se": {
+    "width": 40,
+    "height": 48,
+    "anchorX": 20,
+    "anchorY": 40
+  },
+  "gate-safari": {
+    "width": 112,
+    "height": 176,
+    "anchorX": 56,
+    "anchorY": 136
+  },
+  "gate-festival": {
+    "width": 112,
+    "height": 176,
+    "anchorX": 56,
+    "anchorY": 136
+  },
+  "balloonride": {
+    "width": 160,
+    "height": 176,
+    "anchorX": 80,
+    "anchorY": 144
+  },
+  "balloon-gondola": {
+    "width": 48,
+    "height": 80,
+    "anchorX": 24,
+    "anchorY": 72
+  },
+  "balloon-gondola-front": {
+    "width": 48,
+    "height": 80,
+    "anchorX": 24,
+    "anchorY": 72
+  }
+}

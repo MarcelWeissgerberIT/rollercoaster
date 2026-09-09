@@ -4,6 +4,18 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 
 **[Jetzt spielen](https://marcelweissgerberit.github.io/rollercoaster/)**
 
+## Parkleben, Fahrbetrieb und Forschung
+
+- Das Pastell-Halbrad gruppiert Bauen, Zoo, Park und Verwaltung. Der Bulldozer ist direkt erreichbar; das runde Forschungsicon öffnet einen Baum mit sichtbaren Voraussetzungen.
+- Forschung kostet Coins: 3 Start-Coins, danach pro 12 Spieltagen maximal 3. Es gibt 1 fürs abgeschlossene Jahr, 2 ab 70 % durchschnittlicher Zufriedenheit und 3 bei zusätzlichem positivem Jahresbetriebsgewinn. Bau-/Verkaufserlöse beeinflussen den Gewinnbonus nicht.
+- Autoscooter und Ballonfahrt haben eigene Bewegungen und 3D-Sitzkameras. Elefanten, Löwen und Pandas erweitern den Zoo auf sieben Arten, mit eigenen Modellen und Tierlauten. 27 neue OpenArt-Sprites sind unter `art/park-v8/` dokumentiert.
+- Hotdogs, Eis, Popcorn und Kaffee ergänzen das Angebot. Gäste tragen und essen ihre Bestellung, nutzen Bänke und Picknickplätze zur Erholung sowie den Spielplatz. Vier Wegbeläge lassen sich bauen oder für 6 € je Feld wechseln.
+- Die Personalübersicht verwaltet Reinigung, Tierpflege und Bedienpersonal. Fahrgeschäfte benötigen eine Crew (70 €/Spieltag), lassen Gäste ein, prüfen und absolvieren 1–5 einstellbare Runden pro Ticket.
+- Das Eingangstor bietet drei Gestaltungen, Öffnung und Eintrittspreis. Bereits gekaufte Gestaltungen sind kostenlos wechselbar.
+- Ausgangsprobleme lassen sich mit einem geprüften Vorschlag samt Preis beheben. Die Suche bewahrt blaue Wege, Wasser und funktionale Einrichtungen. Die Station kann ihre Fahrtrichtung um 180° umkehren; Antriebe, Loopings und Fotopunkt folgen korrekt. Danach ist eine neue Testfahrt erforderlich.
+- Ein Foto-Laser kostet 180 €, lässt sich auf einem ausgewählten Gleisabschnitt montieren, verschieben und entfernen. Die 3D-Mitfahrt nimmt beim Passieren ein Foto von Zug und Gästen auf und bietet einen lokalen Download. Es werden keine Fotos hochgeladen.
+- Der Fahrprofil-Assistent zeigt Suchstatus, Fehler und Übernehmen direkt oberhalb der Profilauswahl. Alle Bauänderungen bleiben überprüfbar und rückgängig machbar.
+
 ## Im Spiel
 
 - Je nach Kampagne 30 × 30, 36 × 36 oder 42 × 42 Felder mit Wegen, Warteschlangen, Wasser und Dekoration; Gelände nach Osten und Süden bis 54 × 54 zukaufen.

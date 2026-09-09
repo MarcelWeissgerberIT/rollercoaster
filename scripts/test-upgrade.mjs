@@ -5,7 +5,9 @@ const S = await import(moduleURL("game/simulation.ts")),
   C = await import(moduleURL("game/construction.ts")),
   P = await import(moduleURL("game/prefabs.ts")),
   M = await import(moduleURL("game/motion.ts")),
-  R = await import(moduleURL("game/ride-path.ts"));
+  R = await import(moduleURL("game/ride-path.ts")),
+  O = await import(moduleURL("game/operations.ts")),
+  Coins = await import(moduleURL("game/research-coins.ts"));
 let failed = 0;
 const test = (name, fn) => {
   try {
@@ -84,9 +86,10 @@ test("Research costs once, pauses, completes in simulation time and gates constr
   const result = C.place(s, "drop", tree, undefined, true);
   assert(result.error);
   assert.deepEqual(clone(s), before);
-  const cash = s.cash;
+  const cash = s.cash, coins = Coins.researchCoins(s);
   assert.equal(S.startResearch(s, "family"), null);
-  assert.equal(s.cash, cash - 1200);
+  assert.equal(s.cash, cash);
+  assert.equal(Coins.researchCoins(s), coins - Coins.COIN_COST.family);
   s.speed = 0;
   S.tick(s, 900);
   assert.equal(s.research.remaining, 90);
@@ -95,9 +98,10 @@ test("Research costs once, pauses, completes in simulation time and gates constr
   assert.deepEqual(s.research.completed, ["family"]);
   assert(S.isUnlocked(s, "coaster", "wood"));
   assert(S.isUnlocked(s, "pirate"));
-  const paid = s.cash;
+  const paid = s.cash, paidCoins = Coins.researchCoins(s);
   assert(S.startResearch(s, "family"));
   assert.equal(s.cash, paid);
+  assert.equal(Coins.researchCoins(s), paidCoins);
   assert(S.startResearch(s, "launch"));
 });
 test("Different scenario maps and goals survive saves; sandbox unlocks everything", () => {
@@ -123,9 +127,13 @@ test("Family and thrill visitors prefer different intensity; price, queue and re
   drop.price += 8;
   assert(S.guestScore(drop, g) < score);
   drop.price -= 8;
+  drop.riders = [g.id];
   drop.cycle = 30;
+  O.startRideProgram(drop);
   assert(S.guestScore(drop, g) < score);
+  drop.riders = [];
   drop.cycle = 0;
+  O.resetRideOperations(drop);
   g.visited = [drop.id];
   assert(S.guestScore(drop, g) < score);
 });

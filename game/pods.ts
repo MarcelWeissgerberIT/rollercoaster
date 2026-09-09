@@ -11,6 +11,8 @@ export const POD_DIRECTIONS = [
 export const POD_SIDES = ["Ost", "Süd", "West", "Nord"];
 export const usesPods = (kind: string) =>
   [
+    "bumper",
+    "balloonride",
     "coaster",
     "wheel",
     "carousel",

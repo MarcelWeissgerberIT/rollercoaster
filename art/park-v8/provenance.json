@@ -1,0 +1,257 @@
+{
+  "created": "2026-09-09T18:13:23.218Z",
+  "provider": "OpenArt MCP",
+  "projectId": "ZUPnQYt5rmIl9G729LjL",
+  "projectName": "Coaster Grove \u2013 Park Assets",
+  "tasks": [
+    {
+      "name": "animals",
+      "args": {
+        "model": "gpt-image-2-5-flare",
+        "mode": "image2image",
+        "projectId": "ZUPnQYt5rmIl9G729LjL",
+        "params": {
+          "prompt": "Production game sprite atlas for the existing cozy RollerCoaster Tycoon inspired isometric pixel-art game. Match references' 2:1 diamond projection, camera 30 degrees down, orthographic, warm soft upper-left light, clear miniature silhouettes, crisp intentionally stepped pixel clusters and restrained palette. Not a rendered voxel scene, not smooth vector icons, not photorealistic. Every object isolated on perfectly solid flat pure MAGENTA #FF00FF chroma-key background, no magenta anywhere on subjects, no alpha/checkerboard simulation, absolutely NO ground plane, contact or cast shadows, grass, landscape, labels, numbers, text, borders, or cell dividers. Spacious empty gutters and margins, no object touches or crosses its cell. Objects fully visible, no cut-off details. Exactly TWELVE sprites in a perfectly aligned FOUR-COLUMN by THREE-ROW grid. Each row shows one same individual in four genuinely different isometric orientations, not four side profiles. Columns left to right: 1 SE head points toward lower-right of image with face visible; 2 SW head points lower-left with face visible; 3 NW head points upper-left, rear/rump closest viewer and face mostly concealed; 4 NE head points upper-right, rear/rump closest viewer and face mostly concealed. Row 1: African elephant, massive broad gray body, four thick legs, large fan ears, long downcurved trunk and small ivory tusks, no saddle. Row 2: male lion, long low ochre-gold quadruped body, rich brown mane around head, long curved tail with dark tuft, four paws, no cartoon upright pose. Row 3: giant panda, distinct rounded stocky quadruped white body with black shoulder band, four black legs, black ears and eye patches, no bamboo prop. Keep the SAME individual, body proportions and source scale within each row; all animals standing naturally on a shared ground contact near the bottom of each cell. Elephant visibly largest, lion elongated medium, panda short and round. Anatomy readable at logical sprite sizes elephant48x40, lion40x32, panda32x32 after reduction. Use broad recognizable markings, avoid fine texture. Four distinct facing directions are essential; no side-only view substituted for rear three-quarter views.",
+          "visualReferences": [
+            {
+              "type": "image",
+              "id": "j3iMc3OORjWQVl6PT6Yp",
+              "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788971970794_e16e275f.png",
+              "label": "Existing zoo animal sprite atlas, match exact miniature pixel-art style and four views, create NEW requested species"
+            }
+          ],
+          "imageCount": 1,
+          "aspectRatio": "4:3",
+          "resolutionTier": "2k",
+          "quality": "high",
+          "outputFormat": "png",
+          "autoEnhancePrompt": false
+        }
+      },
+      "submission": {
+        "status": "PENDING",
+        "historyId": "kWiFNvEBgpI0vBhWpHTf",
+        "pollAfterSeconds": 5
+      }
+    },
+    {
+      "name": "shops",
+      "args": {
+        "model": "gpt-image-2-5-flare",
+        "mode": "image2image",
+        "projectId": "ZUPnQYt5rmIl9G729LjL",
+        "params": {
+          "prompt": "Production game sprite atlas for the existing cozy RollerCoaster Tycoon inspired isometric pixel-art game. Match references' 2:1 diamond projection, camera 30 degrees down, orthographic, warm soft upper-left light, clear miniature silhouettes, crisp intentionally stepped pixel clusters and restrained palette. Not a rendered voxel scene, not smooth vector icons, not photorealistic. Every object isolated on perfectly solid flat pure MAGENTA #FF00FF chroma-key background, no magenta anywhere on subjects, no alpha/checkerboard simulation, absolutely NO ground plane, contact or cast shadows, grass, landscape, labels, numbers, text, borders, or cell dividers. Spacious empty gutters and margins, no object touches or crosses its cell. Objects fully visible, no cut-off details. Exactly FOUR different compact amusement park food kiosks in a TWO-COLUMN by TWO-ROW grid, one complete building per cell. All seen from southeast showing front serving hatch and right side, consistent 2x2 tile footprint and same source scale. Top-left: HOTDOG STAND with cheerful red and cream stripes, giant unmistakable hot dog in bun rooftop sculpture with yellow mustard zigzag, open serving window, small counter and condiment bottles. Top-right: ICE CREAM STAND with pastel aqua and cream palette, giant rooftop waffle cone with three scoops, striped awning, scoop tub display. Bottom-left: POPCORN STAND with sunny gold and red circus styling, giant striped popcorn carton with popped kernels on roof, glass popcorn warmer visible at serving hatch. Bottom-right: COFFEE STAND with dark espresso wood, warm cream and muted sage trim, giant rooftop takeaway coffee cup and small saucer icon, compact espresso machine in hatch. No people or detached furniture. Each clearly different silhouette and food identifier, readable as small game sprites on logical72x96 canvases. The full building base is an integral tiny plinth only, no surrounding pavement. Rooftop icons not text. Make kiosks charming detailed pixel-art architectural miniatures matching references.",
+          "visualReferences": [
+            {
+              "type": "image",
+              "id": "fIUXDJnpSyuQj5WHsC18",
+              "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938052837_fba95327.png",
+              "label": "Existing amusement-park buildings: match exact isometric chunky pixel-art style and small game scale"
+            },
+            {
+              "type": "image",
+              "id": "sPS8jN7aT97n3dZsTLgl",
+              "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788971985724_09ebf231.png",
+              "label": "Existing zoo architecture: match crisp pixels and shading, no outlined card or text"
+            }
+          ],
+          "imageCount": 1,
+          "aspectRatio": "1:1",
+          "resolutionTier": "2k",
+          "quality": "high",
+          "outputFormat": "png",
+          "autoEnhancePrompt": false
+        }
+      },
+      "submission": {
+        "status": "PENDING",
+        "historyId": "GUZvAZ6dopFZ3ltfYl8u",
+        "pollAfterSeconds": 5
+      }
+    },
+    {
+      "name": "leisure",
+      "args": {
+        "model": "gpt-image-2-5-flare",
+        "mode": "image2image",
+        "projectId": "ZUPnQYt5rmIl9G729LjL",
+        "params": {
+          "prompt": "Production game sprite atlas for the existing cozy RollerCoaster Tycoon inspired isometric pixel-art game. Match references' 2:1 diamond projection, camera 30 degrees down, orthographic, warm soft upper-left light, clear miniature silhouettes, crisp intentionally stepped pixel clusters and restrained palette. Not a rendered voxel scene, not smooth vector icons, not photorealistic. Every object isolated on perfectly solid flat pure MAGENTA #FF00FF chroma-key background, no magenta anywhere on subjects, no alpha/checkerboard simulation, absolutely NO ground plane, contact or cast shadows, grass, landscape, labels, numbers, text, borders, or cell dividers. Spacious empty gutters and margins, no object touches or crosses its cell. Objects fully visible, no cut-off details. Exactly FOUR separate assets in a TWO-COLUMN by TWO-ROW grid, all same 2:1 isometric projection facing southeast. Top-left: BUMPER CAR PAVILION, clearly identifiable classic fairground dodgems attraction, wide open-front rectangular pavilion on a 4x3 tile footprint, bright turquoise and golden yellow roof with restrained red bulb trim, four thin corner posts and low back rail, smooth empty gray metallic driving floor, roof placed high enough to see the spacious EMPTY driving floor. NO cars or people inside this pavilion; moving car is separate asset. Do not enclose front with opaque walls. Top-right: PLAYGROUND on compact3x3 tile footprint, one cheerful warm timber climbing tower with pitched coral-red roof, blue slide descending toward lower-right, ladder, short rope climbing panel and simple safety rails. No people, no sand/grass island or surrounding fence. Bottom-left: PARK PICNIC TABLE with attached pair of long bench seats, warm brown wooden plank top and dark forest-green steel A-frame legs, clear gaps under table, no food or people. Bottom-right: a SINGLE bumper car seen from southeast, rounded glossy red body, cream bench for two, chunky black rubber bumper all around the low base, small steering wheel, thin rear electrical pickup pole, EMPTY of riders, isolated object. Pavilion and playground are large detailed game building sprites; picnic and car occupy a smaller portion of their cells at sensible relative scale. Clear chunky pixel clusters and consistent material shading. No printed words on anything.",
+          "visualReferences": [
+            {
+              "type": "image",
+              "id": "fIUXDJnpSyuQj5WHsC18",
+              "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938052837_fba95327.png",
+              "label": "Existing amusement-park buildings: match exact isometric chunky pixel-art style and small game scale"
+            },
+            {
+              "type": "image",
+              "id": "sPS8jN7aT97n3dZsTLgl",
+              "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788971985724_09ebf231.png",
+              "label": "Existing zoo architecture: match crisp pixels and shading, no outlined card or text"
+            }
+          ],
+          "imageCount": 1,
+          "aspectRatio": "1:1",
+          "resolutionTier": "2k",
+          "quality": "high",
+          "outputFormat": "png",
+          "autoEnhancePrompt": false
+        }
+      },
+      "submission": {
+        "status": "PENDING",
+        "historyId": "QEFSjzquXW7fBft9DihU",
+        "pollAfterSeconds": 5
+      }
+    },
+    {
+      "name": "gates-balloon",
+      "args": {
+        "model": "gpt-image-2-5-flare",
+        "mode": "image2image",
+        "projectId": "ZUPnQYt5rmIl9G729LjL",
+        "params": {
+          "prompt": "Production game sprite atlas for the existing cozy RollerCoaster Tycoon inspired pixel-art game, matching the provided architecture references. Isometric 2:1 diamond projection, orthographic camera about30 degrees down facing southeast, warm light upper left, crisp intentionally stepped pixels, compact palette, detailed but readable miniature architectural silhouettes. NOT voxel rendering, not smooth vectors, not photorealism. Exactly FOUR separate game assets in a perfect TWO-COLUMN by TWO-ROW grid, spacious empty gutters, fully visible with generous margins. Background must be perfectly uniform pure MAGENTA #FF00FF, no magenta subject pixels, no grass/terrain, no cast/contact shadows, no lettering, labels, numbers, borders or divider lines. Top-left: safari-themed park entrance gateway with broad open passage between two stout carved timber columns, curved timber crossbeam topped with layered lush green tropical leaves and a small carved giraffe and elephant emblem, warm stone footings, no gate across passage. Top-right: festival-themed park entrance gateway, the SAME width and height and open passage footprint as safari gate, pastel mint and cream structural arch, clusters of coral/sky-blue/pale-yellow balloons on outside upper corners, short colorful triangular pennant garlands, festive but not visually cluttered. Both gateways entirely freestanding, no attached fence or building, viewed from same southeast angle, passage readable. Bottom-left: a complete gentle BALLOON CAROUSEL amusement ride, four rounded small hot-air-balloon shaped gondolas with woven baskets arranged around a central decorative tower and compact circular platform, four narrow radial arms, pastel coral yellow blue mint canopy colors, no people. Include each basket on the complete ride, separate baskets will be available for animated closeups. Bottom-right: a SINGLE isolated matching balloon gondola assembly: cheerful yellow-and-cream hot air balloon canopy, visible slender support ropes, an EMPTY woven tan basket suspended beneath, open top basket so seated guests may be composited, facing southeast. This isolated gondola is a usable modular sprite for runtime circular/lifting animation. Absolute emphasis on charming miniature pixel-art aesthetic, distinguishable gate themes, sufficient true empty background between all four objects.",
+          "visualReferences": [
+            {
+              "type": "image",
+              "id": "fIUXDJnpSyuQj5WHsC18",
+              "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938052837_fba95327.png",
+              "label": "Existing amusement-park buildings: match exact isometric chunky pixel-art style and small game scale"
+            },
+            {
+              "type": "image",
+              "id": "sPS8jN7aT97n3dZsTLgl",
+              "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788971985724_09ebf231.png",
+              "label": "Existing zoo architecture: match crisp pixels and shading, no outlined card or text"
+            }
+          ],
+          "imageCount": 1,
+          "aspectRatio": "1:1",
+          "resolutionTier": "2k",
+          "quality": "high",
+          "outputFormat": "png",
+          "autoEnhancePrompt": false
+        }
+      },
+      "submission": {
+        "status": "PENDING",
+        "historyId": "Gpua4Pcom2HFAvPxToCd",
+        "pollAfterSeconds": 5
+      }
+    }
+  ],
+  "processing": "OpenArt originals only. Technical chroma key including dark magenta spill (r>g+24,b>g+24,r+b>90) and gutter-aware extraction; one source scale per animal species; measured ground-plane anchors for buildings; nearest-neighbor logical normalization and exact4x files. Bumper SE is a horizontal mirror of genuine SW. Front layers are alpha-only selections of existing pixels, never repainted.",
+  "results": [
+    {
+      "name": "animals",
+      "status": "COMPLETED",
+      "historyId": "kWiFNvEBgpI0vBhWpHTf",
+      "capabilityId": "gpt-image-2-5-flare:image2image",
+      "modelDisplayName": "GPT Image 2.5 Flare",
+      "aspectRatio": "4:3",
+      "resources": [
+        {
+          "id": "Tj99iIx0ihrzuoiUlhzq",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788977597999_26b60876.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788977598268_0dd36673.webp",
+          "metadata": {
+            "width": 1792,
+            "height": 1344,
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "name": "shops",
+      "status": "COMPLETED",
+      "historyId": "GUZvAZ6dopFZ3ltfYl8u",
+      "capabilityId": "gpt-image-2-5-flare:image2image",
+      "modelDisplayName": "GPT Image 2.5 Flare",
+      "aspectRatio": "1:1",
+      "resources": [
+        {
+          "id": "sInJFUGREECyOye2mDm1",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788977599513_c726d533.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788977599859_cd8554e3.webp",
+          "metadata": {
+            "width": 1360,
+            "height": 1360,
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "name": "leisure",
+      "status": "COMPLETED",
+      "historyId": "QEFSjzquXW7fBft9DihU",
+      "capabilityId": "gpt-image-2-5-flare:image2image",
+      "modelDisplayName": "GPT Image 2.5 Flare",
+      "aspectRatio": "1:1",
+      "resources": [
+        {
+          "id": "ejjaqvDDUCXe5L5Nznr0",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788977602823_5890cbc7.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788977603055_1cf8be40.webp",
+          "metadata": {
+            "width": 1360,
+            "height": 1360,
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "name": "gates-balloon",
+      "status": "COMPLETED",
+      "historyId": "Gpua4Pcom2HFAvPxToCd",
+      "resources": [
+        {
+          "id": "w267wVGeWeLPvliTeFbi",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788977634786_f8147b1c.png",
+          "metadata": {
+            "width": 1360,
+            "height": 1360,
+            "format": "png"
+          }
+        }
+      ]
+    }
+  ],
+  "manifest": "manifest.json",
+  "spriteSpecs": "v8-sprites.json",
+  "limits": [
+    "Animals have one pose per direction; use runtime translation, subtle bob and tilt, not a multi-frame walk.",
+    "Bumper car has front SE/SW views only; SE mirrors SW and therefore also mirrors baked lighting.",
+    "Balloonride is a complete static preview. Animate individual balloon-gondola sprites around a procedural base/arms; do not simultaneously draw complete preview.",
+    "Pavilion is one fixed southeast view. Draw complete pavilion, moving cars/riders, then bumper-pavilion-front for roof/post occlusion.",
+    "Buildings use measured ground-plane centers, not bottommost opaque pixels. Apply SpriteSpec anchors without retrimming.",
+    "Only architectural sprites are provided for playground; interactive children/3D geometry remain runtime work."
+  ],
+  "rawSources": [
+    {
+      "path": "raw/animals.png",
+      "sha256": "2ec2233e636b85426eb57e891d0fb27a63c1a0ea646ca504f8d60487ae6cd4d4"
+    },
+    {
+      "path": "raw/gates-balloon.png",
+      "sha256": "7f4e6f5f1e191dc4a6ec213a03c33d47acc9a2842cccbcecb3939b6ef9974393"
+    },
+    {
+      "path": "raw/leisure.png",
+      "sha256": "151c7e7ba23186aae1371e1c6233611bcf6254500579522d0ca836ba3413762d"
+    },
+    {
+      "path": "raw/shops.png",
+      "sha256": "0a506354b89a817c78a9dd66ea34775c014a8e1ebd52d229c451c564800aae23"
+    }
+  ]
+}

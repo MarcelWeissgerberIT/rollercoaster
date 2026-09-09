@@ -61,8 +61,24 @@ export default function ZooView({
     focus.current = (index) => {
       if (index >= 0 && index < count) {
         const p = animalPose(b, index, park.time + clock.current),
-          height = species === "giraffe" ? 2.6 : species === "zebra" ? 1.4 : 1,
-          distance = species === "giraffe" ? 8 : species === "zebra" ? 6 : 4;
+          height = {
+            giraffe: 2.6,
+            zebra: 1.4,
+            elephant: 1.9,
+            lion: 1.6,
+            panda: 1.4,
+            flamingo: 1,
+            penguin: 1,
+          }[species],
+          distance = {
+            giraffe: 8,
+            zebra: 6,
+            elephant: 9,
+            lion: 7,
+            panda: 6,
+            flamingo: 4,
+            penguin: 4,
+          }[species];
         orbit.target.set(p.x * 5, height, p.y * 5);
         camera.position.set(p.x * 5 + distance, height + distance * 0.4, p.y * 5 + distance);
       } else {

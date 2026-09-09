@@ -1,3 +1,5 @@
+import { hasOperator, resetRideOperations, ensureOperations } from "./operations";
+import { pathStyleAt, type PathStyle } from "./park-life";
 import { broken } from "./maintenance";
 import { isHabitat } from "./zoo";
 import { initCleanliness, type Litter } from "./cleanliness";
@@ -38,6 +40,7 @@ import {
   footprint,
   occupant,
   decorative,
+  canAutoClear,
   isRide,
   connected,
   validateTrack,
@@ -77,6 +80,7 @@ export function planPlacement(
   track?: Point[],
   clear = true,
   design?: AttractionDesign,
+  pathStyle?: PathStyle,
 ): Placement {
   const points =
     tool === "erase"
@@ -109,15 +113,14 @@ export function planPlacement(
   for (const t of points) {
     const b = occupant(s, t.x, t.y);
     if (b) {
-      if (mayClear && decorative(b.kind) && b.kind !== "keeperhut") {
+      if (mayClear && canAutoClear(b.kind)) {
         if (!plan.clearIds.includes(b.id)) plan.clearIds.push(b.id);
       } else
         return {
           ...plan,
-          error:
-            decorative(b.kind) && b.kind !== "keeperhut"
-              ? "Deko im Weg – Freiräumen aktivieren"
-              : "Hier steht bereits ein Gebäude",
+          error: canAutoClear(b.kind)
+            ? "Deko im Weg – Freiräumen aktivieren"
+            : "Hier steht bereits ein Gebäude",
         };
     }
     if (!painting && s.tiles[t.y][t.x] !== "grass")
@@ -127,7 +130,9 @@ export function planPlacement(
   }
   plan.cost = painting
     ? s.tiles[p.y][p.x] === tool
-      ? 0
+      ? tool === "path" && pathStyle !== undefined && pathStyleAt(s, p.x, p.y) !== pathStyle
+        ? 6
+        : 0
       : tool === "path"
         ? 12
         : tool === "queue" || tool === "exit"
@@ -156,8 +161,9 @@ export function place(
   track?: Point[],
   clear = true,
   design?: AttractionDesign,
+  pathStyle?: PathStyle,
 ): { error?: string; id?: number; cost?: number } {
-  const plan = planPlacement(s, tool, p, track, clear, design);
+  const plan = planPlacement(s, tool, p, track, clear, design, pathStyle);
   if (plan.error) return { error: plan.error };
   if (tool === "erase") {
     remove(s, p.x, p.y);
@@ -168,7 +174,7 @@ export function place(
     spend(s, plan.clearIds.length * 10);
   }
   if (["path", "queue", "exit", "water"].includes(tool)) {
-    const error = paint(s, p.x, p.y, tool as Tile);
+    const error = paint(s, p.x, p.y, tool as Tile, pathStyle);
     return error ? { error } : { cost: plan.cost };
   }
   return { ...build(s, tool as Kind, p.x, p.y, track, design), cost: plan.cost };
@@ -197,7 +203,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   if (b.pods && usesPods(b.kind)) starts.splice(0, starts.length, podPort(b, n, b.pods.entry));
   const blocked = new Set<string>();
   for (const item of s.buildings)
-    if (!clear || !(decorative(item.kind) && item.kind !== "keeperhut"))
+    if (!clear || !canAutoClear(item.kind))
       for (const p of footprint(item)) blocked.add(`${p.x},${p.y}`);
   const passable = (p: Point) =>
     inside(s, p) &&
@@ -298,6 +304,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
 }
 export function connectBuilding(s: Park, b: Building, clear = true): string | null {
   if (broken(b)) return "Repariere die Attraktion vor dem Eröffnen.";
+  if (!hasOperator(b)) return "Weise zuerst Bedienpersonal zu.";
   if (isHabitat(b.kind) && !b.habitat?.count) return "Nimm zuerst Tiere in das Gehege auf.";
   if (s.trackEdit?.buildingId === b.id) return "Beende zuerst den Streckenumbau.";
   const plan = planConnection(s, b, clear);
@@ -455,13 +462,12 @@ export function planRelocation(
       };
     const obstacle = occupant(virtual, q.x, q.y);
     if (obstacle) {
-      if (!clear || !(decorative(obstacle.kind) && obstacle.kind !== "keeperhut"))
+      if (!clear || !canAutoClear(obstacle.kind))
         return {
           ...plan,
-          error:
-            decorative(obstacle.kind) && obstacle.kind !== "keeperhut"
-              ? "Deko im Weg – Freiräumen aktivieren."
-              : "Hier steht ein anderes Gebäude.",
+          error: canAutoClear(obstacle.kind)
+            ? "Deko im Weg – Freiräumen aktivieren."
+            : "Hier steht ein anderes Gebäude.",
         };
       if (!plan.clearIds.includes(obstacle.id)) plan.clearIds.push(obstacle.id);
     }
@@ -502,10 +508,16 @@ export function releaseBuildingGuests(s: Park, b: Building) {
   for (const g of s.guests)
     if (g.target === b.id) {
       if (cancelTransitDestination(s, g)) continue;
-      if (g.state === "ride" || g.state === "queue" || g.state === "observe") {
+      if (
+        g.state === "ride" ||
+        g.state === "queue" ||
+        g.state === "observe" ||
+        g.state === "rest"
+      ) {
         leaveBuilding(s, b, g);
       } else {
         g.target = null;
+        g.rest = undefined;
         g.route = [];
         g.timer = 0;
         g.state = "walk";
@@ -514,6 +526,7 @@ export function releaseBuildingGuests(s: Park, b: Building) {
   b.queue = [];
   b.riders = [];
   b.cycle = 0;
+  resetRideOperations(b);
   b.testing = undefined;
   b.testDuration = undefined;
   b.autoOpen = false;
@@ -533,7 +546,7 @@ export function planPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = t
     return { ...plan, error: "Eingang und Ausgang brauchen unterschiedliche Plätze." };
   const item = occupant(s, p.x, p.y);
   if (item) {
-    if (!clear || !(decorative(item.kind) && item.kind !== "keeperhut"))
+    if (!clear || !canAutoClear(item.kind))
       return {
         ...plan,
         error:
@@ -592,6 +605,7 @@ export function adjustBuilding(
   return null;
 }
 export type EditRecord = {
+  photos?: { id: number; before: number | undefined }[];
   label: string;
   tiles: { x: number; y: number; before: Tile; after: Tile }[];
   added: number[];
@@ -599,13 +613,19 @@ export type EditRecord = {
   flags: { id: number; open: boolean; autoOpen?: boolean }[];
   geometry: { id: number; before: Geometry }[];
   vehicles?: { id: number; before: Building["vehicle"] }[];
+  operationsConfig?: {
+    id: number;
+    before: Pick<NonNullable<Building["operations"]>, "staffed" | "rounds"> | undefined;
+  }[];
   clearedLitter?: Litter[];
+  pathStyles?: { key: string; before: PathStyle | undefined }[];
   lines?: { id: number; before: TransitLine | null }[];
   cash: number;
   income: number;
   expenses: number;
 };
 export function recordEdit(s: Park, label: string, fn: () => void): EditRecord | null {
+  const stylesBefore = { ...s.pathStyles };
   const tiles = s.tiles.map((row) => [...row]),
     buildings = [...s.buildings],
     flags = buildings.map((b) => ({ id: b.id, open: b.open, autoOpen: b.autoOpen }));
@@ -614,6 +634,13 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
   const vehicles = buildings.map((b) => ({
     id: b.id,
     before: b.vehicle ? structuredClone(b.vehicle) : undefined,
+  }));
+  const photos = s.buildings.map((b) => ({ id: b.id, before: b.photoPoint }));
+  const operationsConfig = buildings.map((b) => ({
+    id: b.id,
+    before: b.operations
+      ? { staffed: b.operations.staffed, rounds: b.operations.rounds }
+      : undefined,
   }));
   const lines = structuredClone(s.transitLines ?? []);
   const cash = s.cash,
@@ -633,6 +660,12 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     .map((id) => ({ id, before: lines.find((l) => l.id === id) ?? null }));
   const changes: EditRecord = {
     label,
+    photos: photos.filter((old) =>
+      s.buildings.some((b) => b.id === old.id && b.photoPoint !== old.before),
+    ),
+    pathStyles: [...new Set([...Object.keys(stylesBefore), ...Object.keys(s.pathStyles ?? {})])]
+      .filter((k) => stylesBefore[k] !== s.pathStyles?.[k])
+      .map((key) => ({ key, before: stylesBefore[key] })),
     clearedLitter: litterBefore.filter(
       (l) => !s.cleanliness?.litter.some((now) => now.id === l.id),
     ),
@@ -641,6 +674,13 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
         JSON.stringify(old.before) !==
         JSON.stringify(s.buildings.find((b) => b.id === old.id)?.vehicle),
     ),
+    operationsConfig: operationsConfig.filter((old) => {
+      const b = s.buildings.find((b) => b.id === old.id);
+      const now = b?.operations
+        ? { staffed: b.operations.staffed, rounds: b.operations.rounds }
+        : undefined;
+      return b && JSON.stringify(old.before) !== JSON.stringify(now);
+    }),
     tiles: [],
     added: s.buildings.filter((b) => !buildings.some((old) => old.id === b.id)).map((b) => b.id),
     removed: buildings
@@ -663,12 +703,15 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     for (let x = 0; x < tiles[y].length; x++)
       if (tiles[y][x] !== s.tiles[y][x])
         changes.tiles.push({ x, y, before: tiles[y][x], after: s.tiles[y][x] });
-  return changes.tiles.length ||
+  return changes.photos?.length ||
+    changes.pathStyles?.length ||
+    changes.tiles.length ||
     changes.added.length ||
     changes.removed.length ||
     changes.flags.length ||
     changes.geometry.length ||
     changes.vehicles?.length ||
+    changes.operationsConfig?.length ||
     changes.lines
     ? changes
     : null;
@@ -677,6 +720,15 @@ export function undoEdits(s: Park, records: EditRecord[]) {
   const added = new Set(records.flatMap((record) => record.added));
   if (s.buildings.some((b) => added.has(b.id) && isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0))
     return "Gib zuerst die Tiere an einen Partnerzoo ab. Das bewohnte Gehege bleibt erhalten.";
+  // Undo is atomic: never remove an operator from an occupied ride, even if
+  // earlier records in this batch also changed paths, money or other settings.
+  for (const record of records)
+    for (const old of record.operationsConfig ?? [])
+      if (
+        old.before?.staffed === false &&
+        s.buildings.some((b) => b.id === old.id && b.riders.length)
+      )
+        return "Die Crew kann erst nach Ende der laufenden Fahrt abgezogen werden. Rückgängig bleibt unverändert.";
   for (const record of [...records].reverse()) {
     const editing = s.trackEdit?.buildingId;
     if (
@@ -695,6 +747,7 @@ export function undoEdits(s: Park, records: EditRecord[]) {
         if (cancelTransitDestination(s, g)) continue;
         g.state = "walk";
         g.target = null;
+        g.rest = undefined;
         g.route = [];
         g.timer = 0;
         g.x = ENTRANCE.x;
@@ -709,14 +762,25 @@ export function undoEdits(s: Park, records: EditRecord[]) {
         cycle: 0,
         testing: undefined,
         autoOpen: false,
+        operations: b.operations
+          ? { ...b.operations, phase: "idle", phaseLeft: 0, remainingRounds: 0 }
+          : undefined,
       });
     for (const t of record.tiles) s.tiles[t.y][t.x] = t.before;
+    for (const old of record.pathStyles ?? []) {
+      if (old.before) (s.pathStyles ??= {})[old.key] = old.before;
+      else if (s.pathStyles) delete s.pathStyles[old.key];
+    }
     if (s.cleanliness)
       for (const l of record.clearedLitter ?? [])
         if (!s.cleanliness.litter.some((now) => now.id === l.id)) {
           s.cleanliness.litter.push({ ...l });
           s.cleanliness.nextId = Math.max(s.cleanliness.nextId, l.id + 1);
         }
+    for (const old of record.photos ?? []) {
+      const b = s.buildings.find((b) => b.id === old.id);
+      if (b) b.photoPoint = old.before;
+    }
     for (const old of record.vehicles ?? []) {
       const b = s.buildings.find((b) => b.id === old.id);
       if (b) b.vehicle = old.before ? structuredClone(old.before) : undefined;
@@ -734,6 +798,22 @@ export function undoEdits(s: Park, records: EditRecord[]) {
             if (g.transit?.from === b.id && g.state !== "ride") cancelTransitDestination(s, g);
         } else releaseBuildingGuests(s, b);
         Object.assign(b, structuredClone(old.before));
+      }
+    }
+    for (const old of record.operationsConfig ?? []) {
+      const b = s.buildings.find((b) => b.id === old.id);
+      if (!b) continue;
+      const o = ensureOperations(b);
+      // Restore user settings only; never rewind the active phase, riders or lap.
+      o.staffed = old.before?.staffed ?? true;
+      o.rounds = old.before?.rounds ?? 1;
+      if (!o.staffed) {
+        for (const id of b.queue) {
+          const g = s.guests.find((g) => g.id === id);
+          if (g) leaveBuilding(s, b, g);
+        }
+        b.queue = [];
+        resetRideOperations(b);
       }
     }
     for (const old of record.flags) {

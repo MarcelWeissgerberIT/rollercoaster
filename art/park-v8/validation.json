@@ -1,0 +1,336 @@
+{
+  "status": "PASS",
+  "sprites": 27,
+  "uniqueAssets": 27,
+  "animals": "all12 directions retain one connected silhouette at logical size",
+  "alpha": "binary, no magenta key/spill remains",
+  "scaling": "all27 exact4x nearest-neighbor copies",
+  "occlusion": "front layers contain only pixels from original sprites",
+  "dimensions": "specs, pivots and non-clipped bounds verified",
+  "entries": [
+    {
+      "sprite": "elephant-se",
+      "logical": [
+        48,
+        40
+      ],
+      "pivot": [
+        24,
+        36
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "elephant-sw",
+      "logical": [
+        48,
+        40
+      ],
+      "pivot": [
+        24,
+        36
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "elephant-nw",
+      "logical": [
+        48,
+        40
+      ],
+      "pivot": [
+        24,
+        36
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "elephant-ne",
+      "logical": [
+        48,
+        40
+      ],
+      "pivot": [
+        24,
+        36
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "lion-se",
+      "logical": [
+        40,
+        32
+      ],
+      "pivot": [
+        20,
+        28
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "lion-sw",
+      "logical": [
+        40,
+        32
+      ],
+      "pivot": [
+        20,
+        28
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "lion-nw",
+      "logical": [
+        40,
+        32
+      ],
+      "pivot": [
+        20,
+        28
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "lion-ne",
+      "logical": [
+        40,
+        32
+      ],
+      "pivot": [
+        20,
+        28
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "panda-se",
+      "logical": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        28
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "panda-sw",
+      "logical": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        28
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "panda-nw",
+      "logical": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        28
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "panda-ne",
+      "logical": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        28
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "hotdog-shop",
+      "logical": [
+        72,
+        104
+      ],
+      "pivot": [
+        36,
+        88
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "icecream-shop",
+      "logical": [
+        72,
+        104
+      ],
+      "pivot": [
+        36,
+        88
+      ],
+      "components": 2
+    },
+    {
+      "sprite": "popcorn-shop",
+      "logical": [
+        72,
+        104
+      ],
+      "pivot": [
+        36,
+        88
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "coffee-shop",
+      "logical": [
+        72,
+        104
+      ],
+      "pivot": [
+        36,
+        88
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "bumper-pavilion",
+      "logical": [
+        192,
+        192
+      ],
+      "pivot": [
+        96,
+        152
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "bumper-pavilion-front",
+      "logical": [
+        192,
+        192
+      ],
+      "pivot": [
+        96,
+        152
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "playground",
+      "logical": [
+        144,
+        176
+      ],
+      "pivot": [
+        72,
+        144
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "picnic-table",
+      "logical": [
+        80,
+        64
+      ],
+      "pivot": [
+        40,
+        44
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "bumper-car-sw",
+      "logical": [
+        40,
+        48
+      ],
+      "pivot": [
+        20,
+        40
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "bumper-car-se",
+      "logical": [
+        40,
+        48
+      ],
+      "pivot": [
+        20,
+        40
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "gate-safari",
+      "logical": [
+        112,
+        176
+      ],
+      "pivot": [
+        56,
+        136
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "gate-festival",
+      "logical": [
+        112,
+        176
+      ],
+      "pivot": [
+        56,
+        136
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "balloonride",
+      "logical": [
+        160,
+        176
+      ],
+      "pivot": [
+        80,
+        144
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "balloon-gondola",
+      "logical": [
+        48,
+        80
+      ],
+      "pivot": [
+        24,
+        72
+      ],
+      "components": 1
+    },
+    {
+      "sprite": "balloon-gondola-front",
+      "logical": [
+        48,
+        80
+      ],
+      "pivot": [
+        24,
+        72
+      ],
+      "components": 1
+    }
+  ]
+}

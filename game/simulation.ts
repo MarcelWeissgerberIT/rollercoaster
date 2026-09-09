@@ -1,3 +1,38 @@
+import { validEntrance, type GateStyle } from "./entrance";
+import {
+  COIN_COST,
+  initResearchCoins,
+  tickResearchCoins,
+  validResearchCoins,
+  type CoinLedger,
+} from "./research-coins";
+import {
+  initOperations,
+  hasOperator,
+  tickOperations,
+  repeatRideRound,
+  finishRideProgram,
+  startRideProgram,
+  resetRideOperations,
+  programDuration,
+  programRemaining,
+  operatorWages,
+  validOperations,
+  type RideOperations,
+} from "./operations";
+import {
+  FOOD,
+  isFood,
+  AMENITIES,
+  isAmenity,
+  amenityRoom,
+  PATH_STYLES,
+  pathStyleAt,
+  validParkLife,
+  type Food,
+  type Rest,
+  type PathStyle,
+} from "./park-life";
 import { habitatViewingSpots, viewingDestination, migrateHabitatAccess } from "./zoo-access";
 import { populateCampaign } from "./campaigns";
 import { broken, condition, maintenanceScore, tickMaintenance } from "./maintenance";
@@ -97,6 +132,17 @@ export const COASTER_TYPES = {
   },
 };
 export type Kind =
+  | "hotdog"
+  | "icecream"
+  | "popcorn"
+  | "coffee"
+  | "picnic"
+  | "playground"
+  | "bumper"
+  | "balloonride"
+  | "elephant"
+  | "lion"
+  | "panda"
   | "coaster"
   | "wheel"
   | "carousel"
@@ -125,6 +171,8 @@ export type Kind =
   | "keeperhut";
 export type Tile = "grass" | "path" | "queue" | "exit" | "water";
 export type Building = {
+  photoPoint?: number;
+  operations?: RideOperations;
   condition?: number;
   habitat?: Habitat;
   vehicle?: Vehicle;
@@ -150,6 +198,9 @@ export type Building = {
   design?: AttractionDesign;
 };
 export type Guest = {
+  energy?: number;
+  food?: Food;
+  rest?: Rest;
   campaignId?: number | null;
   waste?: Waste[];
   id: number;
@@ -158,7 +209,7 @@ export type Guest = {
   y: number;
   route: Point[];
   target: number | null;
-  state: "walk" | "queue" | "ride" | "observe" | "leave";
+  state: "walk" | "queue" | "ride" | "observe" | "rest" | "leave";
   timer: number;
   happiness: number;
   hunger: number;
@@ -175,6 +226,8 @@ export type Guest = {
   souvenir?: "balloon" | "plush";
 };
 export type Park = {
+  entrance?: { style: GateStyle; owned: GateStyle[] };
+  pathStyles?: Record<string, PathStyle>;
   zoo?: ZooState;
   marketing?: MarketingState;
   cleanliness?: Cleanliness;
@@ -203,7 +256,12 @@ export type Park = {
   operatingExpensesToday?: number;
   operatingProfit?: number;
   scenario?: ScenarioId;
-  research?: { completed: ResearchId[]; active: ResearchId | null; remaining: number };
+  research?: {
+    completed: ResearchId[];
+    active: ResearchId | null;
+    remaining: number;
+    ledger?: CoinLedger;
+  };
   landValue?: number;
   transitLines?: TransitLine[];
   trackEdit?: TrackEdit;
@@ -330,21 +388,21 @@ export const RESEARCH = {
   },
   savanna: {
     name: "Weite Savanne",
-    description: "Giraffengehege mit hohen Futterstellen",
+    description: "Giraffen, Elefanten und Löwen",
     cost: 2200,
     duration: 120,
     requires: "zoo",
   },
   polar: {
     name: "Wasserwelten",
-    description: "Pinguine mit Felsen und Schwimmbecken",
+    description: "Pinguine und Pandas mit eigenen Lebensräumen",
     cost: 2000,
     duration: 120,
     requires: "zoo",
   },
   family: {
     name: "Familienfestival",
-    description: "Holzexpress, Wellenflug und Piratenschaukel",
+    description: "Holzexpress, Wellenflug, Piratenschaukel und Autoscooter",
     cost: 1200,
     duration: 90,
     requires: null,
@@ -365,7 +423,7 @@ export const RESEARCH = {
   },
   festival: {
     name: "Buntes Treiben",
-    description: "Tanzende Tassen, Ballons und Kuscheltiere",
+    description: "Tanzende Tassen, Ballonfahrt und Souvenirs",
     cost: 1400,
     duration: 100,
     requires: "family",
@@ -402,32 +460,31 @@ export function isUnlocked(s: Park, kind: Kind, style: CoasterType = "steel") {
     )
   )
     return true;
-  const project =
-    kind === "giraffe"
-      ? "savanna"
-      : kind === "penguin"
-        ? "polar"
-        : ["zebra", "flamingo", "keeperhut"].includes(kind)
-          ? "zoo"
-          : kind === "coaster"
-            ? style === "launch"
-              ? "launch"
-              : style === "wood"
-                ? "family"
-                : null
-            : kind === "custom"
-              ? "workshop"
-              : kind === "spinner"
-                ? "orbital"
-                : ["train", "shuttle"].includes(kind)
-                  ? "transport"
-                  : ["teacups", "balloon", "plush"].includes(kind)
-                    ? "festival"
-                    : kind === "drop"
-                      ? "thrill"
-                      : ["swing", "pirate"].includes(kind)
-                        ? "family"
-                        : null;
+  const project = ["giraffe", "elephant", "lion"].includes(kind)
+    ? "savanna"
+    : ["penguin", "panda"].includes(kind)
+      ? "polar"
+      : ["zebra", "flamingo", "keeperhut"].includes(kind)
+        ? "zoo"
+        : kind === "coaster"
+          ? style === "launch"
+            ? "launch"
+            : style === "wood"
+              ? "family"
+              : null
+          : kind === "custom"
+            ? "workshop"
+            : kind === "spinner"
+              ? "orbital"
+              : ["train", "shuttle"].includes(kind)
+                ? "transport"
+                : ["teacups", "balloon", "plush", "balloonride"].includes(kind)
+                  ? "festival"
+                  : kind === "drop"
+                    ? "thrill"
+                    : ["swing", "pirate", "bumper"].includes(kind)
+                      ? "family"
+                      : null;
   return !project || s.research.completed.includes(project as ResearchId);
 }
 export function startResearch(s: Park, id: ResearchId): string | null {
@@ -439,7 +496,9 @@ export function startResearch(s: Park, id: ResearchId): string | null {
   if (r.active) return "Es läuft bereits ein Forschungsprojekt.";
   if (project.requires && !r.completed.includes(project.requires))
     return `Erforsche zuerst ${RESEARCH[project.requires].name}.`;
-  if (!spend(s, project.cost)) return "Das Budget reicht für diese Forschung noch nicht.";
+  if (r.ledger!.coins < COIN_COST[id])
+    return `Du brauchst ${COIN_COST[id]} Forschungs-Coins für dieses Projekt.`;
+  r.ledger!.coins -= COIN_COST[id];
   r.active = id;
   r.remaining = project.duration;
   return null;
@@ -447,6 +506,7 @@ export function startResearch(s: Park, id: ResearchId): string | null {
 /** Old parks retain all previously available content; new scenarios start with research. */
 export function migratePark(s: Park): Park {
   migrateHabitatAccess(s, CATALOG);
+  initOperations(s);
   initCleanliness(s);
   initZoo(s);
   s.scenario ??= "waldhain";
@@ -454,11 +514,13 @@ export function migratePark(s: Park): Park {
   s.operatingExpensesToday ??= 0;
   s.operatingProfit ??= 0;
   s.research ??= { completed: ["family", "thrill", "launch"], active: null, remaining: 0 };
+  initResearchCoins(s);
   s.transitLines ??= [];
   s.landValue ??= 0;
   for (const b of s.buildings) ensurePods(s, b);
   for (const g of s.guests) {
     g.name ??= guestName(g.id);
+    g.energy ??= 80;
     g.profile ??= (["family", "thrill", "budget"] as const)[g.id % 3];
     g.wallet ??= 60;
     g.bladder ??= 10;
@@ -479,8 +541,8 @@ export function parkValue(s: Park) {
 export function expectedWait(b: Building) {
   if (isHabitat(b.kind)) return 0;
   return (
-    Math.max(0, b.cycle) +
-    Math.floor(b.queue.length / Math.max(1, rideCapacity(b))) * rideDuration(b)
+    programRemaining(b, rideDuration(b)) +
+    Math.floor(b.queue.length / Math.max(1, rideCapacity(b))) * programDuration(b, rideDuration(b))
   );
 }
 export function rideAppeal(b: Building, profile: Guest["profile"] = "family") {
@@ -504,15 +566,17 @@ export function rideAppeal(b: Building, profile: Guest["profile"] = "family") {
 export function guestScore(b: Building, g: Guest, s?: Park) {
   const desire = isAttraction(b.kind)
     ? rideAppeal(b, g.profile)
-    : b.kind === "burger"
-      ? g.hunger * 0.17
-      : b.kind === "drink"
-        ? g.thirst * 0.17
-        : ["balloon", "plush"].includes(b.kind)
-          ? g.souvenir
-            ? -20
-            : 9 + (g.profile === "family" ? 3 : 0)
-          : (g.bladder ?? 10) * 0.15 - 4;
+    : isFood(b.kind)
+      ? g.food
+        ? -20
+        : FOOD[b.kind].drink
+          ? g.thirst * 0.17
+          : g.hunger * 0.17
+      : ["balloon", "plush"].includes(b.kind)
+        ? g.souvenir
+          ? -20
+          : 9 + (g.profile === "family" ? 3 : 0)
+        : (g.bladder ?? 10) * 0.15 - 4;
   return (
     desire +
     (s ? marketingRideBonus(s, b, g, (s, b) => !!access(s, b)) : 0) -
@@ -526,6 +590,7 @@ export function entryDemand(s: Park) {
   const rides = s.buildings.filter(
     (b) =>
       b.open &&
+      hasOperator(b) &&
       b.tested &&
       isAttraction(b.kind) &&
       (!isHabitat(b.kind) || (b.habitat?.count ?? 0) > 0) &&
@@ -556,6 +621,138 @@ export const CATALOG: Record<
     description: string;
   }
 > = {
+  hotdog: {
+    name: "Hotdog-Ecke",
+    cost: 520,
+    size: 1,
+    price: 7,
+    duration: 3,
+    capacity: 1,
+    appeal: 1,
+    upkeep: 5,
+    sprite: "hotdog-shop",
+    description: "Heiße Würstchen im Brötchen für hungrige Gäste.",
+  },
+  icecream: {
+    name: "Eisparadies",
+    cost: 560,
+    size: 1,
+    price: 6,
+    duration: 3,
+    capacity: 1,
+    appeal: 1,
+    upkeep: 5,
+    sprite: "icecream-shop",
+    description: "Kühle Kugeln, die Gäste unterwegs genießen.",
+  },
+  popcorn: {
+    name: "Popcornküche",
+    cost: 460,
+    size: 1,
+    price: 5,
+    duration: 2,
+    capacity: 1,
+    appeal: 1,
+    upkeep: 4,
+    sprite: "popcorn-shop",
+    description: "Eine knusprige Pause zwischen den Attraktionen.",
+  },
+  coffee: {
+    name: "Kaffeepavillon",
+    cost: 620,
+    size: 1,
+    price: 6,
+    duration: 3,
+    capacity: 1,
+    appeal: 1,
+    upkeep: 5,
+    sprite: "coffee-shop",
+    description: "Ein warmer Kaffee am Picknicktisch.",
+  },
+  picnic: {
+    name: "Picknickplatz",
+    cost: 95,
+    size: 1,
+    price: 0,
+    duration: 0,
+    capacity: 0,
+    appeal: 0,
+    upkeep: 0,
+    sprite: "picnic-table",
+    description: "Vier Sitzplätze zum Essen und Erholen.",
+  },
+  playground: {
+    name: "Abenteuerspielplatz",
+    cost: 850,
+    size: 3,
+    price: 0,
+    duration: 0,
+    capacity: 0,
+    appeal: 0,
+    upkeep: 3,
+    sprite: "playground",
+    description: "Klettern, rutschen und spielen. Besonders beliebt bei Familien.",
+  },
+  bumper: {
+    name: "Autoscooter",
+    cost: 2850,
+    size: 3,
+    price: 8,
+    duration: 24,
+    capacity: 8,
+    appeal: 8,
+    upkeep: 20,
+    sprite: "bumper-pavilion",
+    description: "Bunte Wagen, kurvige Fahrten und eine echte 3D-Fahrerperspektive.",
+  },
+  balloonride: {
+    name: "Wolkenreise",
+    cost: 2400,
+    size: 3,
+    price: 7,
+    duration: 26,
+    capacity: 8,
+    appeal: 7,
+    upkeep: 17,
+    sprite: "balloonride",
+    description: "Sanft aufsteigende Ballonkörbe über dem Park.",
+  },
+  elephant: {
+    name: "Elefantenrevier",
+    cost: 6200,
+    size: 7,
+    price: 0,
+    duration: 24,
+    capacity: 12,
+    appeal: 9,
+    upkeep: 26,
+    sprite: "elephant-se",
+    description: "Weites Gehege mit Wasserstelle für sanfte Riesen.",
+  },
+  lion: {
+    name: "Löwenfelsen",
+    cost: 5100,
+    size: 6,
+    price: 0,
+    duration: 22,
+    capacity: 10,
+    appeal: 8,
+    upkeep: 23,
+    sprite: "lion-se",
+    description: "Ein ruhiger Rückzugsort für die Könige der Savanne.",
+  },
+  panda: {
+    name: "Pandawald",
+    cost: 4900,
+    size: 5,
+    price: 0,
+    duration: 24,
+    capacity: 10,
+    appeal: 8,
+    upkeep: 21,
+    sprite: "panda-se",
+    description: "Bambus, Schatten und neugierige Pandas.",
+  },
   teacups: {
     name: "Tanzende Tassen",
     cost: 1850,
@@ -871,6 +1068,8 @@ export const CATALOG: Record<
 };
 export const isRide = (k: Kind) =>
   [
+    "bumper",
+    "balloonride",
     "coaster",
     "wheel",
     "carousel",
@@ -883,6 +1082,8 @@ export const isRide = (k: Kind) =>
   ].includes(k);
 export const isAttraction = (k: Kind) => isRide(k) || isHabitat(k);
 export const decorative = (k: Kind) => CATALOG[k].capacity === 0;
+/** Functional seats/playgrounds and keeper buildings must survive automatic clearing. */
+export const canAutoClear = (k: Kind) => decorative(k) && k !== "keeperhut" && !isAmenity(k);
 export const inBounds = (x: number, y: number, s?: Park) =>
   s ? insideMap(s, x, y) : x >= 0 && y >= 0 && x < SIZE && y < SIZE;
 export const key = (p: Point) => `${p.x},${p.y}`;
@@ -932,7 +1133,7 @@ export function effectivePods(
     return (
       inBounds(q.x, q.y, s) &&
       s.tiles[q.y][q.x] !== "water" &&
-      (!obstacle || (decorative(obstacle.kind) && obstacle.kind !== "keeperhut"))
+      (!obstacle || canAutoClear(obstacle.kind))
     );
   };
   const legacy = access(s, b, net);
@@ -963,6 +1164,13 @@ export function effectivePods(
   const outgoing = exitFromCells(slots.filter((p) => !samePod(p, entry)).map(port), exits)[0];
   const exit =
     slots.find((p) => outgoing && key(port(p)) === key(outgoing)) ??
+    slots.find(
+      (p) =>
+        !samePod(p, entry) &&
+        viable(p) &&
+        s.tiles[port(p).y][port(p).x] === "path" &&
+        net.has(key(port(p))),
+    ) ??
     slots.find(
       (p) => !samePod(p, entry) && viable(p) && s.tiles[port(p).y][port(p).x] !== "queue",
     ) ??
@@ -1022,6 +1230,7 @@ export function leaveBuilding(
   g.target = null;
   g.state = "walk";
   g.timer = 0;
+  g.rest = undefined;
 }
 export function queueCapacity(s: Park, b: Building) {
   if (isHabitat(b.kind)) return 0;
@@ -1284,15 +1493,28 @@ export function build(
   s.buildings.push(b);
   return { id: b.id };
 }
-export function paint(s: Park, x: number, y: number, type: Tile): string | null {
+export function paint(s: Park, x: number, y: number, type: Tile, style?: PathStyle): string | null {
   if (!inBounds(x, y, s)) return "Außerhalb des Parkgeländes.";
   if (x === ENTRANCE.x && y === ENTRANCE.y && type !== "path")
     return "Der Parkeingang muss ein normaler Weg bleiben.";
   if (occupant(s, x, y)) return "Dieses Feld ist bereits bebaut.";
-  if (s.tiles[y][x] === type) return null;
-  const cost = type === "queue" || type === "exit" ? 18 : type === "water" ? 35 : 12;
+  const resurfacing =
+    type === "path" &&
+    s.tiles[y][x] === "path" &&
+    style !== undefined &&
+    pathStyleAt(s, x, y) !== style;
+  if (s.tiles[y][x] === type && !resurfacing) return null;
+  const cost = resurfacing
+    ? 6
+    : type === "queue" || type === "exit"
+      ? 18
+      : type === "water"
+        ? 35
+        : 12;
   if (!spend(s, cost)) return "Dafür reicht dein Parkbudget nicht.";
   s.tiles[y][x] = type;
+  if (type === "path" && style && style !== "garden") (s.pathStyles ??= {})[`${x},${y}`] = style;
+  else if (s.pathStyles) delete s.pathStyles[`${x},${y}`];
   if (s.cleanliness) initCleanliness(s);
   return null;
 }
@@ -1328,6 +1550,7 @@ export function remove(s: Park, x: number, y: number) {
       }
   } else if (inBounds(x, y, s) && !(x === ENTRANCE.x && y === ENTRANCE.y)) {
     s.tiles[y][x] = "grass";
+    if (s.pathStyles) delete s.pathStyles[`${x},${y}`];
     if (s.cleanliness) initCleanliness(s);
   }
 }
@@ -1494,12 +1717,14 @@ export function newPark(
   if (mode === "scenario") populateCampaign(s, scenario, { build, newGuest });
   initCleanliness(s);
   initZoo(s);
+  initOperations(s);
   return s;
 }
 function choose(s: Park, g: Guest, net: Set<string>) {
   const options = s.buildings.filter(
     (b) =>
       b.open &&
+      hasOperator(b) &&
       !decorative(b.kind) &&
       !isTransport(b.kind) &&
       access(s, b, net) &&
@@ -1513,12 +1738,25 @@ function choose(s: Park, g: Guest, net: Set<string>) {
     .map((b) => ({ b, score: guestScore(b, g, s) + Math.random() * 1.4 }))
     .filter((o) => o.score > -0.5)
     .sort((a, b) => b.score - a.score);
+  const resting = s.buildings
+    .filter(
+      (b) =>
+        isAmenity(b.kind) &&
+        Math.hypot(b.x - g.x, b.y - g.y) < 18 &&
+        b.open &&
+        access(s, b, net) &&
+        amenityRoom(s, b, g) >= 0 &&
+        (b.kind === "playground"
+          ? g.profile === "family" && !g.visited?.includes(b.id)
+          : (g.energy ?? 80) < 50 || !!g.food),
+    )
+    .sort((a, b) => Math.hypot(a.x - g.x, a.y - g.y) - Math.hypot(b.x - g.x, b.y - g.y))[0];
   if (
     !s.open ||
     g.rides >= 5 ||
     g.happiness < 25 ||
-    ((g.wallet ?? 60) < 3 && !ranked.some((o) => isHabitat(o.b.kind))) ||
-    (s.time > 30 && !ranked.length)
+    ((g.wallet ?? 60) < 3 && !ranked.some((o) => isHabitat(o.b.kind)) && !resting) ||
+    (s.time > 30 && !ranked.length && !resting)
   ) {
     g.state = "leave";
     g.route = findRoute(s, g, ENTRANCE);
@@ -1529,6 +1767,16 @@ function choose(s: Park, g: Guest, net: Set<string>) {
         : !ranked.length
           ? "Preise, Wartezeit oder Fahrten passen heute nicht zu mir."
           : "Zeit, nach Hause zu gehen.";
+    return;
+  }
+  if (resting) {
+    g.rest = { slot: amenityRoom(s, resting, g), remaining: 0 };
+    g.target = resting.id;
+    g.route = findRoute(s, g, access(s, resting, net)!);
+    g.thought =
+      resting.kind === "playground"
+        ? "Eine Runde auf den Spielplatz!"
+        : "Ich suche mir einen gemütlichen Sitzplatz.";
     return;
   }
   const b = ranked[0]?.b;
@@ -1569,7 +1817,9 @@ export function tick(s: Park, dt: number) {
   const net = connected(s),
     exits = exitNetwork(s, net);
   tickMaintenance(s, dt);
-  const active = s.buildings.filter((b) => b.open && !decorative(b.kind) && access(s, b, net));
+  const active = s.buildings.filter(
+    (b) => b.open && hasOperator(b) && !decorative(b.kind) && access(s, b, net),
+  );
   s.spawnClock += dt;
   const interval =
     Math.max(
@@ -1597,7 +1847,7 @@ export function tick(s: Park, dt: number) {
       b.open = true;
       b.autoOpen = false;
     }
-    if (!b.open || !access(s, b, net)) {
+    if (!b.open || !access(s, b, net) || !hasOperator(b)) {
       for (const id of [...b.queue, ...b.riders]) {
         const g = s.guests.find((g) => g.id === id);
         if (g) {
@@ -1607,10 +1857,16 @@ export function tick(s: Park, dt: number) {
       b.queue = [];
       b.riders = [];
       b.cycle = 0;
+      resetRideOperations(b);
       continue;
     }
+    const dispatchReady = tickOperations(
+      b,
+      dt,
+      b.open && !!access(s, b, net) && b.tested && !broken(b),
+    );
     b.cycle -= dt;
-    if (b.riders.length && b.cycle <= 0) {
+    if (b.riders.length && b.cycle <= 0 && !repeatRideRound(b, rideDuration(b))) {
       for (const id of b.riders) {
         const g = s.guests.find((g) => g.id === id);
         if (g) {
@@ -1630,8 +1886,12 @@ export function tick(s: Park, dt: number) {
                   ? "Die Fahrt war für mich zu heftig, zu zahm oder zu teuer."
                   : "Eine nette Runde.";
           } else {
-            if (b.kind === "burger") g.hunger = 0;
-            if (b.kind === "drink") g.thirst = 0;
+            if (isFood(b.kind)) {
+              const food = FOOD[b.kind];
+              if (food.drink) g.thirst = 0;
+              else g.hunger = 0;
+              g.food = { kind: b.kind, remaining: food.duration, total: food.duration };
+            }
             if (b.kind === "toilet") g.bladder = 0;
             if (b.kind === "balloon" || b.kind === "plush") g.souvenir = b.kind;
             const price = g.servicePrice ?? Math.min(b.price, g.wallet ?? 60);
@@ -1644,39 +1904,33 @@ export function tick(s: Park, dt: number) {
             s.income += price;
             s.dayIncome += price;
             s.operatingIncomeToday! += price;
-            const supplies =
-              b.kind === "burger"
-                ? 3
-                : b.kind === "drink"
-                  ? 1.5
-                  : b.kind === "balloon"
-                    ? 1.2
-                    : b.kind === "plush"
-                      ? 4
-                      : 0.4;
+            const supplies = isFood(b.kind)
+              ? FOOD[b.kind].supplies
+              : b.kind === "balloon"
+                ? 1.2
+                : b.kind === "plush"
+                  ? 4
+                  : 0.4;
             s.cash -= supplies;
             s.expenses += supplies;
             s.dayExpenses += supplies;
             s.operatingExpensesToday! += supplies;
-            if (b.kind === "burger" || b.kind === "drink")
-              giveWaste(s, g, b.kind === "burger" ? "wrapper" : "cup");
+            if (isFood(b.kind)) giveWaste(s, g, FOOD[b.kind].drink ? "cup" : "wrapper");
             g.happiness = Math.min(100, g.happiness + (b.kind === "toilet" ? 1 : 4));
-            g.thought =
-              b.kind === "burger"
-                ? "Frisch zubereitet – jetzt bin ich satt."
-                : b.kind === "drink"
-                  ? "Endlich ein kühles Getränk!"
-                  : b.kind === "balloon"
-                    ? "Mein Ballon darf mit nach Hause!"
-                    : b.kind === "plush"
-                      ? "Mein neuer Kuschelfreund!"
-                      : "Eine erholsame Pause.";
+            g.thought = isFood(b.kind)
+              ? `Lecker! Ich genieße ${FOOD[b.kind].name}${g.food ? " unterwegs oder auf einer Bank" : ""}.`
+              : b.kind === "balloon"
+                ? "Mein Ballon darf mit nach Hause!"
+                : b.kind === "plush"
+                  ? "Mein neuer Kuschelfreund!"
+                  : "Eine erholsame Pause.";
           }
         }
       }
       b.riders = [];
+      finishRideProgram(b);
     }
-    if (!b.riders.length && b.queue.length && b.cycle <= 0) {
+    if (!b.riders.length && b.queue.length && b.cycle <= 0 && dispatchReady) {
       b.riders = [];
       while (b.queue.length && b.riders.length < rideCapacity(b)) {
         const id = b.queue.shift()!,
@@ -1704,6 +1958,7 @@ export function tick(s: Park, dt: number) {
         }
       }
       b.cycle = b.riders.length ? rideDuration(b) : 0;
+      startRideProgram(b);
     }
   }
   for (const g of s.guests) {
@@ -1714,6 +1969,40 @@ export function tick(s: Park, dt: number) {
       0,
       g.happiness - dt * (g.hunger > 70 || g.thirst > 70 || (g.bladder ?? 0) > 80 ? 0.22 : 0.012),
     );
+    g.energy = Math.max(0, (g.energy ?? 80) - dt * 0.055);
+    if (g.food) {
+      g.food.remaining = Math.max(0, g.food.remaining - dt);
+      if (g.food.remaining === 0) g.food = undefined;
+    }
+    if (g.state === "rest") {
+      const b = s.buildings.find((b) => b.id === g.target);
+      if (!b || !isAmenity(b.kind) || !b.open || !access(s, b, net) || !g.rest) {
+        if (b) leaveBuilding(s, b, g, net, exits);
+        else {
+          g.state = "walk";
+          g.target = null;
+          g.rest = undefined;
+          g.timer = 1;
+        }
+        continue;
+      }
+      g.rest.remaining = Math.max(0, g.rest.remaining - dt);
+      g.energy = Math.min(
+        100,
+        g.energy + (dt * AMENITIES[b.kind].energy) / AMENITIES[b.kind].duration,
+      );
+      if (g.rest.remaining === 0) {
+        g.happiness = Math.min(100, g.happiness + AMENITIES[b.kind].joy);
+        (g.visited ??= []).push(b.id);
+        g.visited = g.visited.slice(-8);
+        g.thought =
+          b.kind === "playground" ? "Der Spielplatz macht richtig Spaß!" : "So eine Pause tut gut.";
+        b.served++;
+        leaveBuilding(s, b, g, net, exits);
+        g.timer = 2;
+      }
+      continue;
+    }
     if (g.state === "observe") {
       const b = s.buildings.find((b) => b.id === g.target);
       const spots = b && habitatViewingSpots(s, b, net);
@@ -1840,6 +2129,28 @@ export function tick(s: Park, dt: number) {
     }
     if (g.target) {
       const b = s.buildings.find((b) => b.id === g.target);
+      if (b && isAmenity(b.kind)) {
+        const p = access(s, b, net);
+        if (!b.open || !p || !g.rest) {
+          leaveBuilding(s, b, g, net, exits);
+          continue;
+        }
+        if (Math.hypot(g.x - p.x, g.y - p.y) > 0.2) {
+          g.route = findRoute(s, g, p);
+          continue;
+        }
+        g.state = "rest";
+        g.route = [];
+        g.timer = 0;
+        g.rest.remaining = AMENITIES[b.kind].duration;
+        g.thought =
+          b.kind === "playground"
+            ? "Klettern und rutschen!"
+            : g.food
+              ? `Pause mit ${FOOD[g.food.kind].name}.`
+              : "Ich ruhe mich auf der Bank aus.";
+        continue;
+      }
       if (b && isHabitat(b.kind)) {
         const spots = habitatViewingSpots(s, b, net);
         if (!b.open || !b.habitat?.count || !spots.length) {
@@ -1863,7 +2174,7 @@ export function tick(s: Park, dt: number) {
         }
         continue;
       }
-      if (b && b.open && access(s, b, net)) {
+      if (b && b.open && hasOperator(b) && access(s, b, net)) {
         const entrance = access(s, b, net)!;
         if (Math.hypot(g.x - entrance.x, g.y - entrance.y) > 0.2) {
           g.route = findRoute(s, g, entrance);
@@ -1905,10 +2216,12 @@ export function tick(s: Park, dt: number) {
       Math.round(s.guests.reduce((a, g) => a + g.happiness, 0) / s.guests.length - dirtPenalty),
     );
   else if (dirtPenalty > 0) s.rating = Math.min(s.rating, Math.round(100 - dirtPenalty));
+  let researchDailyProfit = 0;
   if (Math.floor(s.time / 90) !== oldDay) {
     const cost =
       s.staff * 80 +
       (s.zoo?.keepers ?? 0) * 90 +
+      operatorWages(s) +
       s.buildings
         .filter((b) => !decorative(b.kind))
         .reduce(
@@ -1928,6 +2241,7 @@ export function tick(s: Park, dt: number) {
     s.dayExpenses += cost;
     s.operatingExpensesToday! += cost;
     s.operatingProfit = s.operatingIncomeToday! - s.operatingExpensesToday!;
+    researchDailyProfit = s.operatingProfit;
     s.operatingIncomeToday = 0;
     s.operatingExpensesToday = 0;
     s.lastProfit = s.dayIncome - s.dayExpenses;
@@ -1944,9 +2258,10 @@ export function tick(s: Park, dt: number) {
       g.happiness = Math.max(0, Math.min(100, g.happiness + (nearby ? 1 : 0) - (1 - staffing) * 3));
     }
   }
+  tickResearchCoins(s, dt, researchDailyProfit);
   const goal = scenarioOf(s),
     openRides = s.buildings.filter(
-      (b) => isRide(b.kind) && b.open && b.tested && access(s, b, net),
+      (b) => isRide(b.kind) && b.open && hasOperator(b) && b.tested && access(s, b, net),
     );
   if (
     !s.won &&
@@ -2044,6 +2359,19 @@ export function validSave(v: unknown): v is Park {
       (typeof s.scenario !== "string" || !Object.hasOwn(SCENARIOS, s.scenario))
     )
       return false;
+    if (
+      s.buildings.some(
+        (b) =>
+          b.photoPoint !== undefined &&
+          (b.kind !== "coaster" ||
+            !b.track ||
+            !Number.isFinite(b.photoPoint) ||
+            b.photoPoint < 0 ||
+            b.photoPoint > 1),
+      )
+    )
+      return false;
+    if (!validResearchCoins(s) || !validEntrance(s)) return false;
     if (s.research !== undefined) {
       const r = s.research;
       if (
@@ -2091,7 +2419,14 @@ export function validSave(v: unknown): v is Park {
       )
     )
       return false;
-    if (!validCleanliness(s) || !validMarketing(s) || !validZoo(s)) return false;
+    if (
+      !validCleanliness(s) ||
+      !validMarketing(s) ||
+      !validZoo(s) ||
+      !validParkLife(s) ||
+      !validOperations(s)
+    )
+      return false;
     const ids = new Set<number>();
     for (const b of s.buildings) {
       if (
@@ -2233,7 +2568,11 @@ export function validSave(v: unknown): v is Park {
         g.y >= mapHeight(s) ||
         ![0, 1, 2].includes(g.skin) ||
         typeof g.thought !== "string" ||
-        !["walk", "queue", "ride", "observe", "leave"].includes(g.state) ||
+        !["walk", "queue", "ride", "observe", "rest", "leave"].includes(g.state) ||
+        (g.state === "rest" &&
+          (!g.rest ||
+            g.transit ||
+            !s.buildings.some((b) => b.id === g.target && isAmenity(b.kind)))) ||
         (g.state === "observe" &&
           (g.transit || !s.buildings.some((b) => b.id === g.target && isHabitat(b.kind)))) ||
         !Array.isArray(g.route) ||

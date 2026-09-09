@@ -1,3 +1,9 @@
+import { addPhotoHardware, isPhotoPoint } from "./coaster-photo";
+import { operatorState } from "./operations";
+import { GATES, gateStyle } from "./entrance";
+import { podPose } from "./pods";
+import { effectivePods } from "./simulation";
+import { FOOD, isFood, restPose } from "./park-life";
 import { createHabitatModel } from "./zoo-model";
 import { isHabitat, initZoo, tickZoo } from "./zoo";
 import { access } from "./simulation";
@@ -75,6 +81,45 @@ export function populatePark(
       });
       scene.add(instances);
     }
+  }
+  const gate = GATES[gateStyle(park)],
+    gx = 15 * 5,
+    gz = 29 * 5;
+  for (const side of [-1, 1]) {
+    mesh(cube, gate.color, gx + side * 4.2, 2.4, gz, 1.2, 4.8, 1.5);
+    mesh(cube, gate.accent, gx + side * 4.2, 4.9, gz, 1.7, 0.35, 1.9);
+  }
+  mesh(cube, gate.color, gx, 5.1, gz, 9.8, 0.8, 1.3);
+  for (let i = -3; i <= 3; i++)
+    mesh(sphere, gate.accent, gx + i, 5.8 - Math.abs(i) * 0.09, gz, 0.16, 0.16, 0.16);
+  if (gateStyle(park) === "safari") mesh(cone, "#926737", gx, 6.3, gz, 6, 2, 2.4);
+  for (const b of park.buildings) {
+    const staff = operatorState(b);
+    if (!staff) continue;
+    const p = podPose(b, CATALOG[b.kind].size, effectivePods(park, b).entry);
+    const g = createGuestModel({ id: b.id + 21000, skin: 1 }, false);
+    g.name = `operator-${b.id}`;
+    g.position.set((p.x - p.dy * 0.23) * 5, 0, (p.y + p.dx * 0.23) * 5);
+    g.rotation.y = Math.atan2(p.dx, p.dy);
+    scene.add(g);
+    mesh(cube, "#325875", 0, 1.1, 0, 0.43, 0.55, 0.26, g);
+    mesh(cylinder, "#325875", 0, 1.73, 0, 0.24, 0.08, 0.23, g);
+    mesh(
+      cube,
+      "#24534d",
+      g.position.x + p.dx * 0.7,
+      0.9,
+      g.position.z + p.dy * 0.7,
+      0.45,
+      0.3,
+      0.4,
+    );
+    animations.push((t) => {
+      const head = g.getObjectByName("head");
+      if (head) head.rotation.z = staff.atGate ? Math.sin(t * 2) * 0.045 : 0;
+      g.rotation.y =
+        Math.atan2(p.dx, p.dy) + (staff.phase === "checking" ? Math.sin(t * 2) * 0.25 : 0);
+    });
   }
   const groupAt = (x: number, y: number, z: number) => {
     const g = new THREE.Group();
@@ -181,6 +226,7 @@ export function populatePark(
       const path = makeRidePath(b.track),
         color = COASTER_TYPES[b.track[0].style ?? "steel"].color;
       addDriveHardware(scene, path);
+      if (isPhotoPoint(b.photoPoint)) addPhotoHardware(scene, path, b.photoPoint);
       for (const side of [-0.58, 0.58])
         scene.add(
           new THREE.Mesh(
@@ -284,8 +330,8 @@ export function populatePark(
       mesh(cube, "#31564c", 0, 4.39, 0.08, 0.05, 0.25, 0.04, station);
       mesh(cube, "#31564c", 0.12, 4.25, 0.08, 0.25, 0.05, 0.04, station);
       if (b.kind === "shuttle") mesh(cube, "#417f9e", 1.6, 1.6, 1.5, 0.65, 1.2, 0.15, station);
-    } else if (["burger", "drink", "toilet", "balloon", "plush"].includes(b.kind)) {
-      const color = b.kind === "burger" ? "#dc5c37" : b.kind === "drink" ? "#e7b62c" : "#43878a";
+    } else if (isFood(b.kind) || ["toilet", "balloon", "plush"].includes(b.kind)) {
+      const color = isFood(b.kind) ? FOOD[b.kind].color : "#43878a";
       mesh(cube, "#fff0c6", x, 1.7, z, 3.8, 3.4, 3.8);
       mesh(cone, color, x, 4.3, z, 3.5, 2, 3.5).rotation.y = Math.PI / 4;
       mesh(cube, "#3d655d", x, 1.8, z + 1.94, 2.8, 1.4, 0.1);
@@ -294,6 +340,29 @@ export function populatePark(
       if (b.kind === "burger") {
         mesh(sphere, "#e5b545", x, 5.3, z, 1.1, 0.5, 1.1);
         mesh(cylinder, "#815329", x, 5.1, z, 1.05, 0.15, 1.05);
+      } else if (b.kind === "hotdog") {
+        mesh(sphere, "#e4ba73", x, 5.3, z, 1.4, 0.45, 0.6);
+        mesh(sphere, "#ad5338", x, 5.55, z, 1.25, 0.22, 0.3);
+        mesh(cube, "#efd663", x, 5.73, z, 0.95, 0.04, 0.08);
+      } else if (b.kind === "icecream") {
+        mesh(cone, "#bf9960", x, 5.3, z, 0.5, 1.4, 0.5).rotation.z = Math.PI;
+        mesh(sphere, "#efb5cf", x, 6.2, z, 0.8, 0.8, 0.8);
+      } else if (b.kind === "popcorn") {
+        mesh(cube, "#c66757", x, 5.3, z, 1.2, 1.4, 1.2);
+        for (let i = 0; i < 7; i++)
+          mesh(
+            sphere,
+            "#eee0a1",
+            x + Math.sin(i) * 0.5,
+            6 + Math.cos(i) * 0.13,
+            z + Math.cos(i) * 0.4,
+            0.26,
+            0.26,
+            0.26,
+          );
+      } else if (b.kind === "coffee") {
+        mesh(cylinder, "#ede4ce", x, 5.4, z, 0.7, 1.3, 0.7);
+        mesh(cylinder, "#68472f", x, 6.08, z, 0.61, 0.04, 0.61);
       } else if (b.kind === "balloon") {
         for (let i = 0; i < 5; i++) {
           const px = x + (i - 2) * 0.45,
@@ -336,6 +405,22 @@ export function populatePark(
           0.3,
           0.27,
         );
+      }
+    } else if (b.kind === "playground") {
+      mesh(cube, "#d7bd82", x, 0.12, z, 13, 0.2, 13);
+      for (const dx of [-2, 2])
+        for (const dz of [-2, 2]) mesh(cylinder, "#8c7956", x + dx, 1.6, z + dz, 0.15, 3.2, 0.15);
+      mesh(cube, "#82b8ad", x, 2.3, z, 4.5, 0.24, 4.5);
+      mesh(cone, "#e6ae99", x, 4.1, z, 3.2, 2, 3.2);
+      const slide = mesh(cube, "#dfba61", x + 2.4, 1.25, z + 2.7, 1.5, 0.2, 6);
+      slide.rotation.x = 0.4;
+      for (let i = 0; i < 6; i++)
+        mesh(cube, "#accbcc", x - 2.5, 0.35 + i * 0.35, z - 2.2, 0.25, 0.15, 2);
+    } else if (b.kind === "picnic") {
+      mesh(cube, "#ad8351", x, 1.2, z, 3.7, 0.2, 1.4);
+      for (const side of [-1, 1]) {
+        mesh(cube, "#a18455", x, 0.8, z + side * 0.95, 3.6, 0.15, 0.65);
+        mesh(cube, "#526f61", x + side * 1.3, 0.6, z, 0.16, 1.2, 2.3);
       }
     } else if (b.kind === "bench") {
       mesh(cube, "#b38038", x, 0.8, z, 2.5, 0.18, 0.8);
@@ -449,7 +534,16 @@ export function populatePark(
           yaw = Math.atan2(-(b.x + center - x), -(b.y + center - z));
         }
       }
-      crowd.pose(i, x * 5, z * 5, yaw, time * 7 + g.id, walking);
+      const restBuilding =
+        g.state === "rest" ? park.buildings.find((b) => b.id === g.target) : undefined;
+      const resting = restBuilding ? restPose(restBuilding, g, park.time + time) : undefined;
+      if (resting) {
+        x = resting.x;
+        z = resting.y;
+        yaw = resting.yaw;
+        walking = false;
+      }
+      crowd.pose(i, x * 5, z * 5, yaw, time * 7 + g.id, walking, resting?.seated, resting?.height);
     });
     crowd.finish();
   });

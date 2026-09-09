@@ -101,3 +101,22 @@ for (const [name, spec] of Object.entries(zoo)) {
   assert.equal(createHash("sha256").update(bytes).digest("hex"), source.sha256);
 }
 console.log("PASS: 24 OpenArt zoo sprites, dimensions, anchors and source hashes");
+
+const life = JSON.parse(readFileSync(new URL("../game/life-sprites.json", import.meta.url), "utf8"));
+const lifeManifest = JSON.parse(
+  readFileSync(new URL("../art/park-v8/manifest.json", import.meta.url), "utf8"),
+);
+assert.equal(Object.keys(life).length, 27);
+for (const [name, spec] of Object.entries(life)) {
+  const bytes = readFileSync(new URL(`../public/assets/park-v8/${name}.png`, import.meta.url));
+  const source = lifeManifest.assets.find((a) => a.name === name);
+  assert(source, `${name}: provenance required`);
+  assert.equal(bytes.subarray(1, 4).toString(), "PNG");
+  assert.deepEqual(
+    [bytes.readUInt32BE(16), bytes.readUInt32BE(20)],
+    [spec.width * 4, spec.height * 4],
+  );
+  assert.deepEqual(source.logicalPivot, [spec.anchorX, spec.anchorY]);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), source.sha256);
+}
+console.log("PASS: 27 OpenArt park expansion sprites, dimensions, anchors and source hashes");

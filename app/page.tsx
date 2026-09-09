@@ -1,3 +1,17 @@
+import {
+  planStationReverse,
+  commitStationReverse,
+  stationOrientation,
+} from "../game/station-direction";
+import { suggestExit, applyExitSuggestion } from "../game/exit-assist";
+import { closestPhotoPoint } from "../game/coaster-photo";
+import { makeRidePath } from "../game/ride-path";
+import { GATES, gateStyle, changeGate, type GateStyle } from "../game/entrance";
+import { ResearchTree } from "../components/research-tree";
+import { StaffPanel } from "../components/staff-panel";
+import { RideOperationsPanel } from "../components/ride-operations-panel";
+import { setRideStaffed, setRideRounds, hasOperator } from "../game/operations";
+import { PATH_STYLES, pathStyleAt, isAmenity, type PathStyle } from "../game/park-life";
 import { habitatViewingSpots } from "../game/zoo-access";
 ("use client");
 import { ZooOverview, HabitatPanel } from "../components/zoo-panel";
@@ -29,7 +43,7 @@ import { invertingPiece } from "../game/track-parts";
 import VehicleCustomizer, { CarPreview } from "../components/vehicle-customizer";
 import { vehicleFor } from "../game/vehicles";
 /* oxlint-disable next/no-img-element, react/react-compiler -- Native transparent sprite images and a mutable external simulation are intentional. */
-import ParkMenu from "@/components/park-menu";
+import ParkMenu, { parkMenuGroup } from "@/components/park-menu";
 import {
   podPort,
   podSlots,
@@ -115,6 +129,8 @@ import {
   exitNetwork,
   queueCapacity,
   occupant,
+  footprint,
+  leaveBuilding,
   trackStats,
   isRide,
   isAttraction,
@@ -562,6 +578,7 @@ export default function Home() {
           : []),
     [tool, blueprintMode, hoverTile, rotation, draft, adjustmentPlan, coasterType],
   );
+  const [pathStyle, setPathStyle] = useState<PathStyle>("garden");
   const placement = useMemo(
     () =>
       adjustmentPlan ??
@@ -579,6 +596,7 @@ export default function Home() {
             tool === "coaster" ? previewTrack : undefined,
             autoClear,
             tool === "custom" ? customDesign : undefined,
+            tool === "path" ? pathStyle : undefined,
           )
         : null),
     [
@@ -590,6 +608,7 @@ export default function Home() {
       autoClear,
       adjustmentPlan,
       customDesign,
+      pathStyle,
     ],
   );
   const save = useCallback(() => {
@@ -947,11 +966,7 @@ export default function Home() {
     }
     if (tool === "erase") {
       const target = s.buildings.find((b) => b.id === hitId) ?? occupant(s, p.x, p.y);
-      if (target?.kind === "coaster") {
-        openSections(target);
-        notify("Wähle den roten Gleisbereich zum Entfernen. Die gesamte Bahn bleibt stehen.");
-        return;
-      }
+      if (target) p = footprint(target)[0] ?? p;
     }
     if (adjust && (tool === "station" || tool === "move")) {
       const b = s.buildings.find((b) => b.id === adjust.id);
@@ -1016,6 +1031,7 @@ export default function Home() {
           tool === "coaster" ? prefabBlueprint(p, rotation, coasterType) : undefined,
           autoClear,
           tool === "custom" ? customDesign : undefined,
+          tool === "path" ? pathStyle : undefined,
         );
         if (result.error) {
           notify(result.error);
@@ -1364,8 +1380,9 @@ export default function Home() {
     [b, b?.track, worldRevision, autoClear],
   );
   const readyRides =
-    snapshot?.buildings.filter((b) => isRide(b.kind) && b.open && b.tested && access(snapshot, b))
-      .length ?? 0;
+    snapshot?.buildings.filter(
+      (b) => isRide(b.kind) && hasOperator(b) && b.open && b.tested && access(snapshot, b),
+    ).length ?? 0;
   const goal = snapshot ? scenarioOf(snapshot) : SCENARIOS.waldhain;
   const catalog = (items: Kind[]) => (
     <div className="catalog">
@@ -1385,6 +1402,26 @@ export default function Home() {
       ))}
     </div>
   );
+  const staffRide = (id: number, staffed: boolean) =>
+    edit("Bedienpersonal zuweisen", () => {
+      const s = park.current!,
+        building = s.buildings.find((b) => b.id === id);
+      if (!building) return;
+      const error = setRideStaffed(building, staffed);
+      if (error) {
+        notify(error);
+        return;
+      }
+      if (!staffed) {
+        for (const id of building.queue) {
+          const g = s.guests.find((g) => g.id === id);
+          if (g) leaveBuilding(s, building, g);
+        }
+        building.queue = [];
+        building.open = false;
+      }
+      sync();
+    });
   const changeBuilding = (fn: (b: Building) => void) => {
     const b = park.current?.buildings.find((b) => b.id === selected);
     if (b) {
@@ -1745,6 +1782,11 @@ export default function Home() {
           <aside
             ref={panelRef}
             className={`panel ${category === "coaster" ? "builder-panel" : ""} ${cut?.id === selected ? "editing-section" : ""} ${podEdit?.id === selected ? "pod-editing" : ""}`}
+            data-menu-group={
+              isHabitat(b?.kind ?? "")
+                ? "zoo"
+                : parkMenuGroup(category === "detail" ? "rides" : category)
+            }
             aria-label="Bauauswahl"
           >
             <div className="panelhead">
@@ -1782,7 +1824,16 @@ export default function Home() {
             <div className="panelbody">
               {category === "zoo" && snapshot && (
                 <>
-                  {catalog(["zebra", "giraffe", "flamingo", "penguin", "keeperhut"])}
+                  {catalog([
+                    "zebra",
+                    "giraffe",
+                    "elephant",
+                    "lion",
+                    "flamingo",
+                    "penguin",
+                    "panda",
+                    "keeperhut",
+                  ])}
                   <ZooOverview
                     park={snapshot}
                     onBuild={(k) => pickTool(k, "zoo")}
@@ -1806,7 +1857,17 @@ export default function Home() {
               )}
               {category === "rides" && (
                 <>
-                  {catalog(["wheel", "carousel", "swing", "drop", "pirate", "teacups", "spinner"])}
+                  {catalog([
+                    "wheel",
+                    "carousel",
+                    "bumper",
+                    "balloonride",
+                    "swing",
+                    "drop",
+                    "pirate",
+                    "teacups",
+                    "spinner",
+                  ])}
                   <button
                     className="secondary"
                     style={{ marginTop: 12, width: "100%" }}
@@ -1850,7 +1911,18 @@ export default function Home() {
               )}
               {category === "shops" && (
                 <>
-                  {catalog(["burger", "drink", "toilet", "balloon", "plush", "bin"])}
+                  {catalog([
+                    "burger",
+                    "hotdog",
+                    "icecream",
+                    "popcorn",
+                    "drink",
+                    "coffee",
+                    "toilet",
+                    "balloon",
+                    "plush",
+                    "bin",
+                  ])}
                   <div className="hintbox">
                     <Info />
                     <span>Geschäfte stehen direkt an normalen Parkwegen.</span>
@@ -1859,7 +1931,7 @@ export default function Home() {
               )}
               {category === "nature" && (
                 <>
-                  {catalog(["tree", "pine", "flowers", "bench", "bin"])}
+                  {catalog(["tree", "pine", "flowers", "bench", "picnic", "playground", "bin"])}
                   <button
                     className="secondary"
                     style={{ marginTop: 12 }}
@@ -1896,6 +1968,26 @@ export default function Home() {
                       <small>Gemeinsam durch den Park</small>
                     </span>
                   </button>
+                  <div className="path-swatches" aria-label="Wegbelag">
+                    {Object.entries(PATH_STYLES).map(([id, style]) => (
+                      <button
+                        key={id}
+                        className={pathStyle === id ? "active" : ""}
+                        aria-pressed={pathStyle === id}
+                        title={style.description}
+                        onClick={() => {
+                          setPathStyle(id as PathStyle);
+                          pickTool("path");
+                        }}
+                      >
+                        <i style={{ background: style.color, borderColor: style.edge }} />
+                        <span>{style.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="small">
+                    Neue Wege: 12 € · vorhandene Wege umgestalten: 6 € pro Feld.
+                  </p>
                   <button
                     className={`path-tool entrance ${tool === "queue" ? "active" : ""}`}
                     aria-pressed={tool === "queue"}
@@ -2308,31 +2400,33 @@ export default function Home() {
                       <div
                         className={`statebadge ${(!reachable && !decorative(b.kind)) || !b.open ? "warn" : ""}`}
                       >
-                        {broken(b)
-                          ? "Außer Betrieb · Reparatur nötig"
-                          : isHabitat(b.kind) && !b.habitat?.count
-                            ? "Leeres Gehege · Tiere aufnehmen"
-                            : b.kind === "bin"
-                              ? `Mülleimer · ${b.binFill ?? 0} / 16 gefüllt · ${snapshot.staff} Reinigungskräfte`
-                              : decorative(b.kind)
-                                ? "Eine schöne Ecke für deine Besucher."
-                                : snapshot.trackEdit?.buildingId === b.id
-                                  ? "Baustelle · Strecke unterbrochen"
-                                  : !reachable
-                                    ? isRide(b.kind)
-                                      ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
-                                      : isHabitat(b.kind)
-                                        ? "Ein normaler Besucherweg am Zaun fehlt."
-                                        : "Ein erreichbarer Parkweg fehlt."
-                                    : b.testing
-                                      ? "Testfahrt läuft …"
-                                      : !b.tested
-                                        ? "Bereit für die Testfahrt."
-                                        : b.open
-                                          ? isHabitat(b.kind)
-                                            ? "Geöffnet · Tiere vom Besucherweg beobachten."
-                                            : "Geöffnet · Besucher sind willkommen."
-                                          : "Geschlossen · Bereit zur Eröffnung."}
+                        {!hasOperator(b)
+                          ? "Geschlossen · Bedienpersonal fehlt"
+                          : broken(b)
+                            ? "Außer Betrieb · Reparatur nötig"
+                            : isHabitat(b.kind) && !b.habitat?.count
+                              ? "Leeres Gehege · Tiere aufnehmen"
+                              : b.kind === "bin"
+                                ? `Mülleimer · ${b.binFill ?? 0} / 16 gefüllt · ${snapshot.staff} Reinigungskräfte`
+                                : decorative(b.kind)
+                                  ? "Eine schöne Ecke für deine Besucher."
+                                  : snapshot.trackEdit?.buildingId === b.id
+                                    ? "Baustelle · Strecke unterbrochen"
+                                    : !reachable
+                                      ? isRide(b.kind)
+                                        ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
+                                        : isHabitat(b.kind)
+                                          ? "Ein normaler Besucherweg am Zaun fehlt."
+                                          : "Ein erreichbarer Parkweg fehlt."
+                                      : b.testing
+                                        ? "Testfahrt läuft …"
+                                        : !b.tested
+                                          ? "Bereit für die Testfahrt."
+                                          : b.open
+                                            ? isHabitat(b.kind)
+                                              ? "Geöffnet · Tiere vom Besucherweg beobachten."
+                                              : "Geöffnet · Besucher sind willkommen."
+                                            : "Geschlossen · Bereit zur Eröffnung."}
                       </div>
                       {(isAttraction(b.kind) ||
                         (isTransport(b.kind) &&
@@ -2352,6 +2446,42 @@ export default function Home() {
                           <Play size={18} />{" "}
                           {isHabitat(b.kind) ? "Tiere in 3D beobachten" : "3D-Mitfahren"}
                         </button>
+                      )}
+                      {isRide(b.kind) && (
+                        <RideOperationsPanel
+                          building={b}
+                          onStaffed={(v) => staffRide(b.id, v)}
+                          onRounds={(n) =>
+                            edit("Fahrtprogramm ändern", () => {
+                              const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                              const error = setRideRounds(live, n);
+                              if (error) notify(error);
+                            })
+                          }
+                        />
+                      )}
+                      {isAmenity(b.kind) && (
+                        <section className="amenity-detail">
+                          <h3>
+                            {b.kind === "playground" ? "Spielen & Entdecken" : "Eine Pause im Park"}
+                          </h3>
+                          <p>{CATALOG[b.kind].description}</p>
+                          <div className="controlrow">
+                            <span>Gerade zu Besuch</span>
+                            <strong>
+                              {
+                                snapshot.guests.filter(
+                                  (g) => g.target === b.id && g.state === "rest",
+                                ).length
+                              }
+                            </strong>
+                          </div>
+                          <p className="small">
+                            {reachable
+                              ? "Erreichbar über den Parkweg. Pausen verbessern Energie und Laune."
+                              : "Baue einen normalen Parkweg direkt daneben."}
+                          </p>
+                        </section>
                       )}
                       {isHabitat(b.kind) && (
                         <HabitatPanel
@@ -2674,13 +2804,14 @@ export default function Home() {
                                   revision={worldRevision}
                                   clear={autoClear}
                                   onPreview={setProfilePreview}
-                                  onApply={(plan) =>
+                                  onApply={(plan) => {
+                                    let commitError: string | null = null;
                                     edit("Fahrprofil verbessern", () => {
-                                      const error = commitRideProfile(
+                                      const error = (commitError = commitRideProfile(
                                         park.current!,
                                         plan,
                                         autoClear,
-                                      );
+                                      ));
                                       if (error) {
                                         notify(error);
                                         setProfilePreview(null);
@@ -2691,8 +2822,9 @@ export default function Home() {
                                       notify(
                                         "Fahrprofil übernommen. Starte eine Testfahrt und öffne die Bahn wieder.",
                                       );
-                                    })
-                                  }
+                                    });
+                                    return commitError;
+                                  }}
                                 />
                               ) : sectionMode === "drive" ? (
                                 <>
@@ -2951,6 +3083,120 @@ export default function Home() {
                           ))}
                         </div>
                       )}
+                      {b.kind === "coaster" && b.track && !snapshot.trackEdit && (
+                        <section className="photo-control">
+                          <h3>Streckenfoto · Lichtschranke</h3>
+                          <p className="small">
+                            Setze den Foto-Laser auf deinen gewählten Streckenabschnitt oder
+                            verschiebe ihn entlang der Bahn. In der 3D-Mitfahrt entsteht beim
+                            Passieren ein herunterladbares Foto.
+                          </p>
+                          {b.photoPoint !== undefined ? (
+                            <>
+                              <label className="controlrow">
+                                Fotopunkt{" "}
+                                <strong>{Math.round(b.photoPoint * 100)} % der Strecke</strong>
+                              </label>
+                              <input
+                                aria-label="Position des Foto-Lasers"
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={Math.round(b.photoPoint * 100)}
+                                onChange={(e) =>
+                                  edit("Foto-Laser verschieben", () => {
+                                    const live = park.current!.buildings.find(
+                                      (x) => x.id === b.id,
+                                    )!;
+                                    live.photoPoint = Number(e.target.value) / 100;
+                                  })
+                                }
+                              />
+                              <button
+                                className="secondary"
+                                onClick={() =>
+                                  edit("Foto-Laser entfernen", () => {
+                                    delete park.current!.buildings.find((x) => x.id === b.id)!
+                                      .photoPoint;
+                                  })
+                                }
+                              >
+                                Foto-Laser entfernen
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              className="primary"
+                              disabled={snapshot.cash < 180}
+                              onClick={() =>
+                                edit("Foto-Laser montieren", () => {
+                                  const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                                  if (park.current!.cash < 180) return;
+                                  const track = editableTrack(live),
+                                    point =
+                                      cut?.id === b.id
+                                        ? track[Math.floor((cut.from + cut.to) / 2)]
+                                        : null;
+                                  live.photoPoint = point
+                                    ? (closestPhotoPoint(makeRidePath(live.track!), {
+                                        x: point.x * 5,
+                                        y: (point.z ?? 0) * 5 + 1.1,
+                                        z: point.y * 5,
+                                      })?.u ?? 0.5)
+                                    : 0.5;
+                                  park.current!.cash -= 180;
+                                  park.current!.expenses += 180;
+                                  park.current!.dayExpenses += 180;
+                                  notify(
+                                    "Foto-Laser montiert. Du kannst den Fotopunkt jederzeit verschieben.",
+                                  );
+                                })
+                              }
+                            >
+                              Foto-Laser {cut?.id === b.id ? "auf Auswahl " : ""}montieren · 180 €
+                            </button>
+                          )}
+                        </section>
+                      )}
+                      {b.kind === "coaster" && b.track && !snapshot.trackEdit && (
+                        <section className="station-direction-panel">
+                          <h3>Station & Abfahrt</h3>
+                          <p className="small">
+                            Aktuelle Richtung: {stationOrientation(b)?.direction}. Eine Umkehr dreht
+                            den Zug und die Abfahrt um 180°. Danach ist eine neue Testfahrt nötig.
+                          </p>
+                          <button
+                            className="secondary"
+                            onMouseEnter={() => {
+                              const plan = planStationReverse(snapshot, b);
+                              if (!plan.error)
+                                view.current.stationDirection = { ...b, ...plan.geometry };
+                            }}
+                            onMouseLeave={() => {
+                              view.current.stationDirection = undefined;
+                            }}
+                            onClick={() =>
+                              edit("Station drehen · Fahrtrichtung umkehren", () => {
+                                const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                                const plan = planStationReverse(park.current!, live);
+                                notify(
+                                  plan.error ??
+                                    commitStationReverse(park.current!, plan) ??
+                                    "Station um 180° gedreht. Starte eine neue Testfahrt.",
+                                );
+                                view.current.stationDirection = undefined;
+                              })
+                            }
+                          >
+                            <RotateCw size={16} />
+                            Station um 180° drehen
+                          </button>
+                          <p className="small">
+                            Die Fußgängerpods bleiben an ihren Wegen. Für 90° nutze „Bahn
+                            verschieben / drehen“ – dabei dreht sich die ganze Strecke.
+                          </p>
+                        </section>
+                      )}
                       <div className="adjust-actions">
                         {b.kind === "coaster" && (
                           <button
@@ -2981,6 +3227,9 @@ export default function Home() {
                           const pods = effectivePods(snapshot, b),
                             size = CATALOG[b.kind].size;
                           const outgoing = exitPath(snapshot, b);
+                          const exitProposal = !outgoing.length
+                            ? suggestExit(snapshot, b, autoClear)
+                            : null;
                           return (
                             <div className="pod-controls">
                               <h3>Ein- & Ausgangspods</h3>
@@ -3033,6 +3282,58 @@ export default function Home() {
                                   </div>
                                 );
                               })}
+                              {!outgoing.length && (
+                                <div className="exit-suggestion">
+                                  <strong>Ausgang automatisch verbinden</strong>
+                                  {exitProposal ? (
+                                    <>
+                                      <p className="small">
+                                        {POD_SIDES[exitProposal.pod.side]}{" "}
+                                        {exitProposal.pod.offset + 1} ·{" "}
+                                        {
+                                          exitProposal.points.filter(
+                                            (p) => snapshot.tiles[p.y][p.x] !== "exit",
+                                          ).length
+                                        }{" "}
+                                        rote Wegfelder · {EUR(exitProposal.cost)}
+                                      </p>
+                                      <button
+                                        className="primary"
+                                        disabled={snapshot.cash < exitProposal.cost}
+                                        onMouseEnter={() => {
+                                          view.current.connection = exitProposal.points;
+                                        }}
+                                        onMouseLeave={() => {
+                                          view.current.connection = undefined;
+                                        }}
+                                        onClick={() =>
+                                          edit("Ausgang automatisch verbinden", () => {
+                                            const live = park.current!.buildings.find(
+                                              (item) => item.id === b.id,
+                                            )!;
+                                            notify(
+                                              applyExitSuggestion(
+                                                park.current!,
+                                                live,
+                                                exitProposal,
+                                                autoClear,
+                                              ) ??
+                                                "Ausgang mit dem Parkweg verbunden. Du kannst die Attraktion wieder öffnen.",
+                                            );
+                                          })
+                                        }
+                                      >
+                                        Vorschlag übernehmen · {EUR(exitProposal.cost)}
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <p className="small">
+                                      Kein freier Weg gefunden. Baue einen Parkweg näher an die
+                                      Station oder versetze sie.
+                                    </p>
+                                  )}
+                                </div>
+                              )}
                               {podEdit?.id === b.id && (
                                 <div className="pod-position-picker">
                                   <strong>
@@ -3477,9 +3778,6 @@ export default function Home() {
                   {snapshot ? zooStats(snapshot).welfare : 100} / {goal.welfare}%
                 </b>
               </div>
-              <button className="secondary" onClick={() => pickTool("select", "zoo")}>
-                <PawPrint size={16} /> Zoo & Tierpflege
-              </button>
             </>
           )}
           {goal.value > 0 && (
@@ -3509,48 +3807,12 @@ export default function Home() {
               </b>
             </div>
           )}
-          <button
-            className="secondary research-link"
-            onClick={() => {
-              setTab("research");
-              setSettings(true);
-            }}
-          >
-            <FlaskConical size={16} />{" "}
-            {snapshot?.research?.active
-              ? `Forschung · ${Math.ceil(snapshot.research.remaining)} s`
-              : "Forschung & Freischaltungen"}
-          </button>
-          <button className="secondary" onClick={() => setNewDialog(true)}>
-            Kampagnen spielen
-          </button>
           <div className="reward">
             <Trophy />{" "}
             {snapshot?.won
               ? "Ziel erreicht – baue weiter!"
               : "Erreiche alle Ziele und entdecke weitere Szenarien."}
           </div>
-          <button
-            className="secondary"
-            style={{ width: "100%", marginTop: 14, fontSize: 12, padding: "8px" }}
-            onClick={() => {
-              setCategory("guests");
-              setTool("select");
-            }}
-          >
-            <Users size={14} /> Besucher beobachten
-          </button>
-          <button
-            className="secondary analysis-shortcut"
-            onClick={() => {
-              setCategory("analysis");
-              setTool("select");
-              setSelected(null);
-              setMenuOpen(false);
-            }}
-          >
-            <TrendingUp size={16} /> Parkanalyse & Sauberkeit
-          </button>
         </aside>
         {tool !== "select" && !(tool === "coaster" && !blueprintMode) && (
           <div className={`build-status ${placement?.error ? "invalid" : ""}`} aria-live="polite">
@@ -3637,7 +3899,7 @@ export default function Home() {
         <div className="timebar">
           <div className="day">
             Tag {1 + Math.floor((snapshot?.time ?? 0) / 90)}
-            <span>Sommer · Jahr 1</span>
+            <span>Sommer · Jahr {Math.floor((snapshot?.time ?? 0) / 1080) + 1}</span>
           </div>
           <div className="speeds">
             {[0, 1, 3].map((n) => (
@@ -3722,6 +3984,24 @@ export default function Home() {
                 setCategory("guests");
                 setSelected(null);
                 setTool("select");
+              },
+            },
+            {
+              id: "personal",
+              label: "Personalübersicht",
+              Icon: Users,
+              run: () => {
+                setTab("personal");
+                setSettings(true);
+              },
+            },
+            {
+              id: "entrance",
+              label: "Eingangstor gestalten",
+              Icon: Flag,
+              run: () => {
+                setTab("entrance");
+                setSettings(true);
               },
             },
             {
@@ -3826,7 +4106,7 @@ export default function Home() {
             </li>
             <li>
               <b>Besucher lenken:</b> Im Menü „Wege“ ist Blau die Warteschlange zum Eingang, Rot der
-              Ausgang zurück zum beigen Parkweg. Beide an unterschiedliche Seiten der Attraktion
+              Ausgang zurück zum beigen Parkweg. Beide an unterschiedliche Anschlüsse der Attraktion
               setzen; bei Achterbahnen neben die Station. Weiße Pfeile zeigen die Ausgangsrichtung.
               Ein Kreuz markiert einen noch nicht angeschlossenen Ausgang.
             </li>
@@ -3973,18 +4253,112 @@ export default function Home() {
         </Suspense>
       )}
       <Dialog open={settings} onOpenChange={setSettings}>
-        <DialogContent className="manual">
+        <DialogContent className={`manual park-management tab-${tab}`}>
           <DialogTitle>Dein Park, deine Regeln.</DialogTitle>
           <DialogDescription>Verwalte den Parkbetrieb und deinen Spielstand.</DialogDescription>
           <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
             <TabsList className="tabsrow">
               <TabsTrigger value="park">Parkbetrieb</TabsTrigger>
+              <TabsTrigger value="personal">Personal</TabsTrigger>
+              <TabsTrigger value="entrance">Eingangstor</TabsTrigger>
               <TabsTrigger value="marketing">Werbung</TabsTrigger>
               <TabsTrigger value="save">Spielstand</TabsTrigger>
               <TabsTrigger value="audio">Sound</TabsTrigger>
               <TabsTrigger value="research">Forschung</TabsTrigger>
               <TabsTrigger value="land">Parkgelände</TabsTrigger>
             </TabsList>
+            <TabsContent value="entrance">
+              {snapshot && (
+                <section className="entrance-panel">
+                  <h3>Willkommen in deinem Park</h3>
+                  <p>
+                    Wähle ein Eingangstor. Gekaufte Gestaltungen kannst du jederzeit kostenlos
+                    wechseln.
+                  </p>
+                  <div className="entrance-themes">
+                    {(Object.keys(GATES) as GateStyle[]).map((style) => {
+                      const gate = GATES[style],
+                        owned = style === "classic" || snapshot.entrance?.owned.includes(style);
+                      return (
+                        <button
+                          key={style}
+                          className={`entrance-card ${gateStyle(snapshot) === style ? "active" : ""}`}
+                          aria-pressed={gateStyle(snapshot) === style}
+                          disabled={!owned && snapshot.cash < gate.cost}
+                          onClick={() => {
+                            notify(changeGate(park.current!, style) ?? `${gate.name} ausgewählt.`);
+                            setWorldRevision((v) => v + 1);
+                            sync();
+                          }}
+                        >
+                          <img src={assetUrl(gate.sprite)} alt="" />
+                          <strong>{gate.name}</strong>
+                          <span>
+                            {gateStyle(snapshot) === style
+                              ? "Aktuelles Tor"
+                              : owned
+                                ? "Kostenlos wechseln"
+                                : EUR(gate.cost)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <label className="controlrow">
+                    Parkeintritt <strong>{EUR(snapshot.ticket)}</strong>
+                    <input
+                      aria-label="Eintritt am Tor"
+                      type="range"
+                      min="0"
+                      max="30"
+                      value={snapshot.ticket}
+                      onChange={(e) => {
+                        park.current!.ticket = Number(e.target.value);
+                        sync();
+                      }}
+                    />
+                  </label>
+                  <p className="small">
+                    Etwa {Math.round(entryDemand(snapshot) * 100)} % der Interessenten entscheiden
+                    sich bei diesem Preis für einen Besuch.
+                  </p>
+                  <button
+                    className="primary"
+                    onClick={() => {
+                      park.current!.open = !park.current!.open;
+                      sync();
+                    }}
+                  >
+                    {snapshot.open ? "Eingang für neue Besucher schließen" : "Eingang öffnen"}
+                  </button>
+                </section>
+              )}
+            </TabsContent>
+            <TabsContent value="personal">
+              {snapshot && (
+                <StaffPanel
+                  park={snapshot}
+                  onCleaners={(count) => {
+                    park.current!.staff = count;
+                    initCleanliness(park.current!);
+                    sync();
+                  }}
+                  onKeepers={(count) => {
+                    initZoo(park.current!);
+                    park.current!.zoo!.keepers = count;
+                    initZoo(park.current!);
+                    sync();
+                  }}
+                  onStaffRide={staffRide}
+                  onSelectRide={(id) => {
+                    setSettings(false);
+                    setSelected(id);
+                    setCategory("detail");
+                    setTool("select");
+                  }}
+                />
+              )}
+            </TabsContent>
             <TabsContent value="marketing">
               {snapshot && (
                 <MarketingPanel
@@ -4065,54 +4439,16 @@ export default function Home() {
               </p>
             </TabsContent>
             <TabsContent value="research">
-              <p className="small">
-                Forschung wird einmal bezahlt und läuft mit der Spielzeit. Im freien Spiel ist alles
-                verfügbar.
-              </p>
-              {(Object.keys(RESEARCH) as ResearchId[]).map((id) => {
-                const project = RESEARCH[id],
-                  done = snapshot?.mode === "sandbox" || snapshot?.research?.completed.includes(id),
-                  active = snapshot?.research?.active === id;
-                return (
-                  <div className="research-card" key={id}>
-                    <div>
-                      <h3>{project.name}</h3>
-                      <p>{project.description}</p>
-                      <small>
-                        {EUR(project.cost)} · {Math.ceil(project.duration / 90)} Spieltage
-                        {project.requires ? ` · benötigt ${RESEARCH[project.requires].name}` : ""}
-                      </small>
-                    </div>
-                    <button
-                      className={done ? "secondary" : "primary"}
-                      disabled={
-                        done ||
-                        !!snapshot?.research?.active ||
-                        (!!project.requires &&
-                          !snapshot?.research?.completed.includes(project.requires)) ||
-                        (snapshot?.cash ?? 0) < project.cost
-                      }
-                      onClick={() => {
-                        const error = startResearch(park.current!, id);
-                        notify(error ?? `${project.name}: Forschung gestartet.`);
-                        sync();
-                      }}
-                    >
-                      {done
-                        ? "Freigeschaltet"
-                        : active
-                          ? `${Math.ceil(snapshot!.research!.remaining)} s verbleiben`
-                          : "Erforschen"}
-                    </button>
-                    {active && (
-                      <progress
-                        max={project.duration}
-                        value={project.duration - (snapshot?.research?.remaining ?? 0)}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+              {snapshot && (
+                <ResearchTree
+                  park={snapshot}
+                  onStart={(id) => {
+                    const error = startResearch(park.current!, id);
+                    notify(error ?? `${RESEARCH[id].name}: Forschung gestartet.`);
+                    sync();
+                  }}
+                />
+              )}
             </TabsContent>
             <TabsContent value="audio">
               <button className="primary" onClick={toggleSound}>

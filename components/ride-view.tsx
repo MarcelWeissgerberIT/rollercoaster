@@ -1,3 +1,7 @@
+import { addPhotoHardware, isPhotoPoint, crossedPhotoPoint } from "../game/coaster-photo";
+import { createRidePhotoCapture, type RidePhoto } from "../game/coaster-photo-capture";
+import { operationsOf } from "../game/operations";
+import { PATH_STYLES, pathStyleAt } from "../game/park-life";
 import ZooView from "./zoo-view";
 import { isHabitat } from "../game/zoo";
 import { forceAt, analyzeForces } from "../game/gforce";
@@ -43,18 +47,24 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
       time: 0,
       camera: "front",
       reset: 0,
+      photoSeek: 0,
       orbit: { yaw: 0.72, pitch: 0.68, radius: 180 },
     });
   const [playing, setPlaying] = useState(true),
     [mode, setMode] = useState("front"),
     [error, setError] = useState("");
+  const [photo, setPhoto] = useState<RidePhoto | null>(null),
+    [photoError, setPhotoError] = useState("");
+  const rounds = operationsOf(building).rounds;
   const [hud, setHud] = useState({
     speed: 0,
+    lap: 1,
     forces: { vertical: 1, lateral: 0, longitudinal: 0, total: 1 },
     peakG: 1,
     airtime: false,
     height: 0,
     progress: 0,
+    trackProgress: 0,
     phase: "station" as RidePhase,
   });
   useEffect(() => {
@@ -130,7 +140,7 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
               ? "#79aadd"
               : type === "exit"
                 ? "#db8b81"
-                : "#dfc28d",
+                : "#ffffff",
         ),
         tiles.length,
       );
@@ -138,6 +148,8 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
       tiles.forEach((t, i) => {
         matrix.makeTranslation(t.x * 5, 0.01, t.y * 5);
         instances.setMatrixAt(i, matrix);
+        if (type === "path")
+          instances.setColorAt(i, new THREE.Color(PATH_STYLES[pathStyleAt(park, t.x, t.y)].color));
       });
       scene.add(instances);
     }
@@ -203,6 +215,15 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
         }
     });
     addDriveHardware(scene, path);
+    const photoRig = isPhotoPoint(building.photoPoint)
+      ? addPhotoHardware(scene, path, building.photoPoint)
+      : null;
+    const photos = createRidePhotoCapture(setPhoto, setPhotoError);
+    const photoCamera = new THREE.PerspectiveCamera(50, camera.aspect, 0.08, 400);
+    let photoPrevious: number | null = null,
+      photoCaptured = false,
+      seenPhotoSeek = control.current.photoSeek;
+    const programDuration = path.duration * rounds;
     const desiredCamera = new THREE.PerspectiveCamera();
     const resize = () => {
       const w = target.clientWidth,
@@ -267,17 +288,22 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
       }
       const c = control.current;
       if (c.reset) {
+        photoPrevious = null;
+        photoCaptured = false;
+        photos.clear();
+        setPhotoError("");
         c.time = 0;
         peakG = 1;
         c.reset = 0;
         initialized = false;
       }
-      if (c.playing) c.time = Math.min(path.duration, c.time + dt);
-      const u = path.progress(c.time),
+      if (c.playing) c.time = Math.min(programDuration, c.time + dt);
+      const lap = Math.min(rounds - 1, Math.floor(c.time / path.duration));
+      const u = path.progress(c.time >= programDuration ? path.duration : c.time % path.duration),
         p = path.at(u),
         speed = c.playing ? p.speed : 0;
       const forces = forceAt(forceRoute, u * forceRoute.length, {
-        stationary: c.time >= path.duration,
+        stationary: c.time >= programDuration,
       });
       if (c.playing) peakG = Math.max(peakG, forces.total);
       if (c.playing) parkTime += dt;
@@ -336,30 +362,59 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
         up: p.up,
         verticalG: forces.vertical,
         phase: p.phase,
-        playing: c.playing && c.time < path.duration,
+        playing: c.playing && c.time < programDuration,
         visible: !document.hidden,
         people: Math.max(1, building.riders.length),
       });
+      const photoProgress = lap + u;
+      if (seenPhotoSeek !== c.photoSeek) {
+        photoPrevious = photoProgress;
+        seenPhotoSeek = c.photoSeek;
+      }
+      const triggerPhoto =
+        c.playing &&
+        !photoCaptured &&
+        isPhotoPoint(building.photoPoint) &&
+        crossedPhotoPoint(photoPrevious, photoProgress, building.photoPoint);
+      photoRig?.setFlash(triggerPhoto ? 1 : 0);
       renderer.render(scene, camera);
+      if (triggerPhoto) {
+        photoCamera.aspect = camera.aspect;
+        photoCamera.updateProjectionMatrix();
+        photoCamera.position
+          .copy(p.position)
+          .addScaledVector(p.right, 7)
+          .addScaledVector(p.up, 3)
+          .addScaledVector(p.tangent, 6);
+        photoCamera.up.copy(p.up);
+        photoCamera.lookAt(p.position.clone().addScaledVector(p.up, 0.9));
+        renderer.render(scene, photoCamera);
+        photoCaptured = photos.capture(renderer.domElement, "Coaster-Grove-Mitfahrt.jpg");
+        renderer.render(scene, camera);
+      }
+      photoPrevious = photoProgress;
       if (now - lastHud > 150) {
         lastHud = now;
         setHud({
+          lap: lap + 1,
           speed: Math.round(speed * 3.6),
           forces,
           peakG,
           airtime: forces.vertical < 0.3 && p.up.y > 0.2 && p.speed > 1,
           height: Math.max(0, Math.round(p.position.y - 1.1)),
-          progress: u,
+          progress: c.time / programDuration,
+          trackProgress: u,
           phase: p.phase,
         });
       }
-      if (c.time >= path.duration && c.playing) {
+      if (c.time >= programDuration && c.playing) {
         c.playing = false;
         setPlaying(false);
         audio?.ride(0, true);
       }
     });
     return () => {
+      photos.dispose();
       renderer.setAnimationLoop(null);
       observer.disconnect();
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
@@ -405,6 +460,19 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
         </button>
       </div>
       <div className="ride-scene" ref={host} />
+      {photo && (
+        <aside className="ride-photo">
+          <img src={photo.url} alt="Dein Foto aus der Mitfahrt" width={180} />
+          <a href={photo.url} download={photo.filename}>
+            Foto herunterladen
+          </a>
+        </aside>
+      )}
+      {photoError && (
+        <p className="photo-error" role="status">
+          {photoError}
+        </p>
+      )}
       {error && (
         <div className="ride-error">
           <strong>Mitfahrt nicht verfügbar</strong>
@@ -421,7 +489,7 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
         <span>
           {hud.progress >= 0.999
             ? "Zurück an der Station"
-            : `${PHASE_NAMES[hud.phase]} · ${Math.round(hud.progress * 100)} %`}
+            : `Runde ${hud.lap}/${rounds} · ${PHASE_NAMES[hud.phase]} · ${Math.round(hud.progress * 100)} %`}
         </span>
       </div>
       <aside className="gforce-hud" aria-label="G-Kraft-Messung">
@@ -476,7 +544,13 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
               )
               .join(" ")}
           />
-          <line x1={hud.progress * 240} x2={hud.progress * 240} y1="0" y2="48" stroke="#fff" />
+          <line
+            x1={hud.trackProgress * 240}
+            x2={hud.trackProgress * 240}
+            y1="0"
+            y2="48"
+            stroke="#fff"
+          />
         </svg>
         <small>
           Vertikale Last über die Strecke · 1 g im Stand
@@ -494,15 +568,9 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
         onChange={(e) => {
           const path = compiledPath;
           const wanted = Number(e.target.value) / 1000;
-          let lo = 0,
-            hi = path.duration;
-          for (let i = 0; i < 24; i++) {
-            const mid = (lo + hi) / 2;
-            if (path.progress(mid) < wanted) lo = mid;
-            else hi = mid;
-          }
           audio?.rideCheer(null);
-          control.current.time = (lo + hi) / 2;
+          control.current.photoSeek++;
+          control.current.time = wanted * path.duration * rounds;
           control.current.playing = false;
           setPlaying(false);
           setHud({ ...hud, progress: wanted, speed: 0 });

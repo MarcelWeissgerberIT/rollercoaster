@@ -65,7 +65,7 @@ test("Queue limit and one payment per boarding", () => {
   const cash = s.cash;
   M.tick(s, 0.01);
   assert.equal(b.queue.length, 8);
-  M.tick(s, 0.01);
+  M.tick(s, 3.5); //2s admission +1.5s safety check before dispatch.
   assert.equal(b.riders.length, 6);
   assert.equal(b.queue.length, 2);
   assert.equal(s.cash - cash, 30);

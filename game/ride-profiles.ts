@@ -138,7 +138,12 @@ export function planRideProfile(
     const result = findTrackFit(copy, copy.draft!.track, piece, clear);
     if (result.solution) {
       const f = result.solution;
-      offer(f.track, RIDE_PROFILES.find((p) => p.id === piece)?.name ?? "Looping", f.cost, f);
+      offer(
+        f.track,
+        RIDE_PROFILES.find((p) => p.id === piece)?.name ?? (piece === "hill" ? "Hügel" : "Looping"),
+        f.cost,
+        f,
+      );
     } else reason = result.error ?? reason;
   }
   if (!profile || profile === "boost" || profile === "brake") {
