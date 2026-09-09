@@ -1,3 +1,24 @@
+import {
+  marketingDemand,
+  marketingEffects,
+  attributeMarketingGuest,
+  recordMarketingRevenue,
+  marketingRideBonus,
+  validMarketing,
+  type MarketingState,
+} from "./marketing";
+import {
+  initCleanliness,
+  tickCleanliness,
+  giveWaste,
+  cleanlinessScore,
+  validCleanliness,
+  type Cleanliness,
+  type Waste,
+} from "./cleanliness";
+import { analyzeForces } from "./gforce";
+import { PIECES, type Piece } from "./track-parts";
+import { validVehicle, type Vehicle } from "./vehicles";
 import { connected, exitNetwork, followExit, exitFromCells } from "./walkways";
 import { podPort, podSlots, samePod, usesPods, validPods, type AccessPods } from "./pods";
 export { connected, exitNetwork } from "./walkways";
@@ -79,9 +100,12 @@ export type Kind =
   | "tree"
   | "pine"
   | "flowers"
-  | "bench";
+  | "bench"
+  | "bin";
 export type Tile = "grass" | "path" | "queue" | "exit" | "water";
 export type Building = {
+  vehicle?: Vehicle;
+  binFill?: number;
   pods?: AccessPods;
   id: number;
   kind: Kind;
@@ -103,6 +127,8 @@ export type Building = {
   design?: AttractionDesign;
 };
 export type Guest = {
+  campaignId?: number | null;
+  waste?: Waste[];
   id: number;
   name?: string;
   x: number;
@@ -126,6 +152,8 @@ export type Guest = {
   souvenir?: "balloon" | "plush";
 };
 export type Park = {
+  marketing?: MarketingState;
+  cleanliness?: Cleanliness;
   version: 1;
   cash: number;
   tiles: Tile[][];
@@ -161,7 +189,7 @@ export type Park = {
     historyEnds?: (Point | null)[];
     rotation: number;
     style: CoasterType;
-    piece?: "short" | "straight" | "rise" | "fall" | "left" | "right" | "loop" | "hill" | "sbend";
+    piece?: Piece;
   };
 };
 export const SCENARIOS = {
@@ -304,6 +332,7 @@ export function startResearch(s: Park, id: ResearchId): string | null {
 }
 /** Old parks retain all previously available content; new scenarios start with research. */
 export function migratePark(s: Park): Park {
+  initCleanliness(s);
   s.scenario ??= "waldhain";
   s.operatingIncomeToday ??= 0;
   s.operatingExpensesToday ??= 0;
@@ -354,7 +383,7 @@ export function rideAppeal(b: Building, profile: Guest["profile"] = "family") {
   const ideal = profile === "thrill" ? 7 : profile === "family" ? 3 : 4;
   return Math.max(0.5, fun + 2 - Math.abs(intensity - ideal) * 0.9);
 }
-export function guestScore(b: Building, g: Guest) {
+export function guestScore(b: Building, g: Guest, s?: Park) {
   const desire = isRide(b.kind)
     ? rideAppeal(b, g.profile)
     : b.kind === "burger"
@@ -367,7 +396,8 @@ export function guestScore(b: Building, g: Guest) {
             : 9 + (g.profile === "family" ? 3 : 0)
           : (g.bladder ?? 10) * 0.15 - 4;
   return (
-    desire -
+    desire +
+    (s ? marketingRideBonus(s, b, g, (s, b) => !!access(s, b)) : 0) -
     b.price * (g.profile === "budget" ? 0.65 : 0.32) -
     expectedWait(b) / 18 -
     Math.hypot(b.x - g.x, b.y - g.y) * 0.09 -
@@ -378,10 +408,11 @@ export function entryDemand(s: Park) {
   const rides = s.buildings.filter((b) => b.open && b.tested && isRide(b.kind) && access(s, b));
   if (!rides.length) return 0;
   const value = rides.reduce((n, b) => n + rideAppeal(b, "family"), 0) * 0.62;
-  return Math.min(
+  const base = Math.min(
     1,
     Math.max(0, (1 / (1 + Math.exp((s.ticket - value) / 3.5))) * (0.5 + s.rating / 150)),
   );
+  return marketingDemand(s, base, (s, b) => !!access(s, b));
 }
 export const SIZE = 30,
   ENTRANCE = PARK_ENTRANCE;
@@ -627,6 +658,18 @@ export const CATALOG: Record<
     upkeep: 0,
     sprite: "flowers",
     description: "Farbe für jede Parkecke.",
+  },
+  bin: {
+    name: "Mülleimer",
+    cost: 65,
+    size: 1,
+    price: 0,
+    duration: 0,
+    capacity: 0,
+    appeal: 0,
+    upkeep: 0,
+    sprite: "bin-empty",
+    description: "Neben Wege und Imbisse stellen. Reinigungskräfte leeren volle Eimer.",
   },
   bench: {
     name: "Parkbank",
@@ -894,28 +937,15 @@ export function trackStats(track: Point[]) {
   const cached = statsCache.get(track);
   if (cached) return cached;
   const route = prepareRoute(track),
-    height = Math.max(0, ...track.map((p) => p.z ?? 0)) * 5;
-  let peak = track[0]?.z ?? 0,
-    drop = 0;
-  for (const p of track) {
-    const z = p.z ?? 0;
-    if (z > peak) peak = z;
-    else drop = Math.max(drop, peak - z);
-  }
-  const speed = Math.max(0, ...route.speeds) * 3.6,
-    inversions = track.some((p) => p.inversion) ? 1 : 0;
+    height = Math.max(0, ...track.map((p) => p.z ?? 0)) * 5,
+    speed = Math.max(0, ...route.speeds) * 3.6,
+    forces = analyzeForces(track);
   const stats = {
     length: Math.round(route.length * 5),
     height,
     speed: Math.round(speed),
-    excitement: Math.min(
-      9.9,
-      2.5 + height * 0.1 + route.length / 40 + inversions * 1.2 + speed / 100,
-    ).toFixed(1),
-    intensity: Math.min(
-      9.9,
-      1.5 + drop * 0.55 + height * 0.05 + inversions * 2 + speed / 70,
-    ).toFixed(1),
+    excitement: Math.min(9.9, 2 + forces.fun / 12).toFixed(1),
+    intensity: Math.min(9.9, 1 + forces.intensity / 11).toFixed(1),
   };
   statsCache.set(track, stats);
   return stats;
@@ -1061,6 +1091,7 @@ export function paint(s: Park, x: number, y: number, type: Tile): string | null 
   const cost = type === "queue" || type === "exit" ? 18 : type === "water" ? 35 : 12;
   if (!spend(s, cost)) return "Dafür reicht dein Parkbudget nicht.";
   s.tiles[y][x] = type;
+  if (s.cleanliness) initCleanliness(s);
   return null;
 }
 export function remove(s: Park, x: number, y: number) {
@@ -1088,6 +1119,7 @@ export function remove(s: Park, x: number, y: number) {
       }
   } else if (inBounds(x, y, s) && !(x === ENTRANCE.x && y === ENTRANCE.y)) {
     s.tiles[y][x] = "grass";
+    if (s.cleanliness) initCleanliness(s);
   }
 }
 function newGuest(s: Park) {
@@ -1111,8 +1143,10 @@ function newGuest(s: Park) {
     bladder: 10,
   };
   g.name = guestName(g.id);
+  attributeMarketingGuest(s, g, Math.random(), (s, b) => !!access(s, b));
   s.guests.push(g);
   s.arrivals++;
+  recordMarketingRevenue(s, g, s.ticket, "ticket");
   s.cash += s.ticket;
   s.income += s.ticket;
   s.dayIncome += s.ticket;
@@ -1262,7 +1296,7 @@ function choose(s: Park, g: Guest, net: Set<string>) {
       b.queue.length < (isRide(b.kind) ? queueCapacity(s, b) : 6),
   );
   const ranked = options
-    .map((b) => ({ b, score: guestScore(b, g) + Math.random() * 1.4 }))
+    .map((b) => ({ b, score: guestScore(b, g, s) + Math.random() * 1.4 }))
     .filter((o) => o.score > -0.5)
     .sort((a, b) => b.score - a.score);
   if (
@@ -1321,10 +1355,11 @@ export function tick(s: Park, dt: number) {
     exits = exitNetwork(s, net);
   const active = s.buildings.filter((b) => b.open && !decorative(b.kind) && access(s, b, net));
   s.spawnClock += dt;
-  const interval = Math.max(
-    2.2,
-    4.5 - active.filter((b) => isRide(b.kind)).length * 0.2 + (100 - s.rating) * 0.035,
-  );
+  const interval =
+    Math.max(
+      2.2,
+      4.5 - active.filter((b) => isRide(b.kind)).length * 0.2 + (100 - s.rating) * 0.035,
+    ) / marketingEffects(s, (s, b) => !!access(s, b)).spawnMultiplier;
   if (s.open && s.spawnClock >= interval && s.guests.length < 220) {
     s.spawnClock = 0;
     if (Math.random() < entryDemand(s)) newGuest(s);
@@ -1388,6 +1423,7 @@ export function tick(s: Park, dt: number) {
             g.wallet = Math.max(0, (g.wallet ?? 60) - price);
             b.served++;
             b.revenue += price;
+            recordMarketingRevenue(s, g, price, "shop");
             s.cash += price;
             s.income += price;
             s.dayIncome += price;
@@ -1406,6 +1442,8 @@ export function tick(s: Park, dt: number) {
             s.expenses += supplies;
             s.dayExpenses += supplies;
             s.operatingExpensesToday! += supplies;
+            if (b.kind === "burger" || b.kind === "drink")
+              giveWaste(s, g, b.kind === "burger" ? "wrapper" : "cup");
             g.happiness = Math.min(100, g.happiness + (b.kind === "toilet" ? 1 : 4));
             g.thought =
               b.kind === "burger"
@@ -1442,6 +1480,7 @@ export function tick(s: Park, dt: number) {
           g.wallet = Math.max(0, (g.wallet ?? 60) - b.price);
           b.served++;
           b.revenue += b.price;
+          recordMarketingRevenue(s, g, b.price, "ride");
           s.cash += b.price;
           s.income += b.price;
           s.dayIncome += b.price;
@@ -1579,9 +1618,15 @@ export function tick(s: Park, dt: number) {
     } else choose(s, g, net);
   }
   tickTransit(s, dt);
+  tickCleanliness(s, dt);
   s.guests = s.guests.filter((g) => g.timer !== -999);
+  const dirtPenalty = (100 - cleanlinessScore(s)) * 0.16;
   if (s.guests.length)
-    s.rating = Math.round(s.guests.reduce((a, g) => a + g.happiness, 0) / s.guests.length);
+    s.rating = Math.max(
+      0,
+      Math.round(s.guests.reduce((a, g) => a + g.happiness, 0) / s.guests.length - dirtPenalty),
+    );
+  else if (dirtPenalty > 0) s.rating = Math.min(s.rating, Math.round(100 - dirtPenalty));
   if (Math.floor(s.time / 90) !== oldDay) {
     const cost =
       s.staff * 80 +
@@ -1608,7 +1653,7 @@ export function tick(s: Park, dt: number) {
     const staffing = Math.min(1, s.staff / Math.max(1, s.guests.length / 25));
     for (const g of s.guests) {
       const nearby = s.buildings.filter(
-        (b) => decorative(b.kind) && Math.hypot(b.x - g.x, b.y - g.y) < 4,
+        (b) => b.kind !== "bin" && decorative(b.kind) && Math.hypot(b.x - g.x, b.y - g.y) < 4,
       ).length;
       g.happiness = Math.max(0, Math.min(100, g.happiness + (nearby ? 1 : 0) - (1 - staffing) * 3));
     }
@@ -1731,10 +1776,7 @@ export function validSave(v: unknown): v is Park {
       const d = s.draft;
       if (
         !d ||
-        (d.piece !== undefined &&
-          !["short", "straight", "rise", "fall", "left", "right", "loop", "hill", "sbend"].includes(
-            d.piece,
-          )) ||
+        (d.piece !== undefined && !Object.hasOwn(PIECES, d.piece)) ||
         !Array.isArray(d.track) ||
         d.track.length > 2048 ||
         !d.track.every(trackPoint) ||
@@ -1759,6 +1801,7 @@ export function validSave(v: unknown): v is Park {
       )
     )
       return false;
+    if (!validCleanliness(s) || !validMarketing(s)) return false;
     const ids = new Set<number>();
     for (const b of s.buildings) {
       if (
@@ -1776,6 +1819,7 @@ export function validSave(v: unknown): v is Park {
                   s,
                 ),
             ))) ||
+        (b.vehicle !== undefined && (b.kind !== "coaster" || !validVehicle(b.vehicle))) ||
         (b.kind === "custom" && !validDesign(b.design)) ||
         (b.kind !== "custom" && b.design !== undefined) ||
         !Number.isInteger(b.id) ||

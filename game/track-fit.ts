@@ -1,3 +1,4 @@
+import { invertingPiece } from "./track-parts";
 import {
   appendPiece,
   pieceError,
@@ -45,7 +46,7 @@ export function findTrackFit(s: Park, draft: Point[], piece: Piece, clear = true
     return { checked: 0, error: "Öffne zuerst einen Gleisbereich zum Umbauen." };
   if (isClosedTrack(draft))
     return { checked: 0, error: "Die Strecke ist bereits verbunden. Übernimm zuerst den Umbau." };
-  if (draft[0].style === "wood" && piece === "loop")
+  if (draft[0].style === "wood" && invertingPiece(piece))
     return {
       checked: 0,
       error: "Holzbahnen unterstützen keine Loopings. Wähle einen Hügel oder eine Stahlbahn.",

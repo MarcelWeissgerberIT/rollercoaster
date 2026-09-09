@@ -64,3 +64,20 @@ for (const [name, spec] of Object.entries(park)) {
   );
 }
 console.log("PASS: 34 OpenArt park, transport, souvenir and seated guest sprites");
+
+const experience = JSON.parse(
+  readFileSync(new URL("../game/experience-sprites.json", import.meta.url), "utf8"),
+);
+for (const [name, spec] of Object.entries(experience)) {
+  const bytes = readFileSync(
+    new URL(`../public/assets/experience-v6/${name}.png`, import.meta.url),
+  );
+  assert.equal(bytes.subarray(1, 4).toString(), "PNG");
+  assert.deepEqual(
+    [bytes.readUInt32BE(16), bytes.readUInt32BE(20)],
+    [spec.width * 4, spec.height * 4],
+  );
+}
+console.log(
+  `PASS: ${Object.keys(experience).length} OpenArt sport cars, cleaning staff and litter bins`,
+);

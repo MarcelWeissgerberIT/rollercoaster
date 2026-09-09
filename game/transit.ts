@@ -1,3 +1,4 @@
+import { recordMarketingRevenue } from "./marketing";
 import type { Park, Point, Building, Guest } from "./simulation";
 import { connected, exitFromCells, exitNetwork } from "./walkways";
 import { podPort } from "./pods";
@@ -304,6 +305,7 @@ export function tickTransit(s: Park, dt: number) {
           g.thought = "Gut angekommen – weiter zu meiner Attraktion.";
           line.served++;
           line.revenue += fare;
+          recordMarketingRevenue(s, g, fare, "ride");
           s.cash += fare;
           s.income += fare;
           s.dayIncome += fare;

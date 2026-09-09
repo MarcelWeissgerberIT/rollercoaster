@@ -1,3 +1,6 @@
+import { tickCleanliness, initCleanliness } from "./cleanliness";
+import { createCoasterCar } from "./coaster-car";
+import { vehicleFor, carSeat } from "./vehicles";
 import { addDriveHardware } from "./track-hardware";
 import { addExitArrows } from "./path-markings";
 import { addAccessPods } from "./pod-model";
@@ -76,6 +79,55 @@ export function populatePark(
     scene.add(g);
     return g;
   };
+  const cleaningPark = {
+    tiles: park.tiles,
+    buildings: park.buildings.map((b) => ({ ...b })),
+    guests: [],
+    staff: park.staff,
+    time: park.time,
+    speed: 1,
+    cleanliness: structuredClone(park.cleanliness),
+  };
+  initCleanliness(cleaningPark);
+  let cleaningTime = 0;
+  const litterModels = new Map<number, THREE.Object3D>();
+  for (const l of cleaningPark.cleanliness?.litter ?? []) {
+    const m = mesh(
+      l.kind === "cup" ? cylinder : cube,
+      l.kind === "cup" ? "#bd794f" : "#efe2b8",
+      l.x * 5,
+      0.1,
+      l.y * 5,
+      0.23,
+      l.kind === "cup" ? 0.27 : 0.05,
+      0.23,
+    );
+    m.rotation.y = l.id;
+    litterModels.set(l.id, m);
+  }
+  const staffModels = (cleaningPark.cleanliness?.workers ?? []).map((w) => {
+    const g = createGuestModel({ id: w.id + 9000, skin: 1 }, false);
+    scene.add(g);
+    mesh(cylinder, "#edebd0", 0, 1.8, 0, 0.19, 0.12, 0.19, g);
+    mesh(cube, "#e7e9d0", 0, 1.77, -0.2, 0.26, 0.035, 0.2, g);
+    const broom = mesh(cylinder, "#9a7544", 0.32, 0.65, -0.22, 0.026, 1.3, 0.026, g);
+    broom.rotation.z = -0.2;
+    mesh(cube, "#c9ac62", 0.46, 0.05, -0.22, 0.38, 0.17, 0.17, g);
+    return { w, g };
+  });
+  animations.push((t) => {
+    const dt = Math.max(0, Math.min(0.1, t - cleaningTime));
+    cleaningTime = t;
+    tickCleanliness(cleaningPark, dt);
+    for (const [id, m] of litterModels)
+      m.visible = !!cleaningPark.cleanliness?.litter.some((l) => l.id === id);
+    for (const { w, g } of staffModels) {
+      g.position.set(w.x * 5, w.mode === "walk" ? Math.abs(Math.sin(t * 8)) * 0.03 : 0, w.y * 5);
+      const next = w.route[0];
+      if (next) g.rotation.y = Math.atan2(-(next.x - w.x), -(next.y - w.y));
+      g.rotation.z = w.mode === "sweep" ? Math.sin(t * 6) * 0.05 : 0;
+    }
+  });
   for (const b of park.buildings) {
     if (
       ["tree", "pine"].includes(b.kind) ||
@@ -91,6 +143,17 @@ export function populatePark(
       running
         ? ((rideDuration(b) - Math.max(0, b.cycle) + time) / Math.max(1, rideDuration(b))) % 1
         : 0;
+    if (b.kind === "bin") {
+      const g = groupAt(x, 0, z);
+      mesh(cube, "#285e46", 0, 0.6, 0, 0.72, 1.2, 0.72, g);
+      mesh(cube, "#3c805b", 0, 1.3, 0, 0.85, 0.22, 0.85, g);
+      mesh(cube, "#152e29", 0, 1.07, -0.37, 0.49, 0.22, 0.03, g);
+      mesh(cube, "#eedbae", 0, 0.65, -0.371, 0.25, 0.19, 0.03, g);
+      if ((b.binFill ?? 0) >= 12)
+        for (const side of [-1, 1])
+          mesh(cube, "#eae0bf", side * 0.13, 1.07, -0.38, 0.17, 0.17, 0.1, g);
+      continue;
+    }
     if (isRide(b.kind) && b.kind !== "coaster") {
       const rig = createAttractionRig(b, park);
       scene.add(rig.root);
@@ -150,15 +213,15 @@ export function populatePark(
       mesh(cube, color, 1.7, 3.7, 0, 2.5, 0.3, 6, station);
       for (const dz of [-2.5, 2.5]) mesh(cylinder, "#267b7e", 2.6, 2, dz, 0.1, 3.5, 0.1, station);
       const carts = Array.from({ length: Math.ceil(rideCapacity(b) / 2) }, (_, i) => {
-        const g = groupAt(0, 0, 0);
-        mesh(cube, color, 0, 0.4, -0.3, 1.55, 0.65, 2.25, g);
+        const g = createCoasterCar(vehicleFor(b), i);
+        scene.add(g);
         for (const side of [-0.4, 0.4]) {
-          mesh(cube, "#f1dba6", side, 1, 0.35, 0.6, 0.9, 0.2, g);
           if (i * 2 + (side > 0 ? 1 : 0) < b.riders.length) {
             const person = createGuestModel(
               park.guests.find((g) => g.id === b.riders[i * 2 + (side > 0 ? 1 : 0)]),
             );
-            person.position.set(side, 0.75, 0.15);
+            const seat = carSeat(vehicleFor(b), side > 0 ? 1 : 0);
+            person.position.set(seat.x, 0.75, seat.z);
             g.add(person);
           }
         }

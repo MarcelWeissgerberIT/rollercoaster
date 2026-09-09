@@ -1,0 +1,67 @@
+{
+  "createdAt": "2026-09-09",
+  "provider": "OpenArt MCP",
+  "model": "gpt-image-2-5-flare",
+  "mode": "image2image",
+  "params": {
+    "prompt": "Use case: style-transfer. Asset type: production isometric game sprite atlas for Coaster Grove.\nUse the supplied existing teal guest walk sheet ONLY as the exact tiny pixel-art style and human scale reference. Create new park cleaning staff and park litter bins matching that game. Authentic late1990s PC theme park management game pixel art, chunky square pixels, clean hard stepped edges, 2-3 flat palette shades, modest dark outlines. Orthographic2:1 isometric projection, camera elevation26.565degrees, no converging perspective. No realistic render, gradients, blur, antialiasing, glow, ground shadows, labels, text, landscape or ground tiles.\nEXACT ATLAS LAYOUT: THREE equal columns by TWO equal rows, SIX separate square cells. One entire isolated subject per cell, large clear gutters and at least15percent margin. Entire background exactly flat MAGENTA #FF00FF including all empty gaps and holes. Never use magenta on any subject. No drawn cell borders or grid.\nRow1 column1: ONE compact dark forest-green PARK LITTER BIN, front-right isometric view. A simple upright cylindrical/softly square public park waste bin with a small curved dark-green hood, conspicuous black horizontal rubbish opening, subtly wider stable base and one small warm-cream rectangular emblem without letters. Body forestgreen #286347, top a lighter green shade, dark neutral hardware. It should be a recognizable sturdy themepark litter bin, not a household wheelie bin and not a recycling bag. Clean empty version.\nRow1 column2: EXACT SAME bin, exact same angle, size, body shape and colors, but visibly full: a little crumpled offwhite paper and one brown paper cup peeking through the opening. No rubbish on the ground, no long overflow, no other objects.\nRow1 column3: ONE park CLEANING WORKER facing diagonally SCREEN LOWER RIGHT(SE), matching the supplied guest's pixel scale. Adult human, turquoise short-sleeved work shirt #2AADB5, navy trousers #29424C, light cream work cap with short brim, warm skin, brown hair mostly under cap, dark shoes. Holds one long wooden broom, light tan broom head just touching the floor beside their feet; one hand on the shaft near the waist. Relaxed active walking stance with one foot slightly forward. Clearly visible cap and broom distinguish this employee from guests. The broom is part of the sprite; no bin in this cell.\nRow2 column1: the SAME cleaning worker and broom, SAME physical scale and same outfit, facing SCREEN LOWER LEFT(SW).\nRow2 column2: the SAME worker and broom, facing SCREEN UPPER LEFT(NW), showing back of cap and shirt and no frontal face. Same physical scale.\nRow2 column3: the SAME worker and broom, facing SCREEN UPPER RIGHT(NE), showing back of cap and shirt. Same physical scale.\nEach worker is an entire single human body with two arms, two legs and exactly one broom, no bucket, no tools floating separately. Keep broom below head height, head uncovered except for cap, body proportions same as reference. The four workers use consistent anatomy and pixel density.\nSCALE CONTRACT: each cell represents a24x32 logical-pixel canvas enlarged nearest-neighbor. Worker visible total height25logicalpixels, foot/broom ground point at logical(12,28), maximum total width18pixels including broom. Bins visible about11pixelswide and15pixelshigh, considerably shorter than the humans; both bin variants have equal dimensions and ground anchor(12,28). Preserve ample magenta above the bins rather than enlarging them to human height. Simple readable tiny game assets, not detailed illustrations. Exactly two bins plus four directional cleaning workers.",
+    "visualReferences": [
+      {
+        "type": "image",
+        "id": "rrLVzoTniQsZsBAZEcYj",
+        "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788939649376_64509bbe.png",
+        "label": "Existing Coaster Grove teal guests: exact pixel style and human proportions"
+      }
+    ],
+    "aspectRatio": "3:2",
+    "resolutionTier": "1k",
+    "quality": "high",
+    "outputFormat": "png",
+    "imageCount": 1,
+    "autoEnhancePrompt": false
+  },
+  "initialResponse": {
+    "status": "PENDING",
+    "historyId": "NOLzDwIyYmi7rOyVftfF",
+    "pollAfterSeconds": 5
+  },
+  "intendedOutput": {
+    "layout": {
+      "columns": 3,
+      "rows": 2,
+      "order": [
+        "bin-empty",
+        "bin-full",
+        "cleaner-se",
+        "cleaner-sw",
+        "cleaner-nw",
+        "cleaner-ne"
+      ]
+    },
+    "sprite": {
+      "width": 24,
+      "height": 32,
+      "anchorX": 12,
+      "anchorY": 28,
+      "sourceScale": 4
+    }
+  },
+  "notes": [
+    "One authorized generation batch.",
+    "No files inside the repository modified."
+  ],
+  "result": {
+    "status": "COMPLETED",
+    "historyId": "NOLzDwIyYmi7rOyVftfF",
+    "resourceId": "cpIdHM1gBw3MgNmrriDc",
+    "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788970247193_ed1aed96.png",
+    "width": 1536,
+    "height": 1024
+  },
+  "processing": "Technical extraction only: six atlas-cell crops, bright-magenta chroma key, transparent trim, one isotropic scale shared by four workers and one shared by both bins, manually reviewed human-foot anchors independent of broom extent, nearest-neighbor normalization and exact4x copies. No illustrated features painted, filled or synthesized in code.",
+  "manifest": "manifest.json",
+  "limitations": [
+    "Four directional worker poses, one frame per direction. These are not a complete walk cycle or a separate sweeping action animation.",
+    "Broom is part of each character sprite. Worker anchor follows feet, so a forward broom may extend below logical y28."
+  ]
+}

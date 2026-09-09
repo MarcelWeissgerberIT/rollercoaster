@@ -1,3 +1,4 @@
+import { initCleanliness, type Litter } from "./cleanliness";
 import { insideMap } from "./grid";
 import {
   podPort,
@@ -582,6 +583,8 @@ export type EditRecord = {
   removed: Building[];
   flags: { id: number; open: boolean; autoOpen?: boolean }[];
   geometry: { id: number; before: Geometry }[];
+  vehicles?: { id: number; before: Building["vehicle"] }[];
+  clearedLitter?: Litter[];
   lines?: { id: number; before: TransitLine | null }[];
   cash: number;
   income: number;
@@ -592,6 +595,11 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     buildings = [...s.buildings],
     flags = buildings.map((b) => ({ id: b.id, open: b.open, autoOpen: b.autoOpen }));
   const geometries = buildings.map((b) => ({ id: b.id, before: geometryOf(b) }));
+  const litterBefore = s.cleanliness?.litter.map((l) => ({ ...l })) ?? [];
+  const vehicles = buildings.map((b) => ({
+    id: b.id,
+    before: b.vehicle ? structuredClone(b.vehicle) : undefined,
+  }));
   const lines = structuredClone(s.transitLines ?? []);
   const cash = s.cash,
     income = s.income,
@@ -610,6 +618,14 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     .map((id) => ({ id, before: lines.find((l) => l.id === id) ?? null }));
   const changes: EditRecord = {
     label,
+    clearedLitter: litterBefore.filter(
+      (l) => !s.cleanliness?.litter.some((now) => now.id === l.id),
+    ),
+    vehicles: vehicles.filter(
+      (old) =>
+        JSON.stringify(old.before) !==
+        JSON.stringify(s.buildings.find((b) => b.id === old.id)?.vehicle),
+    ),
     tiles: [],
     added: s.buildings.filter((b) => !buildings.some((old) => old.id === b.id)).map((b) => b.id),
     removed: buildings
@@ -637,6 +653,7 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     changes.removed.length ||
     changes.flags.length ||
     changes.geometry.length ||
+    changes.vehicles?.length ||
     changes.lines
     ? changes
     : null;
@@ -676,6 +693,16 @@ export function undoEdits(s: Park, records: EditRecord[]) {
         autoOpen: false,
       });
     for (const t of record.tiles) s.tiles[t.y][t.x] = t.before;
+    if (s.cleanliness)
+      for (const l of record.clearedLitter ?? [])
+        if (!s.cleanliness.litter.some((now) => now.id === l.id)) {
+          s.cleanliness.litter.push({ ...l });
+          s.cleanliness.nextId = Math.max(s.cleanliness.nextId, l.id + 1);
+        }
+    for (const old of record.vehicles ?? []) {
+      const b = s.buildings.find((b) => b.id === old.id);
+      if (b) b.vehicle = old.before ? structuredClone(old.before) : undefined;
+    }
     for (const old of record.geometry) {
       const b = s.buildings.find((b) => b.id === old.id);
       if (b) {
@@ -734,4 +761,5 @@ export function undoEdits(s: Park, records: EditRecord[]) {
     s.dayIncome -= record.income;
     s.dayExpenses -= record.expenses;
   }
+  if (s.cleanliness) initCleanliness(s);
 }

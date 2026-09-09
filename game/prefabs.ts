@@ -9,24 +9,15 @@ import {
   trackFootprint,
   validateTrack,
 } from "./simulation";
-export const PIECES = {
-  short: { name: "Kurze Gerade", glyph: "━", detail: "1 Feld · 5 m" },
-  straight: { name: "Gerade", glyph: "━", detail: "2 Felder" },
-  rise: { name: "Steigung", glyph: "╱", detail: "+5 m · Kettenlift" },
-  fall: { name: "Abfahrt", glyph: "╲", detail: "−5 m" },
-  left: { name: "Linkskurve", glyph: "↰", detail: "90° · Radius 2" },
-  right: { name: "Rechtskurve", glyph: "↱", detail: "90° · Radius 2" },
-  loop: { name: "Looping", glyph: "↻", detail: "20 m · Inversion" },
-  hill: { name: "Hügel", glyph: "⌒", detail: "4 Felder · +5 m" },
-  sbend: { name: "S-Kurve", glyph: "∿", detail: "4 × 4 Felder" },
-} as const;
-export type Piece = keyof typeof PIECES;
+import { PIECES, type Piece } from "./track-parts";
+export { PIECES, type Piece } from "./track-parts";
 const snap = (v: number) => Math.round(v * 1e6) / 1e6;
 export function startTrack(p: Point, rotation = 0, style: CoasterType = "steel"): Point[] {
   return [{ ...p, z: 0, smooth: true, heading: (rotation * Math.PI) / 2, style }];
 }
 export function appendPiece(track: Point[], piece: Piece, straightLength = 2): Point[] {
   if (!track.length) return track;
+  if (piece === "doubleloop") return appendPiece(appendPiece(track, "loop"), "loop");
   if (piece === "hill") return appendPiece(appendPiece(track, "rise"), "fall");
   if (piece === "sbend") return appendPiece(appendPiece(track, "right"), "left");
   const end = track.at(-1)!;
@@ -34,7 +25,7 @@ export function appendPiece(track: Point[], piece: Piece, straightLength = 2): P
     end.heading ??
     Math.atan2(end.y - (track.at(-2)?.y ?? end.y), end.x - (track.at(-2)?.x ?? end.x - 1));
   const turn = piece === "left" ? -1 : 1;
-  const count = piece === "loop" ? 64 : 16;
+  const count = ["loop", "airtime", "bunny", "helixleft", "helixright"].includes(piece) ? 64 : 16;
   const points: Point[] = [];
   for (let i = 1; i <= count; i++) {
     const t = i / count;
@@ -50,6 +41,21 @@ export function appendPiece(track: Point[], piece: Piece, straightLength = 2): P
     }
     if (piece === "rise" || piece === "fall")
       z = (piece === "rise" ? 1 : -1) * (t * t * (3 - 2 * t));
+    if (piece === "airtime" || piece === "bunny") {
+      x = (piece === "airtime" ? 6 : 8) * t;
+      z =
+        ((piece === "airtime" ? 1 : 0.65) *
+          (1 - Math.cos((piece === "airtime" ? 2 : 4) * Math.PI * t))) /
+        2;
+    }
+    if (piece === "helixleft" || piece === "helixright") {
+      const turn = piece === "helixleft" ? -1 : 1,
+        a = t * Math.PI;
+      x = 3 * Math.sin(a);
+      y = turn * 3 * (1 - Math.cos(a));
+      z = t * t * (3 - 2 * t);
+      heading += turn * a;
+    }
     if (piece === "loop") {
       x = 4 * t + 2 * Math.sin(2 * Math.PI * t);
       z = 2 * (1 - Math.cos(2 * Math.PI * t));

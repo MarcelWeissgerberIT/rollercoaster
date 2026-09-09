@@ -1,3 +1,4 @@
+import { invertingPiece } from "../game/track-parts";
 import { appendPiece, startTrack, PIECES, type Piece } from "../game/prefabs";
 import type { Point } from "../game/simulation";
 import { trackSections } from "../game/track-edit";
@@ -21,7 +22,7 @@ const path = (points: { x: number; y: number }[]) =>
 
 export function TrackPieceIcon({ piece }: { piece: Piece }) {
   const raw = appendPiece(startTrack({ x: 0, y: 0 }), piece);
-  const points = plot(piece === "loop" ? raw.map((p) => ({ ...p, y: 0 })) : raw, 92, 54);
+  const points = plot(invertingPiece(piece) ? raw.map((p) => ({ ...p, y: 0 })) : raw, 92, 54);
   return (
     <svg viewBox="0 0 92 54" className="track-piece-icon" aria-hidden="true">
       <path
@@ -71,15 +72,17 @@ export function TrackPieceCatalog({
           key={id}
           className={selected === id ? "active" : ""}
           aria-pressed={selected === id}
-          disabled={id === "loop" && wood}
+          disabled={invertingPiece(id) && wood}
           title={
-            id === "loop" && wood ? "Loopings benötigen eine Stahl- oder Launch-Bahn" : item.detail
+            invertingPiece(id) && wood
+              ? "Loopings benötigen eine Stahl- oder Launch-Bahn"
+              : item.detail
           }
           onClick={() => onSelect(id)}
         >
           <TrackPieceIcon piece={id} />
           <strong>{item.name}</strong>
-          <small>{id === "loop" && wood ? "Nur Stahl / Launch" : item.detail}</small>
+          <small>{invertingPiece(id) && wood ? "Nur Stahl / Launch" : item.detail}</small>
         </button>
       ))}
     </div>

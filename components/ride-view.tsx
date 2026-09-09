@@ -1,3 +1,7 @@
+import { forceAt, analyzeForces } from "../game/gforce";
+import { prepareRoute } from "../game/motion";
+import { createCoasterCar } from "../game/coaster-car";
+import { vehicleFor, carSeat } from "../game/vehicles";
 import { addDriveHardware } from "@/game/track-hardware";
 import { createGuestModel } from "@/game/guest-model";
 import FlatRideView from "./flat-ride-view";
@@ -27,6 +31,8 @@ export default function RideView(props: Props) {
 }
 function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Props) {
   const compiledPath = useMemo(() => makeRidePath(building.track!), [building.track]);
+  const forceRoute = useMemo(() => prepareRoute(building.track!), [building.track]);
+  const forceAnalysis = useMemo(() => analyzeForces(building.track!), [building.track]);
   const host = useRef<HTMLDivElement>(null),
     control = useRef({
       playing: true,
@@ -40,6 +46,9 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
     [error, setError] = useState("");
   const [hud, setHud] = useState({
     speed: 0,
+    forces: { vertical: 1, lateral: 0, longitudinal: 0, total: 1 },
+    peakG: 1,
+    airtime: false,
     height: 0,
     progress: 0,
     phase: "station" as RidePhase,
@@ -173,30 +182,19 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
     mesh(cube, "#e1cf9c", 2, -0.25, 0, 2.3, 0.3, 8, platform);
     for (const z of [-3, 3]) mesh(cube, "#267b7e", 3, 1.5, z, 0.18, 3, 0.18, platform);
     mesh(cube, color, 2, 3.1, 0, 2.7, 0.25, 8, platform);
-    const cart = new THREE.Group();
-    scene.add(cart);
-    for (const x of [-0.4, 0.4]) {
-      mesh(cube, "#f2e4b8", x, 0.7, 0.25, 0.65, 0.15, 0.6, cart);
-      mesh(cube, "#f2e4b8", x, 1, 0.55, 0.65, 0.6, 0.12, cart);
-    }
-    mesh(cube, color, 0, 0.28, -1, 1.65, 0.65, 1.8, cart);
-    mesh(cube, "#233b3e", 0, 0.72, -0.7, 1.75, 0.1, 0.12, cart);
-    for (const x of [-0.72, 0.72])
-      mesh(cylinder, "#cbd5d0", x, 0.55, -0.7, 0.055, 0.45, 0.055, cart);
-    const train = [cart];
-    for (let i = 1; i < Math.ceil(rideCapacity(building) / 2); i++) {
-      const wagon = cart.clone();
+    const train = Array.from({ length: Math.ceil(rideCapacity(building) / 2) }, (_, i) => {
+      const wagon = createCoasterCar(vehicleFor(building), i);
       scene.add(wagon);
-      train.push(wagon);
-    }
+      return wagon;
+    });
     train.forEach((wagon, i) => {
       for (let side = 0; side < 2; side++)
         if (i * 2 + side < building.riders.length) {
-          const x = side ? 0.4 : -0.4;
+          const seat = carSeat(vehicleFor(building), side);
           const person = createGuestModel(
             park.guests.find((g) => g.id === building.riders[i * 2 + side]),
           );
-          person.position.set(x, 0.75, 0.15);
+          person.position.set(seat.x, 0.75, seat.z);
           wagon.add(person);
         }
     });
@@ -245,7 +243,8 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
       lastHud = 0,
       parkTime = 0,
       initialized = false,
-      lost = false;
+      lost = false,
+      peakG = 1;
     const contextLost = (e: Event) => {
       e.preventDefault();
       lost = true;
@@ -259,11 +258,13 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
       last = now;
       if (document.hidden) {
         audio?.ride(0, true);
+        audio?.rideCheer(null);
         return;
       }
       const c = control.current;
       if (c.reset) {
         c.time = 0;
+        peakG = 1;
         c.reset = 0;
         initialized = false;
       }
@@ -271,6 +272,10 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
       const u = path.progress(c.time),
         p = path.at(u),
         speed = c.playing ? p.speed : 0;
+      const forces = forceAt(forceRoute, u * forceRoute.length, {
+        stationary: c.time >= path.duration,
+      });
+      if (c.playing) peakG = Math.max(peakG, forces.total);
       if (c.playing) parkTime += dt;
       updatePark(parkTime);
       train.forEach((wagon, i) => {
@@ -278,7 +283,10 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
         wagon.position.copy(frame.position);
         wagon.quaternion.copy(frame.quaternion);
       });
-      let cameraPosition = p.position.clone().addScaledVector(p.up, 1.35),
+      let cameraPosition = p.position
+          .clone()
+          .addScaledVector(p.up, 1.55)
+          .addScaledVector(p.tangent, 1.15),
         quaternion = p.quaternion;
       if (c.camera === "chase") {
         cameraPosition
@@ -317,11 +325,25 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
         c.playing ? p.phase : "station",
         building.track?.[0]?.style ?? "steel",
       );
+      audio?.rideCheer({
+        time: c.time,
+        speed: p.speed,
+        tangent: p.tangent,
+        up: p.up,
+        verticalG: forces.vertical,
+        phase: p.phase,
+        playing: c.playing && c.time < path.duration,
+        visible: !document.hidden,
+        people: Math.max(1, building.riders.length),
+      });
       renderer.render(scene, camera);
       if (now - lastHud > 150) {
         lastHud = now;
         setHud({
           speed: Math.round(speed * 3.6),
+          forces,
+          peakG,
+          airtime: forces.vertical < 0.3 && p.up.y > 0.2 && p.speed > 1,
           height: Math.max(0, Math.round(p.position.y - 1.1)),
           progress: u,
           phase: p.phase,
@@ -398,6 +420,66 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
             : `${PHASE_NAMES[hud.phase]} · ${Math.round(hud.progress * 100)} %`}
         </span>
       </div>
+      <aside className="gforce-hud" aria-label="G-Kraft-Messung">
+        <span className="eyebrow">G-KRAFT · LIVE</span>
+        <strong className={hud.forces.total > 4.5 ? "g-high" : ""}>
+          {hud.forces.total.toFixed(2)} <small>g</small>
+        </strong>
+        <div className="gforce-axes">
+          {(
+            [
+              ["Vertikal", hud.forces.vertical],
+              ["Seitlich", hud.forces.lateral],
+              ["Längs", hud.forces.longitudinal],
+            ] as const
+          ).map(([label, value]) => (
+            <div key={label}>
+              <span>{label}</span>
+              <b>
+                {value > 0 ? "+" : ""}
+                {value.toFixed(2)} g
+              </b>
+            </div>
+          ))}
+        </div>
+        <span>
+          {hud.airtime
+            ? "Airtime!"
+            : hud.forces.total > 4.5
+              ? "Starke Belastung"
+              : hud.forces.total > 2
+                ? "Ab in den Sitz!"
+                : "Entspannte Fahrt"}
+        </span>
+        <small>Spitze dieser Mitfahrt: {hud.peakG.toFixed(2)} g</small>
+        <svg
+          viewBox="0 0 240 48"
+          aria-label="Vertikales G-Kraft-Profil der gesamten Strecke"
+          role="img"
+        >
+          <line x1="0" y1="36" x2="240" y2="36" stroke="#86a893" strokeDasharray="3 3" />
+          <polyline
+            fill="none"
+            stroke="#f2bd48"
+            strokeWidth="2"
+            points={forceAnalysis.samples
+              .filter(
+                (_, i) => i % Math.max(1, Math.floor(forceAnalysis.samples.length / 120)) === 0,
+              )
+              .map(
+                (q) =>
+                  `${(q.distance / forceRoute.length) * 240},${Math.max(2, Math.min(46, 42 - q.vertical * 6))}`,
+              )
+              .join(" ")}
+          />
+          <line x1={hud.progress * 240} x2={hud.progress * 240} y1="0" y2="48" stroke="#fff" />
+        </svg>
+        <small>
+          Vertikale Last über die Strecke · 1 g im Stand
+          <br />
+          Spielmodell · bei Pause eingefroren
+        </small>
+      </aside>
       <input
         className="ride-timeline"
         aria-label="Position auf der Strecke"
@@ -415,6 +497,7 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
             if (path.progress(mid) < wanted) lo = mid;
             else hi = mid;
           }
+          audio?.rideCheer(null);
           control.current.time = (lo + hi) / 2;
           control.current.playing = false;
           setPlaying(false);
@@ -427,6 +510,7 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
           disabled={!!error}
           onClick={() => {
             if (hud.progress >= 0.999) control.current.reset++;
+            if (playing) audio?.rideCheer(null);
             control.current.playing = !playing;
             setPlaying(!playing);
           }}

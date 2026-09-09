@@ -1,3 +1,4 @@
+import { CoasterCheers, type CheerFrame } from "./coaster-cheers";
 import type { RidePhase } from "./motion";
 import type { CoasterType } from "./simulation";
 export type AudioSettings = { enabled: boolean; master: number; music: number; effects: number };
@@ -25,6 +26,7 @@ export type Sound = "build" | "cash" | "undo" | "save";
 /** Original procedural score and effects. No network audio, no queued autoplay. */
 export class ParkAudio {
   private context?: AudioContext;
+  private cheers?: CoasterCheers;
   private master?: GainNode;
   private music?: GainNode;
   private effects?: GainNode;
@@ -53,6 +55,12 @@ export class ParkAudio {
     this.levels();
   }
   private levels() {
+    this.cheers?.setAudible(
+      this.settings.enabled &&
+        !this.hidden &&
+        this.settings.master > 0 &&
+        this.settings.effects > 0,
+    );
     const t = this.context?.currentTime ?? 0;
     this.master?.gain.setTargetAtTime(
       this.settings.enabled && !this.hidden ? this.settings.master : 0,
@@ -80,6 +88,7 @@ export class ParkAudio {
       this.master = master;
       this.music = music;
       this.effects = effects;
+      this.cheers = new CoasterCheers(ctx, effects);
       const limiter = ctx.createDynamicsCompressor();
       limiter.threshold.value = -8;
       limiter.ratio.value = 8;
@@ -122,7 +131,12 @@ export class ParkAudio {
       /* A later gesture can retry. */
     }
   }
+  rideCheer(frame: CheerFrame | null) {
+    if (frame) this.cheers?.update(frame);
+    else this.cheers?.halt();
+  }
   visibility(hidden: boolean) {
+    if (hidden) this.cheers?.halt();
     this.hidden = hidden;
     this.levels();
     if (hidden) void this.context?.suspend().catch(() => {});
@@ -138,6 +152,7 @@ export class ParkAudio {
     }
   }
   ride(speed: number, enabled: boolean, phase: RidePhase = "coast", style: CoasterType = "steel") {
+    if (!enabled) this.cheers?.halt();
     this.phase = enabled ? phase : "station";
     this.speed = enabled ? Math.max(0, speed) : 0;
     this.coasterType = style;
@@ -292,6 +307,8 @@ export class ParkAudio {
   }
 
   dispose() {
+    this.cheers?.dispose();
+    this.cheers = undefined;
     this.disposed = true;
     clearInterval(this.timer);
     for (const source of this.voices) {

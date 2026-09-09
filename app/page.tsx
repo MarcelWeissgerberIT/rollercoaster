@@ -1,4 +1,14 @@
 "use client";
+import MarketingPanel from "../components/marketing-panel";
+import { startMarketing, cancelMarketing } from "../game/marketing";
+import { initCleanliness } from "../game/cleanliness";
+import ParkAnalysis from "../components/park-analysis";
+import { parkInsights, type ParkIssue } from "../game/park-insights";
+import RideProfileAssistant from "../components/ride-profile-assistant";
+import { commitRideProfile, type RideProfilePlan } from "../game/ride-profiles";
+import { invertingPiece } from "../game/track-parts";
+import VehicleCustomizer, { CarPreview } from "../components/vehicle-customizer";
+import { vehicleFor } from "../game/vehicles";
 /* oxlint-disable next/no-img-element, react/react-compiler -- Native transparent sprite images and a mutable external simulation are intentional. */
 import ParkMenu from "@/components/park-menu";
 import {
@@ -39,6 +49,8 @@ import {
   Trophy,
   Sparkles,
   WandSparkles,
+  TrendingUp,
+  Megaphone,
   Check,
   Undo2,
   FlaskConical,
@@ -210,6 +222,7 @@ export default function Home() {
     tile: Point;
   } | null>(null);
   const [snapshot, setSnapshot] = useState<Park | null>(null);
+  const [showMoods, setShowMoods] = useState(true);
   const [menuOpen, setMenuOpen] = useState(true);
   const [category, setCategory] = useState("");
   const [tool, setTool] = useState("select");
@@ -232,7 +245,7 @@ export default function Home() {
     "Willkommen im Waldhain. Dein erster Park wartet auf neue Ideen.",
   );
   const [coasterType, setCoasterType] = useState<CoasterType>("steel");
-  const [sectionMode, setSectionMode] = useState<"remove" | "drive">("remove");
+  const [sectionMode, setSectionMode] = useState<"remove" | "drive" | "profile">("remove");
   const [drive, setDrive] = useState<TrackDrive>({ kind: "boost", speed: 60, strength: 4 });
   const [cut, setCut] = useState<{
     id: number;
@@ -254,10 +267,11 @@ export default function Home() {
       setBatchPreview(null);
     }
   }, [cut?.id, selected, tool, category]);
+  const [profilePreview, setProfilePreview] = useState<RideProfilePlan | null>(null);
   const [fitPreview, setFitPreview] = useState<TrackFit | null>(null);
   const fitAssistant = useRef<FitAssistantHandle>(null);
   useEffect(() => {
-    view.current.fitPreview = fitPreview ?? undefined;
+    view.current.fitPreview = fitPreview ?? profilePreview ?? undefined;
     if (!fitPreview) return;
     setMenuOpen(false);
     setMessage("");
@@ -274,7 +288,7 @@ export default function Home() {
       panX: v.panX + (Math.min(340, el.clientWidth * 0.35) + el.clientWidth) / 2 - x,
       panY: v.panY + el.clientHeight * 0.48 - y,
     };
-  }, [fitPreview]);
+  }, [fitPreview, profilePreview]);
   const [piece, setPiece] = useState<Piece>("straight");
   const draftHistory = useRef<Point[][]>([]);
   const [ride, setRide] = useState<{ park: Park; building: Building } | null>(null);
@@ -665,6 +679,11 @@ export default function Home() {
     };
   }, [assets]);
   useEffect(() => {
+    view.current.showMoods = showMoods;
+    view.current.issues =
+      category === "analysis" && snapshot ? parkInsights(snapshot).issues : undefined;
+  }, [showMoods, category, snapshot]);
+  useEffect(() => {
     view.current.tool = tool;
     view.current.selected = selected;
     view.current.draft = previewTrack;
@@ -1000,7 +1019,7 @@ export default function Home() {
   };
   const addPiece = (part: Piece) => {
     if (!park.current || !draft.length) return;
-    if (part === "loop" && !COASTER_TYPES[coasterType].loop) {
+    if (invertingPiece(part) && !COASTER_TYPES[coasterType].loop) {
       notify("Holzbahnen unterstützen keine Loopings.");
       return;
     }
@@ -1112,11 +1131,12 @@ export default function Home() {
   const removalKey = JSON.stringify([cut, autoClear, b?.track, worldRevision]);
   const removalPreview = batchPreview?.key === removalKey ? batchPreview.plan : null;
   useEffect(() => {
-    view.current.cutColor = sectionMode === "drive" ? "#43d9d2" : "#ff634d";
+    view.current.cutColor = sectionMode !== "remove" ? "#43d9d2" : "#ff634d";
     view.current.trackCuts =
       cut && cut.id === b?.id
-        ? (sectionMode === "drive" ? [{ from: cut.from, to: cut.to }] : markedGroups).map((group) =>
-            cutTrack.slice(sections[group.from]?.start ?? 0, (sections[group.to]?.end ?? 0) + 1),
+        ? (sectionMode !== "remove" ? [{ from: cut.from, to: cut.to }] : markedGroups).map(
+            (group) =>
+              cutTrack.slice(sections[group.from]?.start ?? 0, (sections[group.to]?.end ?? 0) + 1),
           )
         : undefined;
     view.current.cutConnections =
@@ -1184,10 +1204,11 @@ export default function Home() {
     if (!b || !cut || index < 0 || index >= sections.length) return;
     setCut((current) => {
       if (!current || current.id !== b.id) return current;
-      if (sectionMode === "drive") {
-        const group = !extend
-          ? driveGroups.find((g) => g.from <= index && g.to >= index)
-          : undefined;
+      if (sectionMode !== "remove") {
+        const group =
+          !extend && sectionMode === "drive"
+            ? driveGroups.find((g) => g.from <= index && g.to >= index)
+            : undefined;
         return {
           id: b.id,
           from: extend ? Math.min(current.from, index) : (group?.from ?? index),
@@ -1708,6 +1729,7 @@ export default function Home() {
                       nature: "Ein bisschen Grün",
                       detail: b?.name,
                       guests: "Stimmen aus dem Park",
+                      analysis: "Parkanalyse & Sauberkeit",
                     } as Record<string, string | undefined>
                   )[category]
                 }
@@ -1773,7 +1795,7 @@ export default function Home() {
               )}
               {category === "shops" && (
                 <>
-                  {catalog(["burger", "drink", "toilet", "balloon", "plush"])}
+                  {catalog(["burger", "drink", "toilet", "balloon", "plush", "bin"])}
                   <div className="hintbox">
                     <Info />
                     <span>Geschäfte stehen direkt an normalen Parkwegen.</span>
@@ -1782,7 +1804,7 @@ export default function Home() {
               )}
               {category === "nature" && (
                 <>
-                  {catalog(["tree", "pine", "flowers", "bench"])}
+                  {catalog(["tree", "pine", "flowers", "bench", "bin"])}
                   <button
                     className="secondary"
                     style={{ marginTop: 12 }}
@@ -1898,7 +1920,7 @@ export default function Home() {
                             }
                             onClick={() => {
                               setCoasterType(type);
-                              if (type === "wood" && piece === "loop") setPiece("straight");
+                              if (type === "wood" && invertingPiece(piece)) setPiece("straight");
                             }}
                           >
                             <img src={assetUrl(`car-${type}-se`)} alt="" />
@@ -2219,33 +2241,35 @@ export default function Home() {
                     </div>
                   ) : (
                     <>
-                      <img
-                        className="detailhero"
-                        src={assetUrl(
-                          b.kind === "coaster"
-                            ? `car-${b.track?.[0]?.style ?? "steel"}-se`
-                            : CATALOG[b.kind].sprite,
-                        )}
-                        alt={b.name}
-                      />
+                      {b.kind === "coaster" ? (
+                        <CarPreview className="detailhero" vehicle={vehicleFor(b)} />
+                      ) : (
+                        <img
+                          className="detailhero"
+                          src={assetUrl(CATALOG[b.kind].sprite)}
+                          alt={b.name}
+                        />
+                      )}
                       <div
                         className={`statebadge ${(!reachable && !decorative(b.kind)) || !b.open ? "warn" : ""}`}
                       >
-                        {decorative(b.kind)
-                          ? "Eine schöne Ecke für deine Besucher."
-                          : snapshot.trackEdit?.buildingId === b.id
-                            ? "Baustelle · Strecke unterbrochen"
-                            : !reachable
-                              ? isRide(b.kind)
-                                ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
-                                : "Ein erreichbarer Parkweg fehlt."
-                              : b.testing
-                                ? "Testfahrt läuft …"
-                                : !b.tested
-                                  ? "Bereit für die Testfahrt."
-                                  : b.open
-                                    ? "Geöffnet · Besucher sind willkommen."
-                                    : "Geschlossen · Bereit zur Eröffnung."}
+                        {b.kind === "bin"
+                          ? `Mülleimer · ${b.binFill ?? 0} / 16 gefüllt · ${snapshot.staff} Reinigungskräfte`
+                          : decorative(b.kind)
+                            ? "Eine schöne Ecke für deine Besucher."
+                            : snapshot.trackEdit?.buildingId === b.id
+                              ? "Baustelle · Strecke unterbrochen"
+                              : !reachable
+                                ? isRide(b.kind)
+                                  ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
+                                  : "Ein erreichbarer Parkweg fehlt."
+                                : b.testing
+                                  ? "Testfahrt läuft …"
+                                  : !b.tested
+                                    ? "Bereit für die Testfahrt."
+                                    : b.open
+                                      ? "Geöffnet · Besucher sind willkommen."
+                                      : "Geschlossen · Bereit zur Eröffnung."}
                       </div>
                       {(isRide(b.kind) ||
                         (isTransport(b.kind) &&
@@ -2380,6 +2404,20 @@ export default function Home() {
                         </div>
                       )}
                       {b.kind === "coaster" && (
+                        <VehicleCustomizer
+                          building={b}
+                          onApply={(vehicle) =>
+                            edit("Wagendesign", () => {
+                              const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                              live.vehicle = { ...vehicle };
+                              notify(
+                                "Wagendesign übernommen. Farben gelten auch für die 3D-Mitfahrt.",
+                              );
+                            })
+                          }
+                        />
+                      )}
+                      {b.kind === "coaster" && (
                         <div className="track-edit-controls">
                           {snapshot.trackEdit ? (
                             <>
@@ -2395,12 +2433,16 @@ export default function Home() {
                               <h3>
                                 {sectionMode === "drive"
                                   ? "Streckenmodule"
-                                  : "Abschnitte entfernen"}
+                                  : sectionMode === "profile"
+                                    ? "Fahrt spannender machen"
+                                    : "Abschnitte entfernen"}
                               </h3>
                               <p className="small">
                                 {sectionMode === "drive"
                                   ? "Wähle einen Gleisbereich. Beschleuniger sind türkis, Bremsen orange markiert."
-                                  : "Mehrfachauswahl: Klicken markiert oder löst ein Teil. Ziehen über die Bahn markiert mehrere; Umschalt + Klick ergänzt einen Bereich. Rechts ziehen verschiebt die Kamera."}
+                                  : sectionMode === "profile"
+                                    ? "Wähle einen Abschnitt. Umschalt + Klick erweitert ihn. Fertigprofile und Assistent zeigen die Wirkung vor dem Umbau."
+                                    : "Mehrfachauswahl: Klicken markiert oder löst ein Teil. Ziehen über die Bahn markiert mehrere; Umschalt + Klick ergänzt einen Bereich. Rechts ziehen verschiebt die Kamera."}
                               </p>
                               <TrackRangeMap
                                 track={cutTrack}
@@ -2489,7 +2531,36 @@ export default function Home() {
                                   </div>
                                 )}
                               </details>
-                              {sectionMode === "drive" ? (
+                              {sectionMode === "profile" ? (
+                                <RideProfileAssistant
+                                  park={snapshot}
+                                  id={b.id}
+                                  from={cut.from}
+                                  to={cut.to}
+                                  revision={worldRevision}
+                                  clear={autoClear}
+                                  onPreview={setProfilePreview}
+                                  onApply={(plan) =>
+                                    edit("Fahrprofil verbessern", () => {
+                                      const error = commitRideProfile(
+                                        park.current!,
+                                        plan,
+                                        autoClear,
+                                      );
+                                      if (error) {
+                                        notify(error);
+                                        setProfilePreview(null);
+                                        return;
+                                      }
+                                      setCut(null);
+                                      setProfilePreview(null);
+                                      notify(
+                                        "Fahrprofil übernommen. Starte eine Testfahrt und öffne die Bahn wieder.",
+                                      );
+                                    })
+                                  }
+                                />
+                              ) : sectionMode === "drive" ? (
                                 <>
                                   <div className="build-modes">
                                     <button
@@ -2633,6 +2704,20 @@ export default function Home() {
                                   >
                                     Auswahl durch Fertigteile ersetzen
                                   </button>
+                                  <button
+                                    className="secondary"
+                                    disabled={markedGroups.length !== 1}
+                                    onClick={() => {
+                                      setSectionMode("profile");
+                                      setCut({
+                                        id: b.id,
+                                        from: markedGroups[0].from,
+                                        to: markedGroups[0].to,
+                                      });
+                                    }}
+                                  >
+                                    Fahrprofil für die Auswahl
+                                  </button>
                                   {markedGroups.length > 1 && (
                                     <p className="small">
                                       Für Loopings oder andere Fertigteile wählst du einen
@@ -2647,6 +2732,20 @@ export default function Home() {
                             </>
                           ) : (
                             <>
+                              <button
+                                className="primary"
+                                onClick={() => {
+                                  setSectionMode("profile");
+                                  setCut({
+                                    id: b.id,
+                                    from: Math.min(2, sections.length - 1),
+                                    to: Math.min(4, sections.length - 1),
+                                  });
+                                  setTool("select");
+                                }}
+                              >
+                                <WandSparkles size={17} /> Fahrt spannender machen
+                              </button>
                               <button className="secondary" onClick={() => openSections(b)}>
                                 <Eraser size={16} /> Gleise ersetzen / entfernen
                               </button>
@@ -3032,6 +3131,39 @@ export default function Home() {
                   )}
                 </>
               )}
+              {category === "analysis" && snapshot && (
+                <ParkAnalysis
+                  park={snapshot}
+                  moods={showMoods}
+                  onMoods={setShowMoods}
+                  onFocus={(issue) => {
+                    const el = canvas.current;
+                    if (!el) return;
+                    const v = view.current,
+                      p = projection(el.clientWidth, el.clientHeight, v).project(
+                        issue.point.x,
+                        issue.point.y,
+                      );
+                    cameraTarget.current = {
+                      zoom: v.zoom,
+                      panX: v.panX + el.clientWidth * 0.61 - p.x,
+                      panY: v.panY + el.clientHeight * 0.5 - p.y,
+                    };
+                  }}
+                  onBin={() => pickTool("bin", "shops")}
+                  onStaff={() => {
+                    setTab("park");
+                    setSettings(true);
+                  }}
+                  onRide={(id) => {
+                    setSelected(id);
+                    setCategory("detail");
+                    setTool("select");
+                    setSectionMode("profile");
+                    setCut({ id, from: 1, to: 3 });
+                  }}
+                />
+              )}
               {category === "guests" &&
                 snapshot?.guests.slice(0, 7).map((g) => (
                   <div key={g.id} className="guestrow">
@@ -3144,6 +3276,17 @@ export default function Home() {
             }}
           >
             <Users size={14} /> Besucher beobachten
+          </button>
+          <button
+            className="secondary analysis-shortcut"
+            onClick={() => {
+              setCategory("analysis");
+              setTool("select");
+              setSelected(null);
+              setMenuOpen(false);
+            }}
+          >
+            <TrendingUp size={16} /> Parkanalyse & Sauberkeit
           </button>
         </aside>
         {tool !== "select" && !(tool === "coaster" && !blueprintMode) && (
@@ -3314,6 +3457,27 @@ export default function Home() {
                 setCategory("guests");
                 setSelected(null);
                 setTool("select");
+              },
+            },
+            {
+              id: "marketing",
+              label: "Werbung & Kampagnen",
+              Icon: Megaphone,
+              run: () => {
+                setTab("marketing");
+                setSettings(true);
+              },
+            },
+            {
+              id: "analysis",
+              label: "Parkanalyse & Sauberkeit",
+              Icon: TrendingUp,
+              active: category === "analysis",
+              run: () => {
+                setCategory("analysis");
+                setTool("select");
+                setSelected(null);
+                setMenuOpen(false);
               },
             },
             {
@@ -3530,11 +3694,40 @@ export default function Home() {
           <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
             <TabsList className="tabsrow">
               <TabsTrigger value="park">Parkbetrieb</TabsTrigger>
+              <TabsTrigger value="marketing">Werbung</TabsTrigger>
               <TabsTrigger value="save">Spielstand</TabsTrigger>
               <TabsTrigger value="audio">Sound</TabsTrigger>
               <TabsTrigger value="research">Forschung</TabsTrigger>
               <TabsTrigger value="land">Parkgelände</TabsTrigger>
             </TabsList>
+            <TabsContent value="marketing">
+              {snapshot && (
+                <MarketingPanel
+                  park={snapshot}
+                  onStart={(kind, days, id) => {
+                    const error = startMarketing(
+                      park.current!,
+                      kind,
+                      days,
+                      id,
+                      (s, b) => !!access(s, b),
+                    );
+                    notify(
+                      error ??
+                        "Werbekampagne gestartet. Beobachte Besucher und Umsatz in der Auswertung.",
+                    );
+                    sync();
+                  }}
+                  onCancel={(id) => {
+                    notify(
+                      cancelMarketing(park.current!, id) ??
+                        "Kampagne beendet. Bereits gewonnene Besucher bleiben im Park.",
+                    );
+                    sync();
+                  }}
+                />
+              )}
+            </TabsContent>
             <TabsContent value="land">
               <p>
                 Dein Park besitzt{" "}
@@ -3696,7 +3889,7 @@ export default function Home() {
                 }}
               />
               <div className="controlrow">
-                <span>Parkmitarbeiter</span>
+                <span>Reinigungsteam</span>
                 <strong>{snapshot?.staff ?? 2}</strong>
               </div>
               <Slider
@@ -3707,12 +3900,13 @@ export default function Home() {
                 value={[snapshot?.staff ?? 2]}
                 onValueChange={(v) => {
                   park.current!.staff = Array.isArray(v) ? v[0] : v;
+                  initCleanliness(park.current!);
                   sync();
                 }}
               />
               <p className="small">
-                80 € pro Mitarbeiter und Tag. Ein Mitarbeiter betreut bis zu 25 Gäste.
-                Unterbesetzung drückt die Stimmung.
+                80 € pro Mitarbeiter und Tag. Das Team sammelt Müll und leert erreichbare Mülleimer.
+                Ein Mitarbeiter betreut bis zu 25 Gäste. Unterbesetzung drückt die Stimmung.
               </p>
               <div className="detailstats">
                 <div>

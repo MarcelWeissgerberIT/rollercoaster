@@ -1,0 +1,62 @@
+{
+  "car-sport-se": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-sport-sw": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-sport-nw": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-sport-ne": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "cleaner-nw": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "cleaner-ne": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "bin-empty": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "cleaner-sw": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "cleaner-se": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "bin-full": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  }
+}

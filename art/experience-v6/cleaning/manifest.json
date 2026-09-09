@@ -1,0 +1,352 @@
+{
+  "fileScale": 4,
+  "processing": "Technical extraction only: six atlas-cell crops, bright-magenta chroma key, transparent trim, one isotropic scale shared by four workers and one shared by both bins, manually reviewed human-foot anchors independent of broom extent, nearest-neighbor normalization and exact4x copies. No illustrated features painted, filled or synthesized in code.",
+  "assets": [
+    {
+      "name": "bin-empty",
+      "cellBounds": [
+        0,
+        0,
+        512,
+        512
+      ],
+      "trimBoundsInCell": [
+        198,
+        189,
+        355,
+        419
+      ],
+      "sourceAnchorInCell": [
+        276.5,
+        419
+      ],
+      "sourceCropSize": [
+        157,
+        230
+      ],
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        13,
+        17,
+        28
+      ],
+      "opaqueBounds": [
+        7,
+        13,
+        17,
+        28
+      ],
+      "commonGroupScale": 0.06521739130434782,
+      "scaleGroup": "bin",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/bin-empty.png",
+      "logical": "logical/bin-empty.png",
+      "sha256": "924498ec7fb31e33c8badf61f38b8fc79c783ee8918299e376e52f40541da1f1"
+    },
+    {
+      "name": "bin-full",
+      "cellBounds": [
+        512,
+        0,
+        1024,
+        512
+      ],
+      "trimBoundsInCell": [
+        176,
+        189,
+        333,
+        419
+      ],
+      "sourceAnchorInCell": [
+        254.5,
+        419
+      ],
+      "sourceCropSize": [
+        157,
+        230
+      ],
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        13,
+        17,
+        28
+      ],
+      "opaqueBounds": [
+        7,
+        13,
+        17,
+        28
+      ],
+      "commonGroupScale": 0.06521739130434782,
+      "scaleGroup": "bin",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/bin-full.png",
+      "logical": "logical/bin-full.png",
+      "sha256": "9c4f0098f512478f3162f4f94fc3fceb1b60684661ea5ed1b8edc016fb36e0a2"
+    },
+    {
+      "name": "cleaner-se",
+      "cellBounds": [
+        1024,
+        0,
+        1536,
+        512
+      ],
+      "trimBoundsInCell": [
+        143,
+        140,
+        310,
+        450
+      ],
+      "sourceAnchorInCell": [
+        205,
+        434
+      ],
+      "sourceCropSize": [
+        167,
+        310
+      ],
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        3,
+        21,
+        29
+      ],
+      "opaqueBounds": [
+        7,
+        3,
+        21,
+        29
+      ],
+      "commonGroupScale": 0.08503401360544217,
+      "scaleGroup": "worker",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/cleaner-se.png",
+      "logical": "logical/cleaner-se.png",
+      "sha256": "b6efcf5e300e541d919eac88352158cb1483ad2ece7f40cb16400514b53f079e"
+    },
+    {
+      "name": "cleaner-sw",
+      "cellBounds": [
+        0,
+        512,
+        512,
+        1024
+      ],
+      "trimBoundsInCell": [
+        184,
+        78,
+        349,
+        373
+      ],
+      "sourceAnchorInCell": [
+        281,
+        366
+      ],
+      "sourceCropSize": [
+        165,
+        295
+      ],
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        4,
+        4,
+        18,
+        29
+      ],
+      "opaqueBounds": [
+        4,
+        4,
+        18,
+        29
+      ],
+      "commonGroupScale": 0.08503401360544217,
+      "scaleGroup": "worker",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/cleaner-sw.png",
+      "logical": "logical/cleaner-sw.png",
+      "sha256": "a4b584960c5120fddb5a33a740f46a4b32571a95806d97883c6297eddad21419"
+    },
+    {
+      "name": "cleaner-nw",
+      "cellBounds": [
+        512,
+        512,
+        1024,
+        1024
+      ],
+      "trimBoundsInCell": [
+        133,
+        78,
+        308,
+        370
+      ],
+      "sourceAnchorInCell": [
+        249,
+        370
+      ],
+      "sourceCropSize": [
+        175,
+        292
+      ],
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        2,
+        3,
+        17,
+        28
+      ],
+      "opaqueBounds": [
+        2,
+        3,
+        17,
+        28
+      ],
+      "commonGroupScale": 0.08503401360544217,
+      "scaleGroup": "worker",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/cleaner-nw.png",
+      "logical": "logical/cleaner-nw.png",
+      "sha256": "8fb125f0b5cbd78b31c3c97fc74df7fa2de96d7f59b2b42012966c07f539a158"
+    },
+    {
+      "name": "cleaner-ne",
+      "cellBounds": [
+        1024,
+        512,
+        1536,
+        1024
+      ],
+      "trimBoundsInCell": [
+        160,
+        78,
+        332,
+        370
+      ],
+      "sourceAnchorInCell": [
+        214,
+        370
+      ],
+      "sourceCropSize": [
+        172,
+        292
+      ],
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        3,
+        22,
+        28
+      ],
+      "opaqueBounds": [
+        7,
+        3,
+        22,
+        28
+      ],
+      "commonGroupScale": 0.08503401360544217,
+      "scaleGroup": "worker",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/cleaner-ne.png",
+      "logical": "logical/cleaner-ne.png",
+      "sha256": "5f7f06fb2187452061389dd70de62580941a920e87f25e432da64fc2a1dd5c29"
+    }
+  ],
+  "limitations": [
+    "Four directional worker poses, one frame per direction. These are not a complete walk cycle or a separate sweeping action animation.",
+    "Broom is part of each character sprite. Worker anchor follows feet, so a forward broom may extend below logical y28."
+  ]
+}

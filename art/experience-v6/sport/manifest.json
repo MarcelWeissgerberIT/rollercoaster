@@ -1,0 +1,271 @@
+{
+  "fileScale": 4,
+  "processing": "Technical extraction only: 2x2 atlas cell crops, pure-green chroma key, transparent trim, one isotropic scale shared by all four views, ground baseline y=30 and horizontal center x=24, nearest-neighbor resize, exact4x display copies. No visual features painted or synthesized in code.",
+  "assets": [
+    {
+      "name": "car-sport-se",
+      "direction": "se",
+      "cellBounds": [
+        0,
+        0,
+        640,
+        512
+      ],
+      "trimBoundsInCell": [
+        183,
+        162,
+        526,
+        400
+      ],
+      "sourceCropSize": [
+        343,
+        238
+      ],
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        8,
+        8,
+        40,
+        30
+      ],
+      "commonSourceToLogicalScale": 0.09302325581395349,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "fileScale": 4,
+      "asset": "assets/car-sport-se.png",
+      "logical": "logical/car-sport-se.png",
+      "sha256": "f1e8da2bd2162bd5760a3db7802d379981acc6d689c660da9d8df47888fc032e",
+      "seatAnchors": [
+        {
+          "role": "driver-front",
+          "x": 26,
+          "y": 19
+        },
+        {
+          "role": "passenger-rear",
+          "x": 20,
+          "y": 17
+        }
+      ],
+      "seatAnchorSpace": "logical48x40 sprite coordinates, before subtracting pivot(24,30); pelvis on cushion, manually reviewed to nearest logical pixel",
+      "opaqueBounds4x": [
+        32,
+        32,
+        160,
+        120
+      ]
+    },
+    {
+      "name": "car-sport-sw",
+      "direction": "sw",
+      "cellBounds": [
+        640,
+        0,
+        1280,
+        512
+      ],
+      "trimBoundsInCell": [
+        114,
+        162,
+        456,
+        400
+      ],
+      "sourceCropSize": [
+        342,
+        238
+      ],
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        8,
+        8,
+        40,
+        30
+      ],
+      "commonSourceToLogicalScale": 0.09302325581395349,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "fileScale": 4,
+      "asset": "assets/car-sport-sw.png",
+      "logical": "logical/car-sport-sw.png",
+      "sha256": "24c6e4b08e249f17da515dd928d4ece4fa1d95afbcb8b2a5ad7111c9073a57e0",
+      "seatAnchors": [
+        {
+          "role": "driver-front",
+          "x": 22,
+          "y": 19
+        },
+        {
+          "role": "passenger-rear",
+          "x": 28,
+          "y": 17
+        }
+      ],
+      "seatAnchorSpace": "logical48x40 sprite coordinates, before subtracting pivot(24,30); pelvis on cushion, manually reviewed to nearest logical pixel",
+      "opaqueBounds4x": [
+        32,
+        32,
+        160,
+        120
+      ]
+    },
+    {
+      "name": "car-sport-nw",
+      "direction": "nw",
+      "cellBounds": [
+        0,
+        512,
+        640,
+        1024
+      ],
+      "trimBoundsInCell": [
+        193,
+        104,
+        536,
+        356
+      ],
+      "sourceCropSize": [
+        343,
+        252
+      ],
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        8,
+        7,
+        40,
+        30
+      ],
+      "commonSourceToLogicalScale": 0.09302325581395349,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "fileScale": 4,
+      "asset": "assets/car-sport-nw.png",
+      "logical": "logical/car-sport-nw.png",
+      "sha256": "008a2cae5a5a613652f0c4e176008a7defda2f5fd6a25c4b221f848fe4020341",
+      "seatAnchors": [
+        {
+          "role": "driver-front",
+          "x": 22,
+          "y": 16
+        },
+        {
+          "role": "passenger-rear",
+          "x": 27,
+          "y": 19
+        }
+      ],
+      "seatAnchorSpace": "logical48x40 sprite coordinates, before subtracting pivot(24,30); pelvis on cushion, manually reviewed to nearest logical pixel",
+      "opaqueBounds4x": [
+        32,
+        28,
+        160,
+        120
+      ]
+    },
+    {
+      "name": "car-sport-ne",
+      "direction": "ne",
+      "cellBounds": [
+        640,
+        512,
+        1280,
+        1024
+      ],
+      "trimBoundsInCell": [
+        103,
+        104,
+        447,
+        356
+      ],
+      "sourceCropSize": [
+        344,
+        252
+      ],
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        8,
+        7,
+        40,
+        30
+      ],
+      "commonSourceToLogicalScale": 0.09302325581395349,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "fileScale": 4,
+      "asset": "assets/car-sport-ne.png",
+      "logical": "logical/car-sport-ne.png",
+      "sha256": "213f4d739c6e4d97ddb436494f7f956b96dd7a315e6f4c67e5a4bfe7c0dcc1a7",
+      "seatAnchors": [
+        {
+          "role": "driver-front",
+          "x": 26,
+          "y": 16
+        },
+        {
+          "role": "passenger-rear",
+          "x": 21,
+          "y": 19
+        }
+      ],
+      "seatAnchorSpace": "logical48x40 sprite coordinates, before subtracting pivot(24,30); pelvis on cushion, manually reviewed to nearest logical pixel",
+      "opaqueBounds4x": [
+        32,
+        28,
+        160,
+        120
+      ]
+    }
+  ],
+  "seating": "Tandem two-seater. Index0/front driver follows the nose; index1/rear passenger follows the blunt cyan rear bumper. Draw far anchor first, near anchor last using screen-space y."
+}

@@ -1,0 +1,72 @@
+{
+  "createdAt": "2026-09-09",
+  "provider": "OpenArt MCP",
+  "model": "gpt-image-2-5-flare",
+  "mode": "image2image",
+  "params": {
+    "prompt": "Use case: style-transfer. Asset type: production sprite atlas for an isometric theme park game, not a presentation or concept sheet.\nUse the supplied existing game car atlas ONLY as the exact pixel-art style, viewing-angle, scale and light reference. Create ONE NEW sporty rollercoaster car model, seen from four directions. Match the tiny authentic late-1990s PC management-game sprites: chunky square pixel clusters, hard stepped edges, two or three shades per material, no smooth rendering, no antialiasing, no gradients, no blur.\nLAYOUT: exactly TWO equal columns and TWO equal rows. Exactly FOUR isolated cars total, one centered in each cell. No labels, text, grid lines, tracks, ground, shadows, riders, extra objects or second cars. Uniform absolutely flat bright GREEN background #00FF00 in every empty pixel and gap for technical transparency extraction; NEVER green anywhere on the car. Keep all car parts comfortably inside the cell with at least15% clear margins.\nTOP LEFT: front nose points screen LOWER RIGHT (SE). TOP RIGHT: front nose points screen LOWER LEFT (SW). BOTTOM LEFT: front nose points screen UPPER LEFT (NW), showing the blunt back and backs of seats. BOTTOM RIGHT: front nose points screen UPPER RIGHT (NE), showing blunt back and seat backs. All four are the SAME design, same scale, same elevation and perspective, with correctly rotated geometry. Orthographic 2:1 isometric projection, camera elevation26.565 degrees; every ground direction is two screen pixels horizontally per one vertically.\nCAR DESIGN: a small open rollercoaster rail vehicle, one seating row with EXACTLY TWO separate individual bucket seats side-by-side; no second seating row. Visibly MUCH LOWER and SPORTIER than the reference: long thin sharply pointed triangular racing nose, pronounced low swept side fins/fenders extending sideways from the nose to the cockpit, very low sloping front bonnet, short blunt rear bumper behind the two seats. Tiny black rail-wheel assemblies under the chassis. The triangular nose and swept side fins must remain obvious as silhouette features even at 32pixels overall car width. No roof, no windshield, no steering wheel, no road tires, no engine, no tall roll cage. A simple charcoal lap bar in front of the pair of seats. Keep the two seats exposed from above.\nMATERIAL REGIONS must be spatially separate with stable hues suitable for runtime tint masks: ALL body panels MAGENTA, base #D52D92 with magenta-only light/shadow shades; side-fin edge stripes and rear-bumper trim CYAN, base #17BEC9 with cyan-only light/shadow shades; both seat cushions and backs IVORY, base #F0DFAD with neutral warm ivory shadows; wheel assemblies, lap bars and undercarriage neutral CHARCOAL #26323A. Do not use magenta in seats or cyan in body panels. No material-hue bleeding. No white specular shine on body, no glass, no chrome reflections. Use clean simple flat-shaded surfaces and modest dark outlines.\nThe four individual car sprites each represent a48x40 logical-pixel cell, about32x24logicalpixels occupied by the vehicle, enlarged in exact nearest-neighbor square pixels. Identical physical size and common wheel-contact baseline in each cell. Sprite anchor is the center of the wheels at logical(24,30); keep nothing drawn below that baseline. Palette and silhouette must read at tiny gameplay scale. This is a sprite sheet for direct extraction, not an illustration of a sprite sheet.",
+    "visualReferences": [
+      {
+        "type": "image",
+        "id": "TBEmTDCPXTne881jllF4",
+        "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942931461_ab48ea9d.png",
+        "label": "Existing Coaster Grove cars: pixel style and isometric projection reference only"
+      }
+    ],
+    "aspectRatio": "5:4",
+    "resolutionTier": "1k",
+    "quality": "high",
+    "outputFormat": "png",
+    "imageCount": 1,
+    "autoEnhancePrompt": false
+  },
+  "initialResponse": {
+    "status": "PENDING",
+    "historyId": "jYMfh6RnojaWYXCOd2iN",
+    "pollAfterSeconds": 5
+  },
+  "intendedOutput": {
+    "layout": {
+      "columns": 2,
+      "rows": 2,
+      "order": [
+        "car-sport-se",
+        "car-sport-sw",
+        "car-sport-nw",
+        "car-sport-ne"
+      ]
+    },
+    "sprite": {
+      "width": 48,
+      "height": 40,
+      "anchorX": 24,
+      "anchorY": 30,
+      "sourceScale": 4
+    },
+    "materialKeys": {
+      "body": "#D52D92",
+      "accent": "#17BEC9",
+      "seats": "#F0DFAD",
+      "hardware": "#26323A",
+      "background": "#00FF00"
+    }
+  },
+  "notes": [
+    "One authorized generation batch.",
+    "References are style/projection only; new model has a pointed low nose and swept side fins.",
+    "No files inside the repository modified."
+  ],
+  "result": {
+    "status": "COMPLETED",
+    "historyId": "jYMfh6RnojaWYXCOd2iN",
+    "resourceId": "UPrdX8iRVuXuizywUcqi",
+    "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788970016053_e1bd08b6.png",
+    "width": 1280,
+    "height": 1024
+  },
+  "processing": "Technical extraction only: 2x2 atlas cell crops, pure-green chroma key, transparent trim, one isotropic scale shared by all four views, ground baseline y=30 and horizontal center x=24, nearest-neighbor resize, exact4x display copies. No visual features painted or synthesized in code.",
+  "manifest": "manifest.json",
+  "limitations": [
+    "OpenArt placed the two seats in tandem, rather than side by side; accepted as the sport model's intentional seating arrangement for shared 2D/3D integration."
+  ]
+}

@@ -1,3 +1,7 @@
+import type { ParkIssue } from "./park-insights";
+import experienceSpecs from "./experience-sprites.json";
+import { vehicleFor, VEHICLES } from "./vehicles";
+import { paintedCar } from "./vehicle-sprite";
 import parkSpecs from "./park-sprites.json";
 import { podPort, podPose, podSlots, usesPods, type Pod, type PodRole } from "./pods";
 import { mapWidth, mapHeight, insideMap } from "./grid";
@@ -30,6 +34,8 @@ import {
   type Spin,
 } from "./motion";
 export type View = {
+  showMoods?: boolean;
+  issues?: ParkIssue[];
   podEdit?: { id: number; role: PodRole; clear?: boolean };
   zoom: number;
   panX: number;
@@ -141,6 +147,7 @@ export function previewBuilding(kind: Kind, x: number, y: number): Building {
 const sprites: Record<string, HTMLImageElement> = {};
 // Every number is in logical screen pixels for a 48 × 24 ground tile.
 const specs: Record<string, SpriteSpec> = {
+  ...experienceSpecs,
   ...expansionSpecs,
   ...parkSpecs,
   wheel: { width: 152, height: 216, anchorX: 76, anchorY: 176 },
@@ -192,7 +199,7 @@ export function loadSprites(base = "/assets/pixel-v2") {
             resolve();
           };
           im.onerror = () => reject(Error(name));
-          im.src = `${name in parkSpecs ? base.replace(/pixel-v2$/, "park-v5") : name in expansionSpecs ? base.replace(/pixel-v2$/, "expansion-v4") : name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
+          im.src = `${name in experienceSpecs ? base.replace(/pixel-v2$/, "experience-v6") : name in parkSpecs ? base.replace(/pixel-v2$/, "park-v5") : name in expansionSpecs ? base.replace(/pixel-v2$/, "expansion-v4") : name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
         }),
     ),
   );
@@ -400,6 +407,7 @@ export function draw(
     alpha = 1,
     rotation = 0,
     mirror = false,
+    paint?: { vehicle: ReturnType<typeof vehicleFor>; index: number },
   ) => {
     const im = sprites[name];
     if (!im) return;
@@ -411,7 +419,7 @@ export function draw(
     ctx.rotate(rotation);
     if (mirror) ctx.scale(-1, 1);
     ctx.drawImage(
-      im,
+      paint ? paintedCar(im, paint.vehicle, paint.index) : im,
       -spec.anchorX * scale,
       -spec.anchorY * scale,
       spec.width * scale,
@@ -780,7 +788,9 @@ export function draw(
               alpha,
             );
         });
-    } else frame(CATALOG[b.kind].sprite, p, specs[CATALOG[b.kind].sprite], alpha);
+    } else if (b.kind === "bin")
+      frame((b.binFill ?? 0) >= 12 ? "bin-full" : "bin-empty", p, specs["bin-empty"], alpha);
+    else frame(CATALOG[b.kind].sprite, p, specs[CATALOG[b.kind].sprite], alpha);
     if (b.design) {
       const emblem = { x: p.x - 38 * scale, y: p.y + 7 * scale };
       line(
@@ -917,15 +927,40 @@ export function draw(
                 p = project(q.x, q.y, q.z),
                 rotation = Math.atan2((q.up.x - q.up.y) * 24, q.up.z * 24 - (q.up.x + q.up.y) * 12);
               frame(
-                `car-${pts[0]?.style ?? "steel"}-${direction}`,
+                `car-${VEHICLES[vehicleFor(b).model].sprite}-${direction}`,
                 p,
                 { width: 48, height: 40, anchorX: 24, anchorY: 30 },
                 1,
                 rotation,
+                false,
+                { vehicle: vehicleFor(b), index: car },
               );
-              for (let side = 0; side < 2; side++) {
-                const x = side ? 4 : -4,
-                  y = -12 + (side ? 2 : -2);
+              const sport = vehicleFor(b).model === "sport";
+              const seats = (
+                {
+                  se: [
+                    [26, 19],
+                    [20, 17],
+                  ],
+                  sw: [
+                    [22, 19],
+                    [28, 17],
+                  ],
+                  nw: [
+                    [22, 16],
+                    [27, 19],
+                  ],
+                  ne: [
+                    [26, 16],
+                    [21, 19],
+                  ],
+                } as const
+              )[direction];
+              for (const side of sport && (direction === "se" || direction === "sw")
+                ? [1, 0]
+                : [0, 1]) {
+                const x = sport ? seats[side][0] - 24 : side ? 4 : -4,
+                  y = sport ? seats[side][1] - 30 : -12 + (side ? 2 : -2);
                 rider(
                   b.riders[car * 2 + side],
                   {
@@ -1127,6 +1162,30 @@ export function draw(
           1,
           moving ? Math.sin((old.phase * Math.PI) / 2) * 0.018 : 0,
         );
+        if (v.showMoods !== false) {
+          ctx.save();
+          ctx.translate(p.x, p.y - 29 * scale);
+          ctx.scale(scale, scale);
+          ctx.fillStyle = g.happiness >= 75 ? "#b8e38d" : g.happiness >= 45 ? "#ffe195" : "#f3967a";
+          ctx.strokeStyle = "#395542";
+          ctx.lineWidth = 0.7;
+          ctx.beginPath();
+          ctx.arc(0, 0, 4.8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#304c3b";
+          ctx.fillRect(-2, -1.7, 0.8, 1);
+          ctx.fillRect(1.2, -1.7, 0.8, 1);
+          ctx.beginPath();
+          if (g.happiness >= 65) ctx.arc(0, 0, 2.5, 0.2, Math.PI - 0.2);
+          else if (g.happiness < 45) ctx.arc(0, 3.5, 2.5, Math.PI + 0.2, Math.PI * 2 - 0.2);
+          else {
+            ctx.moveTo(-2, 1.5);
+            ctx.lineTo(2, 1.5);
+          }
+          ctx.stroke();
+          ctx.restore();
+        }
         if (g.souvenir) {
           const accessory = g.souvenir === "balloon" ? "hand-balloon" : "hand-teddy";
           frame(
@@ -1140,6 +1199,47 @@ export function draw(
       },
     });
   }
+  for (const litter of s.cleanliness?.litter ?? [])
+    objects.push({
+      depth: litter.x + litter.y + 0.05,
+      draw: () => {
+        const p = project(litter.x, litter.y);
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(litter.id * 1.7);
+        ctx.fillStyle = litter.kind === "cup" ? "#c87b4c" : "#f0e5bd";
+        ctx.strokeStyle = "#82735d";
+        ctx.lineWidth = scale * 0.6;
+        ctx.fillRect(-2 * scale, -1.5 * scale, 4 * scale, 3 * scale);
+        ctx.strokeRect(-2 * scale, -1.5 * scale, 4 * scale, 3 * scale);
+        ctx.restore();
+      },
+    });
+  for (const worker of s.cleanliness?.workers ?? [])
+    objects.push({
+      depth: worker.x + worker.y + 0.13,
+      draw: () => {
+        const next = worker.route[0],
+          dir = next ? heading(next.x - worker.x, next.y - worker.y) : "se",
+          p = project(worker.x, worker.y);
+        const walking = worker.mode === "walk",
+          sweeping = worker.mode === "sweep" || worker.mode === "empty";
+        if (walking) p.y -= Math.abs(Math.sin(s.time * 7 + worker.id)) * scale;
+        frame(
+          `cleaner-${dir}`,
+          p,
+          specs[`cleaner-${dir}`],
+          1,
+          sweeping ? Math.sin(s.time * 6) * 0.07 : 0,
+        );
+        if (sweeping) {
+          ctx.fillStyle = "#fff0bf";
+          ctx.font = `bold ${9 * scale}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.fillText(worker.mode === "empty" ? "↓" : "✦", p.x, p.y - 28 * scale);
+        }
+      },
+    });
   for (const b of s.buildings) {
     const event = service.get(b) ?? { served: b.served, time: -10, value: 0 };
     if (event.served !== b.served) {
@@ -1175,6 +1275,24 @@ export function draw(
       o.draw();
     });
   hitOwner = undefined;
+  for (const [i, issue] of (v.issues ?? []).entries()) {
+    const p = project(issue.point.x, issue.point.y);
+    ctx.fillStyle =
+      issue.kind === "dirt"
+        ? "#dc8b45cc"
+        : issue.kind === "wait"
+          ? "#db5d59cc"
+          : issue.kind === "fun"
+            ? "#8157bccc"
+            : "#d9ae42cc";
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y, 36 * scale, 18 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = `bold ${16 * scale}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillText(String(i + 1), p.x, p.y + 5 * scale);
+  }
   if (v.podEdit) {
     const b = s.buildings.find((b) => b.id === v.podEdit!.id);
     if (b) {
@@ -1272,7 +1390,7 @@ export function draw(
       line(a, b, v.candidate.error ? "#ffd6c9" : "#aeffe0", 3);
     }
   }
-  if (v.fitPreview && v.tool === "coaster")
+  if (v.fitPreview)
     for (const [points, color, width] of [
       [v.fitPreview.removed, "#df624f", 9],
       [v.fitPreview.added, "#30d8ba", 5],

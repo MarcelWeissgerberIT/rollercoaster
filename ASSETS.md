@@ -37,3 +37,11 @@ Die Wagen behalten 48 × 40 logische Pixel und Anker (24,30); Stationen nutzen 7
 OpenArt generated three atlases for this release: transport/shops, animated attraction parts/themes, and seated red/teal guests in four directions. 32 normalized sprites plus two small accessories extracted from the shop art are served from `public/assets/park-v5`. Source atlases, prompts, job IDs and extraction provenance are in `art/park-v5`. Render dimensions and anchors live in `game/park-sprites.json`.
 
 The runtime combines these components with animated geometry and actual guest IDs. Workshop images are user-imported PNG/WebP motifs, stored inside the design and save. No OpenArt credentials or generation API run in the published client.
+
+## Wagen und Parkpflege, Version 6
+
+Zwei neue **OpenArt-MCP**-Generierungen mit GPT Image 2.5 Flare liefern zehn Laufzeit-Sprites unter `public/assets/experience-v6/`: vier Richtungen der Sportrakete, leere/volle Mülleimer und vier Richtungen einer Reinigungskraft mit Kappe und Besen. Unveränderte Atlanten, Prompts, Kennungen und Zuschnittmanifeste liegen unter [`art/experience-v6/sport/`](art/experience-v6/sport/) und [`art/experience-v6/cleaning/`](art/experience-v6/cleaning/). Jobs: `jYMfh6RnojaWYXCOd2iN` und `NOLzDwIyYmi7rOyVftfF`, erzeugt am 09.09.2026.
+
+Die Sportrakete nutzt 48 × 40 logische Pixel mit Anker (24, 30). OpenArt lieferte Tandemsitze; diese Anordnung ist in 2D und 3D übernommen. Eine Materialmaske färbt Karosserie, Akzente und Sitze um und erhält Schattierung, Transparenz und dunkle Mechanik. Die drei 3D-Wagenmodelle sind eigenständige Spielgeometrie mit passenden Sitzankern, Radgruppen, Haltebügeln und Modellmerkmalen.
+
+Mülleimer und Personal nutzen 24 × 32 logische Pixel mit Fußpunkt (12, 28), jeweils exakt vierfach vergrößert. Reinigungskräfte besitzen eine Pose pro Richtung mit leichter Lauf-/Kehrbewegung zur Laufzeit; dies ist kein vollständiger Gehzyklus. Müllteile, Smileys und Analysemarkierungen zeichnet die Engine. Schreie und Jubel werden ausschließlich prozedural über Web Audio erzeugt; es werden keine aufgenommenen Stimmen verwendet.
