@@ -152,9 +152,10 @@ export type Park = {
   draft?: {
     track: Point[];
     history: number[];
+    historyEnds?: (Point | null)[];
     rotation: number;
     style: CoasterType;
-    piece?: "straight" | "rise" | "fall" | "left" | "right" | "loop";
+    piece?: "short" | "straight" | "rise" | "fall" | "left" | "right" | "loop" | "hill" | "sbend";
   };
 };
 export const SCENARIOS = {
@@ -1638,13 +1639,19 @@ export function validSave(v: unknown): v is Park {
       if (
         !d ||
         (d.piece !== undefined &&
-          !["straight", "rise", "fall", "left", "right", "loop"].includes(d.piece)) ||
+          !["short", "straight", "rise", "fall", "left", "right", "loop", "hill", "sbend"].includes(
+            d.piece,
+          )) ||
         !Array.isArray(d.track) ||
         d.track.length > 2048 ||
         !d.track.every(trackPoint) ||
         !Array.isArray(d.history) ||
         d.history.length > 128 ||
         !d.history.every((n) => Number.isInteger(n) && n >= 0 && n < d.track.length) ||
+        (d.historyEnds !== undefined &&
+          (!Array.isArray(d.historyEnds) ||
+            d.historyEnds.length !== d.history.length ||
+            !d.historyEnds.every((p, i) => (d.history[i] === 0 ? p === null : trackPoint(p!))))) ||
         typeof d.style !== "string" ||
         !Object.hasOwn(COASTER_TYPES, d.style) ||
         !Number.isInteger(d.rotation) ||
@@ -1745,11 +1752,17 @@ export function validSave(v: unknown): v is Park {
         !s.draft
       )
         return false;
+      const first = e.prefix[0],
+        last = e.suffix.at(-1)!;
+      const actual = b.track![0].smooth ? b.track![0] : prepareRoute(b.track!).points[0];
+      const matches = (anchor: Point) =>
+        Math.hypot(first.x - anchor.x, first.y - anchor.y, (first.z ?? 0) - (anchor.z ?? 0)) <
+        0.001;
       if (
-        e.prefix[0].x !== b.x ||
-        e.prefix[0].y !== b.y ||
-        e.suffix.at(-1)!.x !== b.x ||
-        e.suffix.at(-1)!.y !== b.y
+        (!matches(actual) && !matches({ x: b.x, y: b.y, z: b.track![0].z })) ||
+        first.x !== last.x ||
+        first.y !== last.y ||
+        (first.z ?? 0) !== (last.z ?? 0)
       )
         return false;
     }

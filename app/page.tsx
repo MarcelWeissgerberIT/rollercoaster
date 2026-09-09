@@ -1,6 +1,8 @@
 "use client";
 /* oxlint-disable next/no-img-element, react/react-compiler -- Native transparent sprite images and a mutable external simulation are intentional. */
 import ParkMenu from "@/components/park-menu";
+import { TrackPieceCatalog, TrackRangeMap } from "@/components/track-pieces";
+import { draftHistoryData, restoreDraftHistory } from "@/game/draft";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Volume2,
@@ -112,6 +114,9 @@ import {
   trackEditWorld,
   trackEditPlan,
   commitTrackEdit,
+  trackEditRange,
+  resizeTrackEdit,
+  fittingTrackCut,
 } from "@/game/track-edit";
 import type { TrackDrive } from "@/game/drive";
 import { guestName } from "@/game/guest-identity";
@@ -249,10 +254,7 @@ export default function Home() {
       park.current.draft = next.length
         ? {
             track: next,
-            history: draftHistory.current
-              .map((t) => t.length)
-              .filter((n) => n < next.length)
-              .slice(-128),
+            ...draftHistoryData(draftHistory.current, next.length),
             style: next[0]?.style ?? coasterType,
             piece,
             rotation,
@@ -262,7 +264,7 @@ export default function Home() {
   const restoreDraft = (s: Park) => {
     const d = s.draft;
     writeDraft(d?.track ?? []);
-    draftHistory.current = d ? d.history.map((n) => d.track.slice(0, n)) : [];
+    draftHistory.current = d ? restoreDraftHistory(d) : [];
     if (d) {
       setCoasterType(d.style);
       setPiece(d.piece ?? "straight");
@@ -324,7 +326,20 @@ export default function Home() {
   };
   const undo = useCallback(() => {
     if (tool === "coaster" && draft.length && !blueprintMode) {
-      setDraft(draftHistory.current.pop() ?? park.current?.trackEdit?.prefix ?? []);
+      const previous = draftHistory.current.pop();
+      if (previous) setDraft(previous);
+      else if (park.current?.trackEdit) {
+        const id = park.current.trackEdit.buildingId;
+        cancelTrackEdit(park.current);
+        setDraft([]);
+        setBuildWorld(null);
+        setTool("select");
+        setCategory("detail");
+        setSelected(id);
+        setWorldRevision((v) => v + 1);
+        sync();
+        notify("Entfernen rückgängig gemacht. Die ursprüngliche Bahn ist wiederhergestellt.");
+      } else setDraft([]);
       return;
     }
     finishStroke();
@@ -402,6 +417,17 @@ export default function Home() {
           : planPlacement(snapshot, "coaster", draft[0], draft, autoClear)
         : null,
     [worldRevision, draft, autoClear, snapshot?.cash],
+  );
+  const editRange = useMemo(
+    () => (snapshot?.trackEdit ? trackEditRange(snapshot) : null),
+    [snapshot?.trackEdit, worldRevision],
+  );
+  const fittingCut = useMemo(
+    () =>
+      snapshot?.trackEdit && candidateError && draft.length === snapshot.trackEdit.prefix.length
+        ? fittingTrackCut(snapshot, piece, autoClear)
+        : null,
+    [snapshot?.trackEdit, candidateError, draft, piece, autoClear, worldRevision],
   );
   const previewTrack = useMemo(
     () =>
@@ -601,7 +627,7 @@ export default function Home() {
           : t === "erase"
             ? "Klicke auf ein Gebäude oder einen Weg. Gebäude erstatten 40 % des Grundpreises."
             : t === "coaster"
-              ? "Wähle einen Bahntyp. R dreht den Schnellbau; unter Bauteile planst du deine eigene Strecke."
+              ? "Wähle einen Bahntyp. Unter Fertigteile findest du Looping, Kurven, Hügel und Steigungen."
               : t === "queue"
                 ? "Verbinde den Attraktionseingang über eine Warteschlange mit einem Parkweg."
                 : t === "path"
@@ -631,7 +657,7 @@ export default function Home() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (target.closest('input,textarea,[role="slider"],[role="dialog"],[contenteditable]'))
+      if (target.closest('input,select,textarea,[role="slider"],[role="dialog"],[contenteditable]'))
         return;
       const s = park.current;
       if (!s || rideActive.current) return;
@@ -735,6 +761,14 @@ export default function Home() {
   const act = (p: Point, repeat = false, hitId?: number | null) => {
     const s = park.current;
     if (!s) return;
+    if (tool === "erase") {
+      const target = s.buildings.find((b) => b.id === hitId) ?? occupant(s, p.x, p.y);
+      if (target?.kind === "coaster") {
+        openSections(target);
+        notify("Wähle den roten Gleisbereich zum Entfernen. Die gesamte Bahn bleibt stehen.");
+        return;
+      }
+    }
     if (adjust && (tool === "station" || tool === "move")) {
       const b = s.buildings.find((b) => b.id === adjust.id);
       if (!b) return;
@@ -841,10 +875,30 @@ export default function Home() {
         park.current.trackEdit?.suffix,
       );
     if (error) notify(error);
-    else rememberDraft(next);
+    else {
+      const suffix = park.current.trackEdit?.suffix,
+        end = next.at(-1)!;
+      if (
+        suffix &&
+        Math.hypot(end.x - suffix[0].x, end.y - suffix[0].y, (end.z ?? 0) - (suffix[0].z ?? 0)) <
+          0.001 &&
+        Math.cos((end.heading ?? 0) - (suffix[0].heading ?? 0)) > 0.999
+      ) {
+        const result = closeTrack(trackEditWorld(park.current), next, autoClear, suffix);
+        if (result.track) {
+          rememberDraft(result.track);
+          notify(
+            `${PIECES[part].name} eingesetzt und automatisch verbunden. Übernimm jetzt den Umbau.`,
+          );
+          return;
+        }
+      }
+      rememberDraft(next);
+    }
   };
   const autoClose = () => {
     if (!park.current) return;
+    if (isClosedTrack(draft)) return;
     const result = closeTrack(
       trackEditWorld(park.current),
       draft,
@@ -901,6 +955,46 @@ export default function Home() {
     setCategory("coaster");
     setBlueprintMode(false);
   };
+  const openSections = (building: Building) => {
+    if (park.current?.trackEdit) {
+      resumeEdit();
+      return;
+    }
+    setSelected(building.id);
+    setCategory("detail");
+    setMenuOpen(false);
+    setSectionMode("remove");
+    setCut({ id: building.id, from: 0, to: 0 });
+    setTool("select");
+  };
+  const chooseAnotherRange = () => {
+    const s = park.current;
+    const live = s?.buildings.find((b) => b.id === s.trackEdit?.buildingId);
+    if (!s || !live) return;
+    cancelTrackEdit(s);
+    draftHistory.current = [];
+    setDraft([]);
+    setBuildWorld(null);
+    setWorldRevision((v) => v + 1);
+    sync();
+    openSections(live);
+  };
+  const resizeGap = (from: number, to: number) => {
+    const s = park.current;
+    if (!s) return;
+    const error = resizeTrackEdit(s, from, to);
+    if (error) {
+      notify(error);
+      return;
+    }
+    s.draft!.piece = piece;
+    restoreDraft(s);
+    if (buildWorld) setBuildWorld(structuredClone(s));
+    setWorldRevision((v) => v + 1);
+    sync();
+    focus2D(s.trackEdit!.prefix);
+    notify("Lücke vergrößert. Das gewählte Fertigteil wird am neuen Anschluss angezeigt.");
+  };
   useEffect(() => {
     if (sectionMode === "drive" && cut) {
       const existing = cutTrack[sections[cut.from]?.start]?.drive;
@@ -936,6 +1030,16 @@ export default function Home() {
     setCut(null);
     setWorldRevision((v) => v + 1);
     restoreDraft(s);
+    if (
+      s.trackEdit &&
+      Math.hypot(
+        s.trackEdit.prefix.at(-1)!.x - s.trackEdit.suffix[0].x,
+        s.trackEdit.prefix.at(-1)!.y - s.trackEdit.suffix[0].y,
+      ) < 1.01
+    ) {
+      s.draft!.piece = "short";
+      setPiece("short");
+    }
     setBlueprintMode(false);
     setCategory("coaster");
     setTool("coaster");
@@ -1074,7 +1178,12 @@ export default function Home() {
             };
             if (e.button === 0 && !e.altKey && ["path", "queue", "water", "erase"].includes(tool)) {
               stroke.current = [];
-              act(tileAt(e));
+              const rect = e.currentTarget.getBoundingClientRect();
+              act(
+                tileAt(e),
+                false,
+                hitBuildingAt(view.current, e.clientX - rect.left, e.clientY - rect.top),
+              );
             }
           }}
           onPointerMove={(e) => {
@@ -1224,15 +1333,23 @@ export default function Home() {
               </button>
             ))}
             {!conflictOptions.length && (
-              <span>Entferne das letzte Teil und wähle davor eine andere Richtung.</span>
+              <span>
+                {snapshot?.trackEdit && !draftHistory.current.length
+                  ? "Dieses Fertigteil braucht mehr freie Fläche. Vergrößere die Lücke oder wähle einen anderen Gleisbereich."
+                  : "Entferne das letzte Teil und wähle davor eine andere Richtung."}
+              </span>
             )}
-            <button
-              onClick={() =>
-                setDraft(draftHistory.current.pop() ?? park.current?.trackEdit?.prefix ?? [])
-              }
-            >
-              Letztes Bauteil entfernen
-            </button>
+            {snapshot?.trackEdit && !draftHistory.current.length ? (
+              <button onClick={chooseAnotherRange}>Anderen Gleisbereich auswählen</button>
+            ) : (
+              <button
+                onClick={() =>
+                  setDraft(draftHistory.current.pop() ?? park.current?.trackEdit?.prefix ?? [])
+                }
+              >
+                Letztes Bauteil entfernen
+              </button>
+            )}
             <button onClick={() => setBuildWorld(structuredClone(park.current!))}>
               Konflikt in 3D ansehen
             </button>
@@ -1275,7 +1392,7 @@ export default function Home() {
                   (
                     {
                       rides: "Einsteigen & staunen",
-                      coaster: "Deine Achterbahn",
+                      coaster: snapshot?.trackEdit ? "Strecke umbauen" : "Deine Achterbahn",
                       paths: "Neue Verbindungen",
                       shops: "Für kleine Pausen",
                       nature: "Ein bisschen Grün",
@@ -1431,48 +1548,52 @@ export default function Home() {
                       Anschluss folgen
                     </label>
                   </div>
-                  <div className="coaster-types" role="group" aria-label="Achterbahntyp">
-                    {(Object.keys(COASTER_TYPES) as CoasterType[]).map((type) => (
-                      <button
-                        key={type}
-                        className={coasterType === type ? "active" : ""}
-                        disabled={
-                          (!blueprintMode && draft.length > 0) ||
-                          (!!snapshot && !isUnlocked(snapshot, "coaster", type))
-                        }
-                        onClick={() => {
-                          setCoasterType(type);
-                          if (type === "wood" && piece === "loop") setPiece("straight");
-                        }}
-                      >
-                        <img src={assetUrl(`car-${type}-se`)} alt="" />
-                        <strong>{COASTER_TYPES[type].name}</strong>
-                      </button>
-                    ))}
-                  </div>
+                  {!snapshot?.trackEdit && (
+                    <>
+                      <div className="coaster-types" role="group" aria-label="Achterbahntyp">
+                        {(Object.keys(COASTER_TYPES) as CoasterType[]).map((type) => (
+                          <button
+                            key={type}
+                            className={coasterType === type ? "active" : ""}
+                            disabled={
+                              (!blueprintMode && draft.length > 0) ||
+                              (!!snapshot && !isUnlocked(snapshot, "coaster", type))
+                            }
+                            onClick={() => {
+                              setCoasterType(type);
+                              if (type === "wood" && piece === "loop") setPiece("straight");
+                            }}
+                          >
+                            <img src={assetUrl(`car-${type}-se`)} alt="" />
+                            <strong>{COASTER_TYPES[type].name}</strong>
+                          </button>
+                        ))}
+                      </div>
 
-                  <div className="build-modes" role="group" aria-label="Achterbahn-Bauweise">
-                    <button
-                      className={blueprintMode ? "active" : ""}
-                      aria-pressed={blueprintMode}
-                      disabled={!!snapshot?.trackEdit}
-                      onClick={() => {
-                        setBlueprintMode(true);
-                      }}
-                    >
-                      Schnellbau
-                    </button>
-                    <button
-                      className={!blueprintMode ? "active" : ""}
-                      aria-pressed={!blueprintMode}
-                      onClick={() => {
-                        setBlueprintMode(false);
-                        if (draft[0]?.style) setCoasterType(draft[0].style);
-                      }}
-                    >
-                      Bauteile
-                    </button>
-                  </div>
+                      <div className="build-modes" role="group" aria-label="Achterbahn-Bauweise">
+                        <button
+                          className={blueprintMode ? "active" : ""}
+                          aria-pressed={blueprintMode}
+                          disabled={!!snapshot?.trackEdit}
+                          onClick={() => {
+                            setBlueprintMode(true);
+                          }}
+                        >
+                          Schnellbau
+                        </button>
+                        <button
+                          className={!blueprintMode ? "active" : ""}
+                          aria-pressed={!blueprintMode}
+                          onClick={() => {
+                            setBlueprintMode(false);
+                            if (draft[0]?.style) setCoasterType(draft[0].style);
+                          }}
+                        >
+                          Fertigteile
+                        </button>
+                      </div>
+                    </>
+                  )}
                   {blueprintMode ? (
                     <>
                       <img
@@ -1534,37 +1655,52 @@ export default function Home() {
                         </b>
                       </div>
                       {snapshot?.trackEdit && (
-                        <p className="track-edit-notice">
-                          Bahn geschlossen · Du bearbeitest eine Lücke. Gelb: dein neuer Abschnitt.
-                          Türkis: erhaltene Strecke bis zur Station.
-                        </p>
+                        <details className="track-edit-notice">
+                          <summary>
+                            {editRange
+                              ? `Abschnitt ${editRange.from + 1}–${editRange.to + 1}`
+                              : "Offene Lücke"}{" "}
+                            · Lücke vergrößern
+                          </summary>
+                          <p>
+                            Fertigteil auswählen, Vorschau prüfen und einsetzen. Passende Enden
+                            verbinden sich sofort.
+                          </p>
+                          {editRange && (
+                            <div className="gap-actions">
+                              <button
+                                className="secondary"
+                                disabled={editRange.from === 0}
+                                onClick={() => resizeGap(editRange.from - 1, editRange.to)}
+                              >
+                                ← Weiteres Gleis davor entfernen
+                              </button>
+                              <button
+                                className="secondary"
+                                disabled={editRange.to === editRange.sections.length - 1}
+                                onClick={() => resizeGap(editRange.from, editRange.to + 1)}
+                              >
+                                Weiteres Gleis danach entfernen →
+                              </button>
+                            </div>
+                          )}
+                          <button className="secondary" onClick={chooseAnotherRange}>
+                            Anderen Gleisbereich auswählen
+                          </button>
+                          {draftHistory.current.length > 0 && (
+                            <small>Vergrößern setzt die neuen Teile im Entwurf zurück.</small>
+                          )}
+                        </details>
                       )}
-                      <div className="prefab-grid">
-                        {(Object.entries(PIECES) as [Piece, (typeof PIECES)[Piece]][]).map(
-                          ([id, item]) => (
-                            <button
-                              key={id}
-                              className={piece === id ? "active" : ""}
-                              disabled={
-                                !draft.length || (id === "loop" && !COASTER_TYPES[coasterType].loop)
-                              }
-                              title={
-                                id === "loop" && !COASTER_TYPES[coasterType].loop
-                                  ? "Nur Stahl- und Launch-Bahnen"
-                                  : item.detail
-                              }
-                              onClick={() => {
-                                setPiece(id);
-                                if (park.current?.draft) park.current.draft.piece = id;
-                              }}
-                            >
-                              <span className="piece-glyph">{item.glyph}</span>
-                              <strong>{item.name}</strong>
-                              <small>{item.detail}</small>
-                            </button>
-                          ),
-                        )}
-                      </div>
+                      <h3 className="prefab-heading">Fertigteile · auswählen und einsetzen</h3>
+                      <TrackPieceCatalog
+                        selected={piece}
+                        wood={!COASTER_TYPES[coasterType].loop}
+                        onSelect={(id) => {
+                          setPiece(id);
+                          if (park.current?.draft) park.current.draft.piece = id;
+                        }}
+                      />
                       <div
                         className={`candidate-status ${candidateError && !isClosedTrack(draft) ? "invalid" : ""}`}
                         role="status"
@@ -1574,6 +1710,15 @@ export default function Home() {
                             ? `${PIECES[piece].name}: Anschluss frei · ${EUR(trackCost(candidate) - trackCost(draft))}`
                             : "Setze die Station auf die Wiese.")}
                       </div>
+                      {fittingCut && (
+                        <button
+                          className="fit-gap"
+                          onClick={() => resizeGap(fittingCut.from, fittingCut.to)}
+                        >
+                          Platz für {PIECES[piece].name} schaffen · {fittingCut.extra} weitere
+                          Abschnitte entfernen
+                        </button>
+                      )}
                       <div className="builder-actions">
                         <div className="builder-row">
                           <button
@@ -1581,13 +1726,13 @@ export default function Home() {
                             disabled={!draft.length || !!candidateError}
                             onClick={() => addPiece(piece)}
                           >
-                            <Plus size={16} /> Anfügen
+                            <Plus size={16} /> {PIECES[piece].name} einsetzen
                           </button>
                           <button
                             className="secondary"
                             aria-label="Letztes Bauteil entfernen"
                             title="Letztes Bauteil entfernen · Strg/⌘ Z"
-                            disabled={!draft.length}
+                            disabled={!draftHistory.current.length}
                             onClick={() =>
                               setDraft(
                                 draftHistory.current.pop() ?? park.current?.trackEdit?.prefix ?? [],
@@ -1599,7 +1744,9 @@ export default function Home() {
                         </div>
                         <button
                           className="secondary"
-                          disabled={draft.length < 2}
+                          disabled={
+                            isClosedTrack(draft) || draft.length < (snapshot?.trackEdit ? 1 : 2)
+                          }
                           onClick={autoClose}
                         >
                           <Route size={16} />{" "}
@@ -1612,8 +1759,10 @@ export default function Home() {
                           onClick={coasterBuild}
                         >
                           <Check size={16} />{" "}
-                          {snapshot?.trackEdit ? "Umbau übernehmen" : "Strecke bauen"} ·{" "}
-                          {EUR(draftPlan?.cost ?? trackCost(draft))}
+                          {snapshot?.trackEdit ? "Umbau übernehmen" : "Strecke bauen"}
+                          {(!snapshot?.trackEdit || (draftPlan && !draftPlan.error)) && (
+                            <> · {EUR(draftPlan?.cost ?? trackCost(draft))}</>
+                          )}
                         </button>
                         <div className="builder-options">
                           <label>
@@ -1902,6 +2051,19 @@ export default function Home() {
                                   ? "Wähle einen Gleisbereich. Beschleuniger sind türkis, Bremsen orange markiert."
                                   : "Klicke auf die Schiene oder wähle den Bereich. Rot markierte Teile werden entfernt; die Station bleibt."}
                               </p>
+                              <TrackRangeMap
+                                track={cutTrack}
+                                from={cut.from}
+                                to={cut.to}
+                                color={sectionMode === "drive" ? "#35bcb5" : "#e35c42"}
+                                onSelect={(index, extend) =>
+                                  setCut({
+                                    id: b.id,
+                                    from: extend ? Math.min(cut.from, index) : index,
+                                    to: extend ? Math.max(cut.to, index) : index,
+                                  })
+                                }
+                              />
                               <label>
                                 Von Abschnitt
                                 <select
@@ -2018,7 +2180,11 @@ export default function Home() {
                                 </>
                               ) : (
                                 <>
-                                  <button className="primary" onClick={removeSections}>
+                                  <p className="small">
+                                    Danach öffnet sich der Fertigteil-Katalog mit Looping, Kurven,
+                                    Hügel und Steigungen. Die Station bleibt erhalten.
+                                  </p>
+                                  <button className="primary cut-confirm" onClick={removeSections}>
                                     <Eraser size={16} /> {cut.to - cut.from + 1} Abschnitt
                                     {cut.to > cut.from ? "e" : ""} entfernen
                                   </button>
@@ -2030,19 +2196,8 @@ export default function Home() {
                             </>
                           ) : (
                             <>
-                              <button
-                                className="secondary"
-                                onClick={() => {
-                                  setSectionMode("remove");
-                                  setCut({
-                                    id: b.id,
-                                    from: Math.min(1, sections.length - 1),
-                                    to: Math.min(1, sections.length - 1),
-                                  });
-                                  setTool("select");
-                                }}
-                              >
-                                <Eraser size={16} /> Gleisabschnitte bearbeiten
+                              <button className="secondary" onClick={() => openSections(b)}>
+                                <Eraser size={16} /> Gleise ersetzen / entfernen
                               </button>
                               <button
                                 className="secondary"
@@ -2620,16 +2775,16 @@ export default function Home() {
             </li>
             <li>
               <b>Achterbahn:</b> Im Schnellbau setzt du einen vollständigen Rundkurs; R dreht ihn.
-              Für eine eigene Strecke setze eine Station. Baue mit den Pfeilen oder benachbarten
-              Geraden, Steigungen, Kurven und Loopings. „Automatisch zur Station“ sucht einen
-              passenden Rückweg. Danach bauen, testen und anschließen. Wähle eine fertige Bahn und
-              „3D-Mitfahren“ für eine Probefahrt; Sound und Musik stellst du in der Parkverwaltung
-              ein.
+              Unter „Fertigteile“ setzt du eine Station, wählst eine bebilderte Gerade, Steigung,
+              Kurve, einen Hügel, eine S-Kurve oder einen Looping und drückst „Einsetzen“. „Zur
+              Station verbinden“ sucht einen passenden Rückweg. Danach bauen, testen und
+              anschließen. Wähle eine fertige Bahn und „3D-Mitfahren“ für eine Probefahrt; Sound und
+              Musik stellst du in der Parkverwaltung ein.
             </li>
             <li>
               <b>Nachträglich anpassen:</b> Klicke eine Bahn an. „Station versetzen“ bietet grüne,
               ebene Gleisfelder; „Bahn verschieben / drehen“ versetzt die gesamte Anlage. R dreht
-              die Vorschau, Strg/⌘ Z nimmt den Umbau zurück. Mit „Gleisabschnitte bearbeiten“
+              die Vorschau, Strg/⌘ Z nimmt den Umbau zurück. Mit „Gleise ersetzen / entfernen“
               entfernst du einen markierten Bereich, setzt neue Bauteile ein und verbindest die
               offenen Enden automatisch. „Beschleuniger & Bremsen“ montiert Module mit einstellbarem
               Zieltempo und einstellbarer Stärke. Danach ist eine neue Testfahrt nötig.

@@ -2363,3 +2363,85 @@ button:hover:not(:disabled) {
   accent-color: #30785e;
   height: 18px;
 }
+.track-piece-icon {
+  width: 78px;
+  height: 35px;
+  flex-shrink: 0;
+}
+.builder-panel .illustrated-pieces button {
+  min-height: 62px;
+  padding: 3px;
+  gap: 0;
+}
+.builder-panel .illustrated-pieces small {
+  font-size: 9px;
+}
+.prefab-heading {
+  font-size: 13px;
+  margin: 2px 0;
+  color: #254e3c;
+}
+.track-edit-notice summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+}
+.track-edit-notice p {
+  margin: 6px 0;
+}
+.track-edit-notice .gap-actions {
+  display: grid;
+  gap: 5px;
+}
+.track-edit-notice .gap-actions button {
+  font-size: 11px;
+  padding: 7px;
+}
+.fit-gap {
+  border: 1px solid #ba9252;
+  background: #fff0cb;
+  color: #634516;
+  padding: 9px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.track-range-map {
+  width: 100%;
+  height: 150px;
+  background: #edf2e4;
+  border-radius: 8px;
+}
+.track-range-map [role="button"] {
+  cursor: pointer;
+  outline: none;
+}
+.track-range-map [role="button"]:hover,
+.track-range-map [role="button"]:focus {
+  stroke: #eba948;
+  stroke-width: 10;
+}
+.panel.editing-section {
+  width: 318px;
+}
+.cut-confirm {
+  position: sticky;
+  bottom: 0;
+  box-shadow: 0 -6px 12px #fffef8;
+}
+.builder-panel:has(.track-edit-notice) .builder-instruction,
+.builder-panel:has(.track-edit-notice) .draftstats {
+  display: none;
+}
+.builder-panel .builder-view-options {
+  margin: 0;
+  font-size: 10px;
+}
+.builder-panel .builder-view-options button {
+  padding: 5px 7px;
+  font-size: 11px;
+}
+.builder-panel .track-edit-notice {
+  margin: 0;
+  padding: 7px;
+}

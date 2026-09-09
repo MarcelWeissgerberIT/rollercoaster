@@ -9,12 +9,15 @@ import {
   validateTrack,
 } from "./simulation";
 export const PIECES = {
+  short: { name: "Kurze Gerade", glyph: "━", detail: "1 Feld · 5 m" },
   straight: { name: "Gerade", glyph: "━", detail: "2 Felder" },
   rise: { name: "Steigung", glyph: "╱", detail: "+5 m · Kettenlift" },
   fall: { name: "Abfahrt", glyph: "╲", detail: "−5 m" },
   left: { name: "Linkskurve", glyph: "↰", detail: "90° · Radius 2" },
   right: { name: "Rechtskurve", glyph: "↱", detail: "90° · Radius 2" },
   loop: { name: "Looping", glyph: "↻", detail: "20 m · Inversion" },
+  hill: { name: "Hügel", glyph: "⌒", detail: "4 Felder · +5 m" },
+  sbend: { name: "S-Kurve", glyph: "∿", detail: "4 × 4 Felder" },
 } as const;
 export type Piece = keyof typeof PIECES;
 const snap = (v: number) => Math.round(v * 1e6) / 1e6;
@@ -23,6 +26,8 @@ export function startTrack(p: Point, rotation = 0, style: CoasterType = "steel")
 }
 export function appendPiece(track: Point[], piece: Piece, straightLength = 2): Point[] {
   if (!track.length) return track;
+  if (piece === "hill") return appendPiece(appendPiece(track, "rise"), "fall");
+  if (piece === "sbend") return appendPiece(appendPiece(track, "right"), "left");
   const end = track.at(-1)!;
   const angle =
     end.heading ??
@@ -32,7 +37,7 @@ export function appendPiece(track: Point[], piece: Piece, straightLength = 2): P
   const points: Point[] = [];
   for (let i = 1; i <= count; i++) {
     const t = i / count;
-    let x = (piece === "straight" ? straightLength : 2) * t,
+    let x = (piece === "short" ? 1 : piece === "straight" ? straightLength : 2) * t,
       y = 0,
       z = 0,
       heading = angle;
@@ -184,6 +189,43 @@ export function prefabBlueprint(p: Point, rotation: number, style: CoasterType):
   t[t.length - 1] = { ...t[0] };
   return t;
 }
+export function precisionJoin(prefix: Point[], goal: Point): Point[] | null {
+  const a = prefix.at(-1)!,
+    d = Math.hypot(goal.x - a.x, goal.y - a.y, (goal.z ?? 0) - (a.z ?? 0));
+  if (d < 1e-7 || d > 3) return null;
+  const h = Math.max(0.08, d * 0.35),
+    ax = a.x + Math.cos(a.heading ?? 0) * h,
+    ay = a.y + Math.sin(a.heading ?? 0) * h,
+    bx = goal.x - Math.cos(goal.heading ?? 0) * h,
+    by = goal.y - Math.sin(goal.heading ?? 0) * h;
+  const count = Math.max(16, Math.ceil(d * 16)),
+    out = [...prefix];
+  for (let i = 1; i <= count; i++) {
+    const t = i / count,
+      u = 1 - t;
+    const dx = 3 * u * u * (ax - a.x) + 6 * u * t * (bx - ax) + 3 * t * t * (goal.x - bx),
+      dy = 3 * u * u * (ay - a.y) + 6 * u * t * (by - ay) + 3 * t * t * (goal.y - by);
+    out.push({
+      x:
+        i === count
+          ? goal.x
+          : u * u * u * a.x + 3 * u * u * t * ax + 3 * u * t * t * bx + t * t * t * goal.x,
+      y:
+        i === count
+          ? goal.y
+          : u * u * u * a.y + 3 * u * u * t * ay + 3 * u * t * t * by + t * t * t * goal.y,
+      z:
+        i === count
+          ? (goal.z ?? 0)
+          : (a.z ?? 0) + ((goal.z ?? 0) - (a.z ?? 0)) * (t * t * (3 - 2 * t)),
+      heading: i === count ? goal.heading : Math.atan2(dy, dx),
+      smooth: true,
+      style: prefix[0].style,
+      inversion: false,
+    });
+  }
+  return out;
+}
 /** Close with tangent-matched straight/quarter-circle prefabs. Search poses, never draw a teleporting closing chord. */
 export function closeTrack(
   s: Park,
@@ -211,7 +253,9 @@ export function closeTrack(
           ),
       );
   const finish = (t: Point[]) =>
-    suffix ? [...t.slice(0, -1), ...suffix] : [...t.slice(0, -1), { ...track[0] }];
+    suffix
+      ? [...t.slice(0, -1), { ...suffix[0], inversion: t.at(-1)?.inversion }, ...suffix.slice(1)]
+      : [...t.slice(0, -1), { ...track[0] }];
   type Node = { track: Point[]; depth: number; score: number };
   const queue: Node[] = [{ track, depth: 0, score: 0 }],
     visited = new Set<string>();
@@ -223,6 +267,17 @@ export function closeTrack(
       const done = finish(node.track);
       if (!validateTrack(virtual, done)) return { track: done };
       if (node.depth) continue;
+    }
+    if (suffix) {
+      const joined = precisionJoin(node.track, first);
+      if (
+        joined &&
+        joined.length + suffix.length - 1 <= 2048 &&
+        !pieceError(s, node.track, joined, clear, suffix)
+      ) {
+        const done = finish(joined);
+        if (!validateTrack(virtual, done)) return { track: done };
+      }
     }
     if (node.depth >= 28) continue;
     const key = `${last.x},${last.y},${last.z},${Math.round((last.heading ?? 0) / (Math.PI / 2) + 400) % 4}`;

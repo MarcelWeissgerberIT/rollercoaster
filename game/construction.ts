@@ -307,8 +307,8 @@ export function stationPositions(b: Building): Point[] {
         (p.z ?? 0) === 0 &&
         (prev.z ?? 0) === 0 &&
         (next.z ?? 0) === 0 &&
-        Math.abs(prev.x + next.x - 2 * p.x) < 1e-5 &&
-        Math.abs(prev.y + next.y - 2 * p.y) < 1e-5
+        Math.abs((p.x - prev.x) * (next.y - p.y) - (p.y - prev.y) * (next.x - p.x)) < 1e-5 &&
+        (p.x - prev.x) * (next.x - p.x) + (p.y - prev.y) * (next.y - p.y) > 0
       );
     })
     .map((p) => ({ ...p }));

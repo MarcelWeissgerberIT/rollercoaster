@@ -1,3 +1,4 @@
+import { prepareRoute } from "./motion";
 import { driveCost, validDrive, type TrackDrive } from "./drive";
 import {
   type Park,
@@ -6,8 +7,10 @@ import {
   validateTrack,
   trackCost,
   spend,
+  decorative,
 } from "./simulation";
 import { planPlacement, releaseBuildingGuests } from "./construction";
+import { appendPiece, pieceError, precisionJoin, type Piece } from "./prefabs";
 export type TrackEdit = {
   buildingId: number;
   prefix: Point[];
@@ -19,26 +22,49 @@ export function editableTrack(b: Building): Point[] {
   const input = b.track ?? [],
     style = input[0]?.style ?? "steel";
   if (input[0]?.smooth) return input.map((p) => ({ ...p, style }));
-  const result: Point[] = [];
-  for (let i = 0; i < input.length - 1; i++) {
-    const a = input[i],
-      b = input[i + 1],
-      n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y, (b.z ?? 0) - (a.z ?? 0)) / 0.18);
-    for (let j = 0; j < n; j++) {
-      const t = j / n;
-      result.push({
-        x: a.x + (b.x - a.x) * t,
-        y: a.y + (b.y - a.y) * t,
-        z: (a.z ?? 0) + ((b.z ?? 0) - (a.z ?? 0)) * t,
-        heading: Math.atan2(b.y - a.y, b.x - a.x),
-        smooth: true,
-        style,
-        drive: a.drive,
-      });
-    }
+  const sampled = prepareRoute(input).points,
+    n = sampled.length - 1;
+  const points = sampled.slice(0, -1).map((p, i) => {
+    const prev = sampled[(i + n - 1) % n],
+      next = sampled[(i + 1) % n];
+    let heading = Math.atan2(next.y - prev.y, next.x - prev.x),
+      quarter = Math.round(heading / (Math.PI / 2));
+    if (Math.abs(heading - (quarter * Math.PI) / 2) < 1e-10) heading = (quarter * Math.PI) / 2;
+    return { ...p, z: p.z ?? 0, heading, smooth: true, style, drive: sampled[i + 1]?.drive };
+  });
+  if (!points.length) return [];
+  points.push({ ...points[0], inversion: sampled[n]?.inversion });
+  const nearlyInteger = (v: number) => Math.abs(v - Math.round(v)) < 1e-8;
+  const anchor = (p: Point) =>
+    nearlyInteger(p.x) &&
+    nearlyInteger(p.y) &&
+    nearlyInteger(p.z ?? 0) &&
+    Math.abs(Math.sin((p.heading ?? 0) * 2)) < 1e-8;
+  const kept = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    const a = kept.at(-1)!,
+      p = points[i],
+      b = points[i + 1],
+      u = [p.x - a.x, p.y - a.y, p.z - a.z],
+      v = [b.x - p.x, b.y - p.y, b.z - p.z];
+    const cross = Math.hypot(
+      u[1] * v[2] - u[2] * v[1],
+      u[2] * v[0] - u[0] * v[2],
+      u[0] * v[1] - u[1] * v[0],
+    );
+    const distance = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+    if (
+      anchor(p) ||
+      distance > 1 ||
+      cross > 1e-10 ||
+      u.reduce((sum, x, j) => sum + x * v[j], 0) < 0 ||
+      JSON.stringify(a.drive) !== JSON.stringify(p.drive) ||
+      !!p.inversion !== !!b.inversion
+    )
+      kept.push(p);
   }
-  if (result.length) result.push({ ...result[0] });
-  return result;
+  kept.push(points.at(-1)!);
+  return kept;
 }
 export function trackSections(track: Point[]) {
   const marks = [0];
@@ -62,9 +88,13 @@ export function trackSections(track: Point[]) {
       ? "Looping"
       : Math.abs((track[marks[i + 1]].z ?? 0) - (track[a].z ?? 0)) > 0.1
         ? "Höhenwechsel"
-        : Math.cos((track[a].heading ?? 0) - (track[marks[i + 1]].heading ?? 0)) < 0.99
-          ? "Kurve"
-          : "Gerade",
+        : track
+              .slice(a, marks[i + 1] + 1)
+              .some((p) => Math.abs((p.z ?? 0) - (track[a].z ?? 0)) > 0.1)
+          ? "Hügel"
+          : Math.cos((track[a].heading ?? 0) - (track[marks[i + 1]].heading ?? 0)) < 0.99
+            ? "Kurve"
+            : "Gerade",
   }));
 }
 export function trackEditWorld(s: Park): Park {
@@ -85,6 +115,7 @@ export function beginTrackEdit(s: Park, b: Building, from: number, to: number): 
     to >= sections.length
   )
     return "Wähle einen gültigen Abschnitt.";
+  if (track.length > 2048) return "Die Bahn ist zu komplex für den Streckenumbau.";
   const a = sections[from].start,
     z = sections[to].end;
   const removed = track.slice(a, z + 1),
@@ -119,28 +150,81 @@ export function cancelTrackEdit(s: Park) {
   s.trackEdit = undefined;
   s.draft = undefined;
 }
+/** The original track remains intact until commit, so cuts can be expanded without losing it. */
+export function trackEditRange(s: Park) {
+  const edit = s.trackEdit,
+    b = s.buildings.find((b) => b.id === edit?.buildingId);
+  if (!edit || !b) return null;
+  const track = editableTrack(b),
+    sections = trackSections(track);
+  const from = sections.findIndex((part) => part.start === edit.prefix.length - 1);
+  const to = sections.findIndex((part) => part.end === track.length - edit.suffix.length);
+  return from < 0 || to < from ? null : { from, to, sections, track };
+}
+export function resizeTrackEdit(s: Park, from: number, to: number) {
+  const original = s.trackEdit,
+    b = s.buildings.find((b) => b.id === original?.buildingId);
+  if (!original || !b) return "Keine offene Baustelle.";
+  s.trackEdit = undefined;
+  const error = beginTrackEdit(s, b, from, to);
+  if (error) s.trackEdit = original;
+  else s.trackEdit!.wasOpen = original.wasOpen;
+  return error;
+}
+/** Offer a larger visible cut only after checking the prefab and its short final connector. */
+export function fittingTrackCut(s: Park, piece: Piece, clear = true) {
+  const range = trackEditRange(s);
+  if (!range || !s.trackEdit) return null;
+  const prefix = s.trackEdit.prefix,
+    next = appendPiece(prefix, piece),
+    end = next.at(-1)!;
+  for (let to = range.to + 1; to < range.sections.length; to++) {
+    const suffix = range.track.slice(range.sections[to].end),
+      goal = suffix[0];
+    const world = trackEditWorld(s);
+    if (pieceError(world, prefix, next, clear, suffix)) continue;
+    const matches =
+      Math.hypot(end.x - goal.x, end.y - goal.y, (end.z ?? 0) - (goal.z ?? 0)) < 0.001 &&
+      Math.cos((end.heading ?? 0) - (goal.heading ?? 0)) > 0.999;
+    const joined = matches ? next : precisionJoin(next, goal);
+    if (!joined || pieceError(world, next, joined, clear, suffix)) continue;
+    const full = [
+      ...joined.slice(0, -1),
+      { ...suffix[0], inversion: joined.at(-1)?.inversion },
+      ...suffix.slice(1),
+    ];
+    if (
+      !validateTrack(
+        { ...world, buildings: world.buildings.filter((b) => !clear || !decorative(b.kind)) },
+        full,
+      )
+    )
+      return { from: range.from, to, extra: to - range.to };
+  }
+  return null;
+}
 export function trackEditPlan(s: Park, track: Point[], clear = true) {
   const e = s.trackEdit,
     b = s.buildings.find((b) => b.id === e?.buildingId);
   const plan = planPlacement(
     trackEditWorld(s),
     "coaster",
-    track[0] ?? { x: 0, y: 0 },
+    b ?? track[0] ?? { x: 0, y: 0 },
     track,
     clear,
   );
   if (!e || !b) return { ...plan, error: "Keine Bahn in Bearbeitung." };
-  const same = (a: Point, b: Point | undefined, checkDrive = true) =>
+  const same = (a: Point, b: Point | undefined, checkDrive = true, checkInversion = true) =>
     !!b &&
     Math.hypot(a.x - b.x, a.y - b.y, (a.z ?? 0) - (b.z ?? 0)) < 0.000001 &&
     Math.cos((a.heading ?? 0) - (b.heading ?? 0)) > 0.999999 &&
     a.style === b.style &&
-    !!a.inversion === !!b.inversion &&
+    (!checkInversion || !!a.inversion === !!b.inversion) &&
     (!checkDrive || JSON.stringify(a.drive) === JSON.stringify(b.drive));
   if (
     track.length < e.prefix.length + e.suffix.length - 1 ||
     !e.prefix.every((p, i) => same(p, track[i], i < e.prefix.length - 1)) ||
-    !e.suffix.every((p, i) => same(p, track[track.length - e.suffix.length + i]))
+    !e.suffix.every((p, i) => same(p, track[track.length - e.suffix.length + i], true, i > 0))
   )
     return {
       ...plan,
@@ -162,8 +246,6 @@ export function commitTrackEdit(s: Park, track: Point[], clear = true): string |
   if (!spend(s, plan.cost)) return "Das Parkbudget reicht nicht.";
   s.buildings = s.buildings.filter((b) => !plan.clearIds.includes(b.id));
   b.track = track.map((p) => ({ ...p }));
-  b.x = track[0].x;
-  b.y = track[0].y;
   b.tested = false;
   b.open = false;
   b.autoOpen = false;
@@ -203,6 +285,13 @@ export function trackDrivePlan(b: Building, from: number, to: number, drive: Tra
     start = sections[from].start;
     end = sections[to].end;
   }
+  if (original.length > 2048)
+    return {
+      error: "Die Bahn ist zu komplex für diese Modulmontage.",
+      cost: 0,
+      changed: false,
+      track: b.track,
+    };
   const track = original.map((p, i) =>
     i >= start && i < end ? { ...p, drive: drive ? { ...drive } : undefined } : { ...p },
   );
