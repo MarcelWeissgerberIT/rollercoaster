@@ -44,6 +44,7 @@ export type View = {
   cutColor?: string;
   hoveredId?: number | null;
   hitTargets?: HitTarget[];
+  fitPreview?: { removed: Point[]; added: Point[] };
   candidate?: { points: Point[]; error: boolean };
   height: number;
   preview?: Placement | null;
@@ -1262,7 +1263,7 @@ export function draw(
       3,
     );
   }
-  if (v.candidate && v.tool === "coaster") {
+  if (v.candidate && v.tool === "coaster" && !v.fitPreview) {
     const points = v.candidate.points;
     for (let i = 1; i < points.length; i++) {
       const a = project(points[i - 1].x, points[i - 1].y, points[i - 1].z),
@@ -1271,6 +1272,18 @@ export function draw(
       line(a, b, v.candidate.error ? "#ffd6c9" : "#aeffe0", 3);
     }
   }
+  if (v.fitPreview && v.tool === "coaster")
+    for (const [points, color, width] of [
+      [v.fitPreview.removed, "#df624f", 9],
+      [v.fitPreview.added, "#30d8ba", 5],
+    ] as const)
+      for (let i = 1; i < points.length; i++)
+        line(
+          project(points[i - 1].x, points[i - 1].y, points[i - 1].z),
+          project(points[i].x, points[i].y, points[i].z),
+          color,
+          width,
+        );
   const hover = v.adjustment ? v.adjustment.geometry : v.hover;
   if (hover && v.tool !== "select" && !v.tool.startsWith("pod-")) {
     const { x, y } = hover;

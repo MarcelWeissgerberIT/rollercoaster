@@ -4,6 +4,7 @@ import {
   type Park,
   type CoasterType,
   occupant,
+  CATALOG,
   decorative,
   trackFootprint,
   validateTrack,
@@ -147,8 +148,14 @@ export function pieceError(
   for (const p of trackFootprint(added)) {
     if (!insideMap(s, p.x, p.y)) return "Das Bauteil ragt aus dem Park.";
     const b = occupant(s, p.x, p.y);
-    if (s.tiles[p.y][p.x] !== "grass" || (b && (!clear || !decorative(b.kind))))
-      return "Am Anschluss ist kein Platz für dieses Bauteil.";
+    const tile = s.tiles[p.y][p.x],
+      field = `Feld (${p.x}, ${p.y})`;
+    if (tile === "water")
+      return `Wasser blockiert ${field}. Das Bauteil braucht auch seitlich freie Landfläche. Die Einpasshilfe sucht einen anderen Verlauf.`;
+    if (tile !== "grass")
+      return `${tile === "queue" ? "Ein blauer Eingangsweg" : tile === "exit" ? "Ein roter Ausgangsweg" : "Ein Parkweg"} blockiert ${field}. Die Einpasshilfe versucht, den Weg zu umgehen.`;
+    if (b && (!clear || !decorative(b.kind)))
+      return `${b.name || CATALOG[b.kind].name} blockiert ${field}.${decorative(b.kind) ? " Aktiviere „Deko freiräumen“." : " Die Einpasshilfe sucht einen freien Verlauf."}`;
   }
   return retainedTrackError(old, next, suffix);
 }
@@ -232,6 +239,7 @@ export function closeTrack(
   track: Point[],
   clear = true,
   suffix?: Point[],
+  limits: { iterations: number; depth: number } = { iterations: 6500, depth: 28 },
 ): { track?: Point[]; error?: string } {
   if (track.length < (suffix ? 1 : 2)) return { error: "Baue zuerst ein paar Abschnitte." };
   const first = suffix?.[0] ?? track[0],
@@ -259,7 +267,7 @@ export function closeTrack(
   type Node = { track: Point[]; depth: number; score: number };
   const queue: Node[] = [{ track, depth: 0, score: 0 }],
     visited = new Set<string>();
-  for (let iterations = 0; queue.length && iterations < 6500; iterations++) {
+  for (let iterations = 0; queue.length && iterations < limits.iterations; iterations++) {
     queue.sort((a, b) => a.score - b.score);
     const node = queue.shift()!,
       last = node.track.at(-1)!;
@@ -279,7 +287,7 @@ export function closeTrack(
         if (!validateTrack(virtual, done)) return { track: done };
       }
     }
-    if (node.depth >= 28) continue;
+    if (node.depth >= limits.depth) continue;
     const key = `${last.x},${last.y},${last.z},${Math.round((last.heading ?? 0) / (Math.PI / 2) + 400) % 4}`;
     if (visited.has(key)) continue;
     visited.add(key);

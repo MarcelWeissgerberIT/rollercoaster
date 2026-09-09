@@ -2672,3 +2672,66 @@ button:hover:not(:disabled) {
 .pod-editing .pod-position-picker {
   scroll-margin: 14px;
 }
+
+.track-fit-assistant {
+  padding: 12px;
+  border: 1px solid #a8cbb5;
+  border-radius: 12px;
+  background: #eaf3e9;
+  margin: 10px 0;
+  scroll-margin: 16px;
+}
+.track-fit-assistant > .primary {
+  width: 100%;
+  font-size: 12px;
+}
+.track-fit-assistant p {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 9px 0;
+}
+.track-fit-assistant .fit-error {
+  color: #814125;
+}
+.fit-result {
+  border-top: 1px solid #bdcdb8;
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.fit-result > strong {
+  font-size: 13px;
+}
+.fit-result .primary,
+.fit-result .secondary {
+  width: 100%;
+  margin-top: 8px;
+}
+.fit-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-weight: 700;
+}
+.fit-legend span:first-child {
+  color: #bd4b38;
+}
+.fit-legend span:last-child {
+  color: #197f70;
+}
+.builder-help-card .auto-fit-shortcut {
+  background: #2f684f;
+  color: #fff;
+  border-color: #2f684f;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.builder-panel:has(.fit-result) .builder-actions,
+.builder-panel:has(.fit-result) .illustrated-pieces,
+.builder-panel:has(.fit-result) .prefab-heading,
+.builder-panel:has(.fit-result) .candidate-status,
+.builder-panel:has(.fit-result) .track-edit-notice,
+.builder-panel:has(.fit-result) .fit-gap {
+  display: none;
+}

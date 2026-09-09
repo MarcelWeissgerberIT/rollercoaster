@@ -38,6 +38,7 @@ import {
   X,
   Trophy,
   Sparkles,
+  WandSparkles,
   Check,
   Undo2,
   FlaskConical,
@@ -150,6 +151,8 @@ import {
   resizeTrackEdit,
   fittingTrackCut,
 } from "@/game/track-edit";
+import TrackFitAssistant, { type FitAssistantHandle } from "@/components/track-fit-assistant";
+import { commitTrackFit, type TrackFit } from "@/game/track-fit";
 import type { TrackDrive } from "@/game/drive";
 import { guestName } from "@/game/guest-identity";
 import { assetUrl } from "@/game/assets";
@@ -251,6 +254,27 @@ export default function Home() {
       setBatchPreview(null);
     }
   }, [cut?.id, selected, tool, category]);
+  const [fitPreview, setFitPreview] = useState<TrackFit | null>(null);
+  const fitAssistant = useRef<FitAssistantHandle>(null);
+  useEffect(() => {
+    view.current.fitPreview = fitPreview ?? undefined;
+    if (!fitPreview) return;
+    setMenuOpen(false);
+    setMessage("");
+    const el = canvas.current;
+    if (!el || !autoFocus) return;
+    const points = [...fitPreview.removed, ...fitPreview.added],
+      v = { ...view.current, zoom: Math.max(1.45, Math.min(1.9, view.current.zoom)) },
+      project = projection(el.clientWidth, el.clientHeight, v).project;
+    const screen = points.map((p) => project(p.x, p.y, p.z));
+    const x = (Math.min(...screen.map((p) => p.x)) + Math.max(...screen.map((p) => p.x))) / 2,
+      y = (Math.min(...screen.map((p) => p.y)) + Math.max(...screen.map((p) => p.y))) / 2;
+    cameraTarget.current = {
+      zoom: v.zoom,
+      panX: v.panX + (Math.min(340, el.clientWidth * 0.35) + el.clientWidth) / 2 - x,
+      panY: v.panY + el.clientHeight * 0.48 - y,
+    };
+  }, [fitPreview]);
   const [piece, setPiece] = useState<Piece>("straight");
   const draftHistory = useRef<Point[][]>([]);
   const [ride, setRide] = useState<{ park: Park; building: Building } | null>(null);
@@ -1050,6 +1074,29 @@ export default function Home() {
       completeBuild(result.id!, "coaster");
     });
   };
+  const acceptTrackFit = (solution: TrackFit) => {
+    const s = park.current;
+    if (!s?.trackEdit) return;
+    const id = s.trackEdit.buildingId;
+    edit("Automatischer Streckenumbau", () => {
+      const error = commitTrackFit(s, solution, autoClear);
+      if (error) {
+        notify(error);
+        setFitPreview(null);
+        return;
+      }
+      setDraft([]);
+      draftHistory.current = [];
+      setFitPreview(null);
+      setBuildWorld(null);
+      setTool("select");
+      setCategory("detail");
+      setSelected(id);
+      notify(
+        "Bauteil eingepasst und beide Enden verbunden. Starte eine Testfahrt und öffne die Bahn wieder.",
+      );
+    });
+  };
   const b = snapshot?.buildings.find((b) => b.id === selected);
   const cutTrack = useMemo(() => (b?.kind === "coaster" ? editableTrack(b) : []), [b?.track]);
   const sections = useMemo(
@@ -1355,6 +1402,7 @@ export default function Home() {
               park={buildWorld}
               draft={draft}
               candidate={candidate}
+              fit={fitPreview ?? undefined}
               error={candidateError}
               follow={autoFocus}
               onPlace={(p) => act(p)}
@@ -1574,37 +1622,49 @@ export default function Home() {
               </div>
             ) : null;
           })()}
-        {tool === "coaster" && !blueprintMode && candidateError && !isClosedTrack(draft) && (
-          <div className="conflict-options builder-help-card">
-            <strong>So kannst du weiterbauen</strong>
-            {conflictOptions.map((option, i) => (
-              <button key={i} onClick={() => rememberDraft(option.track)}>
-                {option.label} anfügen · {EUR(trackCost(option.track) - trackCost(draft))}
+        {tool === "coaster" &&
+          !blueprintMode &&
+          candidateError &&
+          !isClosedTrack(draft) &&
+          !fitPreview && (
+            <div className="conflict-options builder-help-card">
+              <strong>So kannst du weiterbauen</strong>
+              {snapshot?.trackEdit && (
+                <button
+                  className="auto-fit-shortcut"
+                  onClick={() => fitAssistant.current?.search()}
+                >
+                  <WandSparkles size={16} /> Konflikt automatisch lösen
+                </button>
+              )}
+              {conflictOptions.map((option, i) => (
+                <button key={i} onClick={() => rememberDraft(option.track)}>
+                  {option.label} anfügen · {EUR(trackCost(option.track) - trackCost(draft))}
+                </button>
+              ))}
+              {!conflictOptions.length && (
+                <span>
+                  {snapshot?.trackEdit && !draftHistory.current.length
+                    ? "Dieses Fertigteil braucht mehr freie Fläche. Vergrößere die Lücke oder wähle einen anderen Gleisbereich."
+                    : "Entferne das letzte Teil und wähle davor eine andere Richtung."}
+                </span>
+              )}
+              {snapshot?.trackEdit && !draftHistory.current.length ? (
+                <button onClick={chooseAnotherRange}>Anderen Gleisbereich auswählen</button>
+              ) : (
+                <button
+                  onClick={() =>
+                    setDraft(draftHistory.current.pop() ?? park.current?.trackEdit?.prefix ?? [])
+                  }
+                >
+                  Letztes Bauteil entfernen
+                </button>
+              )}
+              <button onClick={() => setBuildWorld(structuredClone(park.current!))}>
+                Konflikt in 3D ansehen
               </button>
-            ))}
-            {!conflictOptions.length && (
-              <span>
-                {snapshot?.trackEdit && !draftHistory.current.length
-                  ? "Dieses Fertigteil braucht mehr freie Fläche. Vergrößere die Lücke oder wähle einen anderen Gleisbereich."
-                  : "Entferne das letzte Teil und wähle davor eine andere Richtung."}
-              </span>
-            )}
-            {snapshot?.trackEdit && !draftHistory.current.length ? (
-              <button onClick={chooseAnotherRange}>Anderen Gleisbereich auswählen</button>
-            ) : (
-              <button
-                onClick={() =>
-                  setDraft(draftHistory.current.pop() ?? park.current?.trackEdit?.prefix ?? [])
-                }
-              >
-                Letztes Bauteil entfernen
-              </button>
-            )}
-            <button onClick={() => setBuildWorld(structuredClone(park.current!))}>
-              Konflikt in 3D ansehen
-            </button>
-          </div>
-        )}
+            </div>
+          )}
         {draft.length > 0 && category !== "coaster" && (
           <button
             className="resume-draft secondary"
@@ -1987,6 +2047,18 @@ export default function Home() {
                             ? `${PIECES[piece].name}: Anschluss frei · ${EUR(trackCost(candidate) - trackCost(draft))}`
                             : "Setze die Station auf die Wiese.")}
                       </div>
+                      {snapshot?.trackEdit && !isClosedTrack(draft) && (
+                        <TrackFitAssistant
+                          ref={fitAssistant}
+                          park={snapshot}
+                          draft={draft}
+                          piece={piece}
+                          clear={autoClear}
+                          revision={worldRevision}
+                          onPreview={setFitPreview}
+                          onApply={acceptTrackFit}
+                        />
+                      )}
                       {fittingCut && (
                         <button
                           className="fit-gap"
@@ -2068,8 +2140,10 @@ export default function Home() {
                         </div>
                       </div>
                       <p className="buildnote">
-                        {draftPlan?.error ??
-                          "Baustand gespeichert · Werkzeugwechsel jederzeit möglich."}
+                        {fitPreview
+                          ? "Prüfe die Vorschau und wähle „Lösung übernehmen“. Rückgängig stellt die ursprüngliche Bahn wieder her."
+                          : (draftPlan?.error ??
+                            "Baustand gespeichert · Werkzeugwechsel jederzeit möglich.")}
                       </p>
                     </>
                   )}

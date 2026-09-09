@@ -8,6 +8,7 @@ type Props = {
   draft: Point[];
   candidate: Point[];
   error: string | null;
+  fit?: { removed: Point[]; added: Point[] };
   follow: boolean;
   onPlace: (p: Point) => void;
   onClose: () => void;
@@ -52,7 +53,9 @@ export default function BuildView(props: Props) {
     camera.position.set(105, 65, 110);
     const focus = () => {
       const p = current.current,
-        points = [...p.draft.slice(-1), ...p.candidate.slice(Math.max(0, p.draft.length - 1))];
+        points = p.fit
+          ? [...p.fit.removed, ...p.fit.added]
+          : [...p.draft.slice(-1), ...p.candidate.slice(Math.max(0, p.draft.length - 1))];
       if (!points.length) return;
       const box = new THREE.Box3().setFromPoints(
           points.map((q) => new THREE.Vector3(q.x * 5, (q.z ?? 0) * 5 + 1, q.y * 5)),
@@ -180,7 +183,10 @@ export default function BuildView(props: Props) {
     line(props.draft, "#f2bd48");
     if (props.park.trackEdit) line(props.park.trackEdit.suffix, "#40cbb8");
     const added = props.candidate.slice(Math.max(0, props.draft.length - 1));
-    line(added, props.error ? "#ee6656" : "#44cba0");
+    if (props.fit) {
+      line(props.fit.removed, "#ee6656");
+      line(props.fit.added, "#30d8ba");
+    } else line(added, props.error ? "#ee6656" : "#44cba0");
     const end = props.draft.at(-1);
     if (end) {
       const anchor = new THREE.Mesh(
@@ -198,7 +204,7 @@ export default function BuildView(props: Props) {
       );
     }
     if (props.follow) rt.focus();
-  }, [props.draft, props.candidate, props.error, props.follow, props.park]);
+  }, [props.draft, props.candidate, props.error, props.follow, props.park, props.fit]);
   return (
     <div className="build3d-shell">
       <div className="build3d-host" ref={host} />
@@ -213,7 +219,9 @@ export default function BuildView(props: Props) {
       </div>
       <p className="build3d-help">
         {error ||
-          "Ziehen: frei drehen · Rechts ziehen: verschieben · Rad: zoomen · Klick: Station setzen / Bauteil anfügen"}
+          (props.fit
+            ? "Umbauvorschau · Rot: ersetzen · Türkis: neuer Verlauf · Ziehen: drehen · Rechts ziehen: verschieben · Rad: zoomen"
+            : "Ziehen: frei drehen · Rechts ziehen: verschieben · Rad: zoomen · Klick: Station setzen / Bauteil anfügen")}
       </p>
     </div>
   );
