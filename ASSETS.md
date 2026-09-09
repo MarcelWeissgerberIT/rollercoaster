@@ -1,15 +1,19 @@
 # OpenArt-Spielgrafiken
 
-Alle Gebäude, Natur-, Wagen- und Besucher-Sprites wurden im OpenArt-Projekt **Coaster Grove – Park Assets** erzeugt. Die fertigen transparenten PNGs liegen unter `public/assets/` und werden von dort lokal geladen.
+Die aktive Grafik nutzt 33 Sprites aus drei über **OpenArt MCP** erzeugten Pixel-Art-Atlanten. Alle Objekte sind für die 2:1-isometrische Spielkarte ausgelegt. Die Quelldateien, Prompts und die Verarbeitung sind unter [`art/pixel-v2/`](art/pixel-v2/) dokumentiert.
 
-| Quelle                                           | Status                                                  | Verwendung                                                   |
-| ------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------ |
-| Gebäudeatlas, Asset-ID `RwNPqQK1PFMi3qfNmhEY`    | Bestehende OpenArt-Erzeugung übernommen                 | Panoramarad, Karussell, Burger, Getränke, Eingang, Toiletten |
-| Naturatlas, Generation `rX5vuZ9bGgJSL23ymkUl`    | Bestehende fertige OpenArt-Erzeugung über MCP abgerufen | Laubbaum, Kiefer, Blumen, Bank, Achterbahnwagen              |
-| Besucheratlas, Generation `nxAAeZwIlkEkkAnjAfAt` | Am 09.09.2026 über OpenArt MCP erzeugt                  | Drei Besucher mit je zwei Gehposen                           |
+- **Umgebung:** Fahrgeschäft-Icons, Kioske, Eingang, Achterbahnstation, Bänke, Bäume und Blumen.
+- **Besucher und Wagen:** vier Blickrichtungen, zwei Gehposen mit gemeinsamen Größen und Fußpunkten; eine weitere Besucherfigur und vier Wagenansichten.
+- **Bewegliche Fahrgeschäfte:** Riesenradfelge, Gestell und Gondel; Karusselldach, Plattform und Pferd.
 
-Natur und Besucher: **GPT Image 2**, 2016 × 1344 Pixel. Besucher: Text-to-image, 3:2, 2K, hohe Qualität. Die exakten Prompts, Original-URLs und Metadaten stehen in [`art/provenance.json`](art/provenance.json). Die drei Quellatlanten bleiben unter `art/` erhalten und werden nicht in den Website-Build kopiert.
+Modell: **GPT Image 2.5 Sunburst**, Text-to-image, hohe Qualität, drei Generierungen vom 09.09.2026. Die tatsächlichen Quelldateien haben 1792 × 1344, 1360 × 1360 und 2016 × 1344 Pixel. Exakte Auftragskennungen, URLs und Prompts stehen in [`provenance.json`](art/pixel-v2/provenance.json).
 
-Verarbeitung: Rasterzellen ausschneiden, Magenta-Hintergrund transparent setzen, Farbsäume technisch bereinigen, transparente Ränder trimmen und PNG speichern. Beim Kiefernausschnitt wurden 17 Pixel vom benachbarten Blumenfeld entfernt. Keine Fremdgrafiken und keine zusätzliche Bildgenerierung außerhalb von OpenArt.
+## Frames statt einzelner Illustrationen
 
-Die Karte, Wege und Gleisgeometrie zeichnet die Spielengine auf Canvas; Oberflächensymbole stammen aus Lucide. Das vorhandene SVG-Favicon ist ein einfaches geometrisches Gleiszeichen.
+[`manifest.json`](art/pixel-v2/manifest.json) enthält Zuschnitt, logische Canvasgröße, Skalierungsgruppe und Ankerpunkt jedes Sprites. Beispielsweise haben alle Besucherframes eine logische Fläche von 24 × 32 Pixeln, den Fußpunkt (12, 28) und 23–24 Pixel sichtbare Körperhöhe. Die PNGs sind exakte vierfache Vergrößerungen per Nearest Neighbor.
+
+Die Dateien werden unter `public/assets/pixel-v2/` geladen. Der neue Pfad verhindert, dass Browser ältere Illustrationen aus dem Cache mit dem neuen Satz mischen. Gebäude und Bauvorschau verwenden dieselbe Zeichnungsfunktion. Die Engine zeichnet Riesenradfelge und Gondeln getrennt, bewegt die Karussellpferde auf ihrer Umlaufbahn und wählt Besucher- und Wagenansichten nach Bewegungsrichtung. Die zweite Besucherfigur hat Richtungsframes; ihre Bewegung nutzt einen leichten Gehversatz.
+
+Technische Verarbeitung: Rasterzellen ausschneiden, Magenta transparent setzen, transparente Ränder trimmen, gemeinsame Frames und Anker erhalten und mit Nearest Neighbor verkleinern. Die erste Rastergrenze im Umgebungsatlas wurde in die tatsächliche freie Lücke verschoben, damit die Füße des Riesenrads und das Karusselldeck vollständig erhalten bleiben. Keine fremden Spielgrafiken.
+
+Die vorherigen hochaufgelösten Illustrationsatlanten bleiben als Quellhistorie unter `art/` erhalten. Sie werden nicht mehr im Spiel verwendet. Karte, Wege und Schienen sind Spielgeometrie auf Canvas; Bedienelemente verwenden Lucide-Symbole.

@@ -1,27 +1,25 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
-const names = [
-  "wheel",
-  "carousel",
-  "burger",
-  "drink",
-  "entrance",
-  "toilet",
-  "tree",
-  "pine",
-  "flowers",
-  "bench",
-  "guest1",
-  "guest2",
-  "guest3",
-  "guest1-step",
-  "guest2-step",
-  "guest3-step",
-  "car",
-];
-for (const name of names) {
-  const bytes = readFileSync(new URL(`../public/assets/${name}.png`, import.meta.url));
-  assert.equal(bytes.subarray(1, 4).toString(), "PNG", `${name} must be a PNG`);
-  assert(bytes.readUInt32BE(16) > 0 && bytes.readUInt32BE(20) > 0, `${name} has dimensions`);
+const manifest = JSON.parse(
+  readFileSync(new URL("../art/pixel-v2/manifest.json", import.meta.url), "utf8"),
+);
+const active = manifest.assets.filter((x) => x.name !== "shrub");
+for (const asset of active) {
+  const name = asset.name.replace("env-", "");
+  const bytes = readFileSync(new URL(`../public/assets/pixel-v2/${name}.png`, import.meta.url));
+  assert.equal(bytes.subarray(1, 4).toString(), "PNG", name);
+  assert.deepEqual(
+    [bytes.readUInt32BE(16), bytes.readUInt32BE(20)],
+    asset.canvas,
+    `${name} frame must preserve its canvas`,
+  );
+  if (name.startsWith("guest")) {
+    assert.deepEqual(asset.logicalCanvas, [24, 32], `${name} must share guest frame dimensions`);
+    assert.deepEqual(asset.logicalPivot, [12, 28], `${name} must share guest foot anchor`);
+    assert(
+      asset.logicalVisibleDimensions[1] >= 22 && asset.logicalVisibleDimensions[1] <= 24,
+      `${name} must preserve body scale`,
+    );
+  }
 }
-console.log(`PASS: all ${names.length} required OpenArt sprites are present and valid PNGs`);
+console.log(`PASS: ${active.length} OpenArt sprite frames, canvas sizes and shared guest anchors`);

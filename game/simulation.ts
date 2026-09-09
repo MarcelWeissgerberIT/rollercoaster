@@ -92,7 +92,7 @@ export const CATALOG: Record<
     capacity: 8,
     appeal: 9,
     upkeep: 34,
-    sprite: "car",
+    sprite: "car-se",
     description: "Deine Strecke. Dein Nervenkitzel.",
   },
   wheel: {

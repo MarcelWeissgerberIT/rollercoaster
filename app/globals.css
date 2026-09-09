@@ -1184,3 +1184,9 @@ button:hover:not(:disabled) {
     transition: none;
   }
 }
+
+.asset-card img,
+.detailhero,
+.guestrow img {
+  image-rendering: pixelated;
+}

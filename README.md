@@ -9,7 +9,7 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 - 30 × 30 Felder mit Wegen, Warteschlangen, Wasser und Dekoration.
 - Achterbahneditor mit Höhenstufen, Kollisionsprüfung, Rundkursvorlage und Testfahrten.
 - Panoramarad und Karussell, Burgergarten, Limonadenbar und Toiletten.
-- Animierte Gäste mit Zielen, Hunger, Durst und Zufriedenheit. Züge fahren entlang deiner Strecke.
+- Gäste mit vier Blickrichtungen, Zielen, Hunger, Durst und Zufriedenheit. Mehrteilige Züge fahren entlang deiner Strecke; Riesenrad und Karussell bewegen sich.
 - Eintritts- und Fahrpreise, Personal, Einnahmen, Baukosten und tägliche Betriebskosten.
 - Waldhain-Szenario mit 16.000 € und einem bereits geöffneten Park. Ziel: 150 Gäste begrüßen, vier Attraktionen betreiben und mindestens 75 % Zufriedenheit erreichen.
 - Freies Spiel mit 100.000 € Startkapital.
@@ -56,6 +56,6 @@ Pushes auf `main` starten `.github/workflows/pages.yml`: Installation, Simulatio
 
 ## Grafik und Umfang
 
-Die Spielsprites stammen ausschließlich aus dem OpenArt-Projekt des Nutzers. Die fehlenden Besucher wurden über den **OpenArt MCP** generiert; passende vorhandene Gebäude- und Naturatlanten wurden übernommen. Quellen, Prompts und Verarbeitung stehen in [ASSETS.md](ASSETS.md). Es werden keine Originalgrafiken oder Spieldateien von RollerCoaster Tycoon verwendet.
+Die Spielsprites stammen ausschließlich aus dem OpenArt-Projekt des Nutzers. Die aktive Grafik wurde über den **OpenArt MCP** als einheitlicher Pixel-Art-Satz neu erzeugt, mit festen Größen, Ankerpunkten, Richtungsansichten und beweglichen Fahrgeschäftsteilen. Quellen, Prompts und Verarbeitung stehen in [ASSETS.md](ASSETS.md). Es werden keine Originalgrafiken oder Spieldateien von RollerCoaster Tycoon verwendet.
 
 Dies ist eine kompakte Browser-Parksimulation. Fahrphysik und Wirtschaft sind vereinfachte Spielmodelle; sie enthalten beispielsweise keine Gelände-Höhenbearbeitung, vertikalen Loopings oder Mehrspielerfunktion.

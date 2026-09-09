@@ -1,0 +1,146 @@
+{
+  "projectId": "ZUPnQYt5rmIl9G729LjL",
+  "projectUrl": "https://openart.ai/suite/create-image?projectId=ZUPnQYt5rmIl9G729LjL",
+  "model": "gpt-image-2-5-sunburst",
+  "mode": "text2image",
+  "entries": [
+    {
+      "atlas": "environment",
+      "prompt": "ORIGINAL COASTER GROVE GAME PRODUCTION ASSETS. Authentic late-1990s PC theme-park management-game PIXEL ART, hand-placed coarse pixel clusters and crisp stair-step edges, restrained saturated indexed-color appearance. These are functional tiny on-map game sprites, NOT illustrations, not concept art, not 3D renders, not miniature toys, not smooth vector art. Light from upper left expressed ONLY as two or three solid palette shades per material. NO gradients, NO antialiasing, NO ambient occlusion, NO bloom, NO texture, NO soft lighting, NO shadows on ground, NO text, NO labels, NO borders, NO grid lines. Entire background perfectly uniform saturated MAGENTA #FF00FF, including gaps and holes. Objects fully separate. Every cell has at least 12 percent empty margin. Isometric orthographic 2:1 projection: each ground-edge runs 2 screen pixels horizontally for 1 vertically, camera elevation 26.565 degrees, azimuth45 degrees. No perspective convergence. Ground contact anchor centered horizontally near bottom of each cell. No attached terrain, diamond ground tiles, grass squares, pavement, scenery, decorative bases, scenery plinths or display platforms. Include only an object's actual necessary structure.\nSINGLE exact atlas layout: FOUR equal columns by THREE equal rows, twelve equal SQUARE cells, 4:3 overall image. Each cell contains exactly one complete isolated object. Match style between all objects. Work as if each cell is a 128x128 logical-pixel canvas enlarged nearest-neighbor; visible square pixel clusters should be roughly 4x4 output pixels, with relatively simple silhouettes and low detail. For buildings aim about64x56 logical pixels; taller rides about86x96 logical pixels; small props around32x32 logical pixels. Leave more empty magenta around smaller objects, do not enlarge bench and shrubs to ride size. Palette: grass green, dark spruce, cream, muted golden wood, coral red and turquoise/teal. Dark tasteful outlines, crisp modest highlights.\nROW ONE left to right: 1 complete freestanding ferris wheel with coral-red rim, cream spokes, twelve tiny cream and coral upright cabins, teal A-frame support; complete STATIC catalog icon. 2 complete traditional carousel with alternating coral-red and cream striped conical canopy, golden center, teal trim, cream horses, round wooden ride deck; complete STATIC catalog icon. 3 compact burger-food kiosk, cream cuboid body, coral-red roof with a simple tiny burger-symbol object, teal service window, no letters. 4 compact lemonade kiosk, cream body, yellow striped roof, teal service window, small lemon-symbol object, no letters.\nROW TWO left to right: 5 compact cream restroom pavilion with teal double roof and two simple doors, no signs or text. 6 simple park entrance arch: two small cream posts supporting a curved teal and coral arch, empty opening below, no words. 7 compact roller-coaster station shelter: slim cream canopy with teal gable roof above actual red short rails on minimal brown sleeper supports, no train, no ground slab. 8 small golden wooden park bench with simple dark teal legs, viewed isometrically, no ground.\nROW THREE left to right: 9 broadleaf oak, blocky clustered rounded leafy green crown and short brown trunk. 10 narrow tiered dark-green pine tree and small trunk. 11 small round planted flower arrangement with coral and gold flowers in a narrow circular cream curb, no soil tile outside curb. 12 very small low rounded dark-green ornamental shrub, sparse cream flowers, no base. Exactly12 isolated pixel game sprites.",
+      "columns": 4,
+      "rows": 3,
+      "names": [
+        "env-wheel",
+        "env-carousel",
+        "burger",
+        "drink",
+        "toilet",
+        "entrance",
+        "station",
+        "bench",
+        "tree",
+        "pine",
+        "flowers",
+        "shrub"
+      ],
+      "params": {
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false,
+        "aspectRatio": "4:3"
+      },
+      "status": "COMPLETED",
+      "historyId": "51KTEp62XJqZaI5owBdd",
+      "capabilityId": "gpt-image-2-5-sunburst:text2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "4:3",
+      "resources": [
+        {
+          "id": "fIUXDJnpSyuQj5WHsC18",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938052837_fba95327.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938053112_889521b6.webp",
+          "metadata": {
+            "width": 1792,
+            "height": 1344,
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "atlas": "mobile",
+      "prompt": "ORIGINAL COASTER GROVE GAME PRODUCTION ASSETS. Authentic late-1990s PC theme-park management-game PIXEL ART, hand-placed coarse pixel clusters and crisp stair-step edges, restrained saturated indexed-color appearance. These are functional tiny on-map game sprites, NOT illustrations, not concept art, not 3D renders, not miniature toys, not smooth vector art. Light from upper left expressed ONLY as two or three solid palette shades per material. NO gradients, NO antialiasing, NO ambient occlusion, NO bloom, NO texture, NO soft lighting, NO shadows on ground, NO text, NO labels, NO borders, NO grid lines. Entire background perfectly uniform saturated MAGENTA #FF00FF, including gaps and holes. Objects fully separate. Every cell has at least 12 percent empty margin. Isometric orthographic 2:1 projection: each ground-edge runs 2 screen pixels horizontally for 1 vertically, camera elevation 26.565 degrees, azimuth45 degrees. No perspective convergence. Ground contact anchor centered horizontally near bottom of each cell. No attached terrain, diamond ground tiles, grass squares, pavement, scenery, decorative bases, scenery plinths or display platforms. Include only an object's actual necessary structure.\nSINGLE exact atlas layout FOUR equal columns by FOUR equal rows,16 equal square cells,1:1 overall image. This is a DIRECTIONAL AND ANIMATION sprite sheet, requiring correct matching directions and consistent size. Every screen direction refers to movement on the screen: SE=diagonally LOWER RIGHT; SW=LOWER LEFT; NW=UPPER LEFT viewed from behind; NE=UPPER RIGHT viewed from behind. Columns always SE,SW,NW,NE in that order.\nEach cell is a 32x32 logical-pixel canvas enlarged with NEAREST-NEIGHBOR to about512x512 output pixels; very obvious roughly16x16 output-pixel blocks. Visitors are extremely tiny adult park-management-game people: about7 to9 logical pixels wide and16 logical pixels tall. Simple adult human proportions, head only3x3 logical pixels, tiny arms and legs, NO visible eyes, NO face details, NO cute big heads, NO cartoon children, NO accessories. Same adult visitor across rows1 and2: simple brown hair, coral-red short-sleeve shirt, dark-navy trousers, cream shoes. Head and torso sizes and height absolutely identical across all8 frames. Leave large magenta gutters. Every person's feet at same local cell y-coordinate, with head top also at same y-coordinate.\nROW ONE: four views of THIS SAME PERSON, WALK step A with left leg forward and right arm forward. Cells left-right SE,SW,NW,NE. First two cells see front three-quarter of body. Last two cells see the person's BACK. Brown hair covers back of head, no face.\nROW TWO: same exact four directions and same outfit/person/scale, WALK step B with right leg forward and left arm forward. Reverse arms and legs from row one, keep head and torso at same anchor and height. Cells SE,SW,NW,NE.\nROW THREE: four views of exactly the SAME SMALL TWO-SEAT ROLLER-COASTER CAR, no occupants, coral-red front shell, two cream seats in a teal chassis, four tiny dark wheels. Game sprite at24x16 logical pixels, same coarse16px block size as people. The pointed/rounded FRONT of each car points in its specified direction: lower-right, lower-left, upper-left, upper-right. Rear views must expose seat backs and rear of chassis. Perfect 2:1 ground edges. No tracks, no base, no ground.\nROW FOUR: a second adult visitor in a stationary relaxed standing pose, brown skin, dark short hair, teal short-sleeve shirt, cream trousers, dark shoes. Same proportions and16 logical-pixel height as first visitor. Four correct directions SE,SW,NW,NE. Front three-quarter views then back three-quarter views. Exactly16 isolated coarse-pixel sprites. Make genuine miniature game pixels, NOT detailed portrait characters rendered small.",
+      "columns": 4,
+      "rows": 4,
+      "names": [
+        "guest-se-a",
+        "guest-sw-a",
+        "guest-nw-a",
+        "guest-ne-a",
+        "guest-se-b",
+        "guest-sw-b",
+        "guest-nw-b",
+        "guest-ne-b",
+        "car-se",
+        "car-sw",
+        "car-nw",
+        "car-ne",
+        "guest2-se",
+        "guest2-sw",
+        "guest2-nw",
+        "guest2-ne"
+      ],
+      "params": {
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false,
+        "aspectRatio": "1:1"
+      },
+      "status": "COMPLETED",
+      "historyId": "2psBuPpZp0wlJGmL9vTh",
+      "capabilityId": "gpt-image-2-5-sunburst:text2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "1:1",
+      "resources": [
+        {
+          "id": "kPGGzt6lGzp5mHN0q0Nq",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938063832_39ad46fa.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938064041_553c1dc0.webp",
+          "metadata": {
+            "width": 1360,
+            "height": 1360,
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "atlas": "modular",
+      "prompt": "ORIGINAL COASTER GROVE GAME PRODUCTION ASSETS. Authentic late-1990s PC theme-park management-game PIXEL ART, hand-placed coarse pixel clusters and crisp stair-step edges, restrained saturated indexed-color appearance. These are functional tiny on-map game sprites, NOT illustrations, not concept art, not 3D renders, not miniature toys, not smooth vector art. Light from upper left expressed ONLY as two or three solid palette shades per material. NO gradients, NO antialiasing, NO ambient occlusion, NO bloom, NO texture, NO soft lighting, NO shadows on ground, NO text, NO labels, NO borders, NO grid lines. Entire background perfectly uniform saturated MAGENTA #FF00FF, including gaps and holes. Objects fully separate. Every cell has at least 12 percent empty margin. Isometric orthographic 2:1 projection: each ground-edge runs 2 screen pixels horizontally for 1 vertically, camera elevation 26.565 degrees, azimuth45 degrees. No perspective convergence. Ground contact anchor centered horizontally near bottom of each cell. No attached terrain, diamond ground tiles, grass squares, pavement, scenery, decorative bases, scenery plinths or display platforms. Include only an object's actual necessary structure.\nSINGLE exact atlas layout THREE equal columns by TWO equal rows, six equal SQUARE cells,3:2 overall image. These six sprites are SEPARATE MOVING MECHANICAL COMPONENTS for a game renderer to assemble and animate. Do not combine components. Sharp modest palette matches classic PC park-game assets. Work on a128x128 logical-pixel canvas per cell enlarged nearest-neighbor, roughly5x5 output-pixel square clusters, readable even when reduced to game size. Minimal crisp details.\nROW ONE left to right: 1 ONLY the rim, spokes and central hub of a large ferris wheel, CORAL RED circular outer rim with twelve cream spokes and small golden central hub. FRONT-ON pure exact CIRCLE, width=height, rotationally symmetric, no perspective, not elliptical, not isometric. No gondolas, NO support stand, no scenery. Center of circle exactly at center of cell. Render wheel about92 logical pixels diameter with magenta through all open spoke gaps. No protruding stuff. 2 ONLY the freestanding ferris wheel SUPPORT: a tall symmetrical teal A-frame with small cream central axle housing near its apex, slight 2:1 isometric depth, two dark-teal cross braces, nothing else. NO wheel, NO spokes, NO gondolas, NO decorative outline of wheel, NO background, NO ground platform. Its two legs anchor near bottom, top axle centered. 3 ONLY ONE small upright ferris wheel gondola cabin: coral-red rounded lower seat shell, cream simple canopy, golden upright side bars, empty interior with tiny cream seat; slight 2:1 isometric depth. Full single compact cabin, center suspension pivot above canopy. No wheel, no stand, no background. Around22x28 logical pixels, leave lots of magenta; do not enlarge to wheel size.\nROW TWO left to right: 4 ONLY isolated carousel CANOPY: shallow conical roof with alternating coral-red and cream wedge stripes and golden finial, dark teal horizontal trim, view from above in2:1 isometric projection. Elliptical lower rim about2:1 width to depth. NO center pole, NO horses, NO base, NO ground. Around88x46 logical pixels. 5 ONLY isolated carousel ride PLATFORM: circular golden wooden rotating disk in2:1 isometric projection, oval2:1 width-to-depth in screen view, small teal side fascia and cream edge, small central axle dot. NO canopy, NO roof, NO horses, NO posts, NO railings, NO ground. Around88x46 logical pixels. 6 ONLY one tiny cream carousel HORSE on a thin vertical golden pole, coral saddle, minimal teal bridle, horse faces directly screen-right, no face detail. The pole extends above and below horse. No roof, no disk, no support except thin pole. About28x40 logical pixels. Exactly6 complete isolated GAME COMPONENT sprites.",
+      "columns": 3,
+      "rows": 2,
+      "names": [
+        "wheel-rim",
+        "wheel-support",
+        "wheel-cabin",
+        "carousel-roof",
+        "carousel-base",
+        "carousel-horse"
+      ],
+      "params": {
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false,
+        "aspectRatio": "3:2"
+      },
+      "status": "COMPLETED",
+      "historyId": "9ltTCbTaDRQ9P1a8CGnv",
+      "capabilityId": "gpt-image-2-5-sunburst:text2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "3:2",
+      "resources": [
+        {
+          "id": "IyGyirrYDQsxdDvvxpd3",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938062207_54617930.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938062433_eaa0c1a2.webp",
+          "metadata": {
+            "width": 2016,
+            "height": 1344,
+            "format": "png"
+          }
+        }
+      ]
+    }
+  ],
+  "processing": "Technical processing only: cell cropping with environment row boundary moved to empty gutter y512 to keep first-row sprites complete; magenta color key to binary alpha; transparent trim; nearest-neighbor isotropic downsample; frame/pivot normalization; exact4x nearest-neighbor copies. No generated object painted, altered, filled, or synthesized by code. Source atlases and full-resolution keyed crops are preserved.",
+  "manifest": "manifest.json"
+}

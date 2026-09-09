@@ -149,7 +149,7 @@ export default function Home() {
     park.current = initial;
     setSnapshot({ ...initial });
     let disposed = false;
-    loadSprites(`${import.meta.env.BASE_URL}assets`)
+    loadSprites(`${import.meta.env.BASE_URL}assets/pixel-v2`)
       .then(() => {
         if (!disposed) setAssets(true);
       })
@@ -395,7 +395,7 @@ export default function Home() {
           className={`asset-card ${tool === k ? "active" : ""}`}
           onClick={() => pickTool(k)}
         >
-          <img src={`${import.meta.env.BASE_URL}assets/${CATALOG[k].sprite}.png`} alt="" />
+          <img src={`${import.meta.env.BASE_URL}assets/pixel-v2/${CATALOG[k].sprite}.png`} alt="" />
           <strong>{CATALOG[k].name}</strong>
           <span>{EUR(CATALOG[k].cost)}</span>
         </button>
@@ -710,7 +710,7 @@ export default function Home() {
                 <>
                   <img
                     className="detailhero"
-                    src={`${import.meta.env.BASE_URL}assets/${CATALOG[b.kind].sprite}.png`}
+                    src={`${import.meta.env.BASE_URL}assets/pixel-v2/${CATALOG[b.kind].sprite}.png`}
                     alt={b.name}
                   />
                   <div
@@ -835,7 +835,10 @@ export default function Home() {
               {category === "guests" &&
                 snapshot?.guests.slice(0, 7).map((g) => (
                   <div key={g.id} className="guestrow">
-                    <img alt="" src={`${import.meta.env.BASE_URL}assets/guest${g.skin + 1}.png`} />
+                    <img
+                      alt=""
+                      src={`${import.meta.env.BASE_URL}assets/pixel-v2/${g.skin === 1 ? "guest2-se" : g.skin === 0 ? "guest-se-a" : "guest-sw-a"}.png`}
+                    />
                     <div>
                       <strong>Gast #{g.id}</strong>
                       <p>{g.thought}</p>

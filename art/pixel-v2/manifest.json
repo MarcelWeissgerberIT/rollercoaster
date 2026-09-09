@@ -1,0 +1,2150 @@
+{
+  "projectId": "ZUPnQYt5rmIl9G729LjL",
+  "model": "gpt-image-2-5-sunburst",
+  "mode": "text2image",
+  "processing": "Technical processing only: cell cropping with environment row boundary moved to empty gutter y512 to keep first-row sprites complete; magenta color key to binary alpha; transparent trim; nearest-neighbor isotropic downsample; frame/pivot normalization; exact4x nearest-neighbor copies. No generated object painted, altered, filled, or synthesized by code. Source atlases and full-resolution keyed crops are preserved.",
+  "assets": [
+    {
+      "name": "env-wheel",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 0,
+      "nominalCellBounds": [
+        0,
+        0,
+        448,
+        448
+      ],
+      "cellBounds": [
+        0,
+        0,
+        448,
+        512
+      ],
+      "trimBoundsInCell": [
+        76,
+        45,
+        395,
+        473
+      ],
+      "cropDimensions": [
+        319,
+        428
+      ],
+      "crop": "crops/env-wheel.png",
+      "logicalCanvas": [
+        152,
+        216
+      ],
+      "logicalPivot": [
+        76,
+        176
+      ],
+      "sourceToLogicalScale": 0.3925233644859813,
+      "logicalVisibleDimensions": [
+        125,
+        168
+      ],
+      "logicalBounds": [
+        14,
+        8,
+        139,
+        176
+      ],
+      "scaleGroup": "env-wheel",
+      "fileScale": 4,
+      "canvas": [
+        608,
+        864
+      ],
+      "pivot": [
+        304,
+        704
+      ],
+      "asset": "assets/env-wheel.png",
+      "logical": "logical/env-wheel.png"
+    },
+    {
+      "name": "env-carousel",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 1,
+      "nominalCellBounds": [
+        448,
+        0,
+        896,
+        448
+      ],
+      "cellBounds": [
+        448,
+        0,
+        896,
+        512
+      ],
+      "trimBoundsInCell": [
+        61,
+        77,
+        386,
+        465
+      ],
+      "cropDimensions": [
+        325,
+        388
+      ],
+      "crop": "crops/env-carousel.png",
+      "logicalCanvas": [
+        104,
+        152
+      ],
+      "logicalPivot": [
+        52,
+        124
+      ],
+      "sourceToLogicalScale": 0.29896907216494845,
+      "logicalVisibleDimensions": [
+        97,
+        116
+      ],
+      "logicalBounds": [
+        4,
+        8,
+        101,
+        124
+      ],
+      "scaleGroup": "env-carousel",
+      "fileScale": 4,
+      "canvas": [
+        416,
+        608
+      ],
+      "pivot": [
+        208,
+        496
+      ],
+      "asset": "assets/env-carousel.png",
+      "logical": "logical/env-carousel.png"
+    },
+    {
+      "name": "burger",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 2,
+      "nominalCellBounds": [
+        896,
+        0,
+        1344,
+        448
+      ],
+      "cellBounds": [
+        896,
+        0,
+        1344,
+        512
+      ],
+      "trimBoundsInCell": [
+        76,
+        149,
+        370,
+        454
+      ],
+      "cropDimensions": [
+        294,
+        305
+      ],
+      "crop": "crops/burger.png",
+      "logicalCanvas": [
+        56,
+        88
+      ],
+      "logicalPivot": [
+        28,
+        72
+      ],
+      "sourceToLogicalScale": 0.17006802721088435,
+      "logicalVisibleDimensions": [
+        50,
+        52
+      ],
+      "logicalBounds": [
+        3,
+        20,
+        53,
+        72
+      ],
+      "scaleGroup": "burger",
+      "fileScale": 4,
+      "canvas": [
+        224,
+        352
+      ],
+      "pivot": [
+        112,
+        288
+      ],
+      "asset": "assets/burger.png",
+      "logical": "logical/burger.png"
+    },
+    {
+      "name": "drink",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 3,
+      "nominalCellBounds": [
+        1344,
+        0,
+        1792,
+        448
+      ],
+      "cellBounds": [
+        1344,
+        0,
+        1792,
+        512
+      ],
+      "trimBoundsInCell": [
+        57,
+        156,
+        351,
+        453
+      ],
+      "cropDimensions": [
+        294,
+        297
+      ],
+      "crop": "crops/drink.png",
+      "logicalCanvas": [
+        56,
+        88
+      ],
+      "logicalPivot": [
+        28,
+        72
+      ],
+      "sourceToLogicalScale": 0.17006802721088435,
+      "logicalVisibleDimensions": [
+        50,
+        51
+      ],
+      "logicalBounds": [
+        3,
+        21,
+        53,
+        72
+      ],
+      "scaleGroup": "drink",
+      "fileScale": 4,
+      "canvas": [
+        224,
+        352
+      ],
+      "pivot": [
+        112,
+        288
+      ],
+      "asset": "assets/drink.png",
+      "logical": "logical/drink.png"
+    },
+    {
+      "name": "toilet",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 4,
+      "nominalCellBounds": [
+        0,
+        448,
+        448,
+        896
+      ],
+      "cellBounds": [
+        0,
+        512,
+        448,
+        896
+      ],
+      "trimBoundsInCell": [
+        82,
+        79,
+        390,
+        323
+      ],
+      "cropDimensions": [
+        308,
+        244
+      ],
+      "crop": "crops/toilet.png",
+      "logicalCanvas": [
+        56,
+        88
+      ],
+      "logicalPivot": [
+        28,
+        72
+      ],
+      "sourceToLogicalScale": 0.16233766233766234,
+      "logicalVisibleDimensions": [
+        50,
+        40
+      ],
+      "logicalBounds": [
+        3,
+        32,
+        53,
+        72
+      ],
+      "scaleGroup": "toilet",
+      "fileScale": 4,
+      "canvas": [
+        224,
+        352
+      ],
+      "pivot": [
+        112,
+        288
+      ],
+      "asset": "assets/toilet.png",
+      "logical": "logical/toilet.png"
+    },
+    {
+      "name": "entrance",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 5,
+      "nominalCellBounds": [
+        448,
+        448,
+        896,
+        896
+      ],
+      "cellBounds": [
+        448,
+        512,
+        896,
+        896
+      ],
+      "trimBoundsInCell": [
+        66,
+        78,
+        382,
+        312
+      ],
+      "cropDimensions": [
+        316,
+        234
+      ],
+      "crop": "crops/entrance.png",
+      "logicalCanvas": [
+        56,
+        88
+      ],
+      "logicalPivot": [
+        28,
+        72
+      ],
+      "sourceToLogicalScale": 0.15822784810126583,
+      "logicalVisibleDimensions": [
+        50,
+        37
+      ],
+      "logicalBounds": [
+        3,
+        35,
+        53,
+        72
+      ],
+      "scaleGroup": "entrance",
+      "fileScale": 4,
+      "canvas": [
+        224,
+        352
+      ],
+      "pivot": [
+        112,
+        288
+      ],
+      "asset": "assets/entrance.png",
+      "logical": "logical/entrance.png"
+    },
+    {
+      "name": "station",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 6,
+      "nominalCellBounds": [
+        896,
+        448,
+        1344,
+        896
+      ],
+      "cellBounds": [
+        896,
+        512,
+        1344,
+        896
+      ],
+      "trimBoundsInCell": [
+        36,
+        38,
+        402,
+        338
+      ],
+      "cropDimensions": [
+        366,
+        300
+      ],
+      "crop": "crops/station.png",
+      "logicalCanvas": [
+        56,
+        88
+      ],
+      "logicalPivot": [
+        28,
+        72
+      ],
+      "sourceToLogicalScale": 0.1366120218579235,
+      "logicalVisibleDimensions": [
+        50,
+        41
+      ],
+      "logicalBounds": [
+        3,
+        31,
+        53,
+        72
+      ],
+      "scaleGroup": "station",
+      "fileScale": 4,
+      "canvas": [
+        224,
+        352
+      ],
+      "pivot": [
+        112,
+        288
+      ],
+      "asset": "assets/station.png",
+      "logical": "logical/station.png"
+    },
+    {
+      "name": "bench",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 7,
+      "nominalCellBounds": [
+        1344,
+        448,
+        1792,
+        896
+      ],
+      "cellBounds": [
+        1344,
+        512,
+        1792,
+        896
+      ],
+      "trimBoundsInCell": [
+        107,
+        129,
+        320,
+        323
+      ],
+      "cropDimensions": [
+        213,
+        194
+      ],
+      "crop": "crops/bench.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        26
+      ],
+      "sourceToLogicalScale": 0.12371134020618557,
+      "logicalVisibleDimensions": [
+        26,
+        24
+      ],
+      "logicalBounds": [
+        11,
+        2,
+        37,
+        26
+      ],
+      "scaleGroup": "bench",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        104
+      ],
+      "asset": "assets/bench.png",
+      "logical": "logical/bench.png"
+    },
+    {
+      "name": "tree",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 8,
+      "nominalCellBounds": [
+        0,
+        896,
+        448,
+        1344
+      ],
+      "cellBounds": [
+        0,
+        896,
+        448,
+        1344
+      ],
+      "trimBoundsInCell": [
+        85,
+        35,
+        390,
+        366
+      ],
+      "cropDimensions": [
+        305,
+        331
+      ],
+      "crop": "crops/tree.png",
+      "logicalCanvas": [
+        64,
+        96
+      ],
+      "logicalPivot": [
+        32,
+        82
+      ],
+      "sourceToLogicalScale": 0.1901639344262295,
+      "logicalVisibleDimensions": [
+        58,
+        63
+      ],
+      "logicalBounds": [
+        3,
+        19,
+        61,
+        82
+      ],
+      "scaleGroup": "tree",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        384
+      ],
+      "pivot": [
+        128,
+        328
+      ],
+      "asset": "assets/tree.png",
+      "logical": "logical/tree.png"
+    },
+    {
+      "name": "pine",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 9,
+      "nominalCellBounds": [
+        448,
+        896,
+        896,
+        1344
+      ],
+      "cellBounds": [
+        448,
+        896,
+        896,
+        1344
+      ],
+      "trimBoundsInCell": [
+        128,
+        45,
+        323,
+        370
+      ],
+      "cropDimensions": [
+        195,
+        325
+      ],
+      "crop": "crops/pine.png",
+      "logicalCanvas": [
+        64,
+        96
+      ],
+      "logicalPivot": [
+        32,
+        82
+      ],
+      "sourceToLogicalScale": 0.24,
+      "logicalVisibleDimensions": [
+        47,
+        78
+      ],
+      "logicalBounds": [
+        8,
+        4,
+        55,
+        82
+      ],
+      "scaleGroup": "pine",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        384
+      ],
+      "pivot": [
+        128,
+        328
+      ],
+      "asset": "assets/pine.png",
+      "logical": "logical/pine.png"
+    },
+    {
+      "name": "flowers",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 10,
+      "nominalCellBounds": [
+        896,
+        896,
+        1344,
+        1344
+      ],
+      "cellBounds": [
+        896,
+        896,
+        1344,
+        1344
+      ],
+      "trimBoundsInCell": [
+        106,
+        152,
+        337,
+        325
+      ],
+      "cropDimensions": [
+        231,
+        173
+      ],
+      "crop": "crops/flowers.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        26
+      ],
+      "sourceToLogicalScale": 0.13872832369942195,
+      "logicalVisibleDimensions": [
+        32,
+        24
+      ],
+      "logicalBounds": [
+        8,
+        2,
+        40,
+        26
+      ],
+      "scaleGroup": "flowers",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        104
+      ],
+      "asset": "assets/flowers.png",
+      "logical": "logical/flowers.png"
+    },
+    {
+      "name": "shrub",
+      "atlas": "environment",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 11,
+      "nominalCellBounds": [
+        1344,
+        896,
+        1792,
+        1344
+      ],
+      "cellBounds": [
+        1344,
+        896,
+        1792,
+        1344
+      ],
+      "trimBoundsInCell": [
+        125,
+        190,
+        295,
+        326
+      ],
+      "cropDimensions": [
+        170,
+        136
+      ],
+      "crop": "crops/shrub.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        26
+      ],
+      "sourceToLogicalScale": 0.17647058823529413,
+      "logicalVisibleDimensions": [
+        30,
+        24
+      ],
+      "logicalBounds": [
+        9,
+        2,
+        39,
+        26
+      ],
+      "scaleGroup": "shrub",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        104
+      ],
+      "asset": "assets/shrub.png",
+      "logical": "logical/shrub.png"
+    },
+    {
+      "name": "guest-se-a",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 0,
+      "nominalCellBounds": [
+        0,
+        0,
+        340,
+        340
+      ],
+      "cellBounds": [
+        0,
+        0,
+        340,
+        340
+      ],
+      "trimBoundsInCell": [
+        136,
+        87,
+        232,
+        284
+      ],
+      "cropDimensions": [
+        96,
+        197
+      ],
+      "crop": "crops/guest-se-a.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        11,
+        23
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        17,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest-se-a.png",
+      "logical": "logical/guest-se-a.png"
+    },
+    {
+      "name": "guest-sw-a",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 1,
+      "nominalCellBounds": [
+        340,
+        0,
+        680,
+        340
+      ],
+      "cellBounds": [
+        340,
+        0,
+        680,
+        340
+      ],
+      "trimBoundsInCell": [
+        112,
+        87,
+        209,
+        284
+      ],
+      "cropDimensions": [
+        97,
+        197
+      ],
+      "crop": "crops/guest-sw-a.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        11,
+        23
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        17,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest-sw-a.png",
+      "logical": "logical/guest-sw-a.png"
+    },
+    {
+      "name": "guest-nw-a",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 2,
+      "nominalCellBounds": [
+        680,
+        0,
+        1020,
+        340
+      ],
+      "cellBounds": [
+        680,
+        0,
+        1020,
+        340
+      ],
+      "trimBoundsInCell": [
+        116,
+        87,
+        215,
+        291
+      ],
+      "cropDimensions": [
+        99,
+        204
+      ],
+      "crop": "crops/guest-nw-a.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        12,
+        24
+      ],
+      "logicalBounds": [
+        6,
+        4,
+        18,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest-nw-a.png",
+      "logical": "logical/guest-nw-a.png"
+    },
+    {
+      "name": "guest-ne-a",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 3,
+      "nominalCellBounds": [
+        1020,
+        0,
+        1360,
+        340
+      ],
+      "cellBounds": [
+        1020,
+        0,
+        1360,
+        340
+      ],
+      "trimBoundsInCell": [
+        123,
+        87,
+        221,
+        291
+      ],
+      "cropDimensions": [
+        98,
+        204
+      ],
+      "crop": "crops/guest-ne-a.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        12,
+        24
+      ],
+      "logicalBounds": [
+        6,
+        4,
+        18,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest-ne-a.png",
+      "logical": "logical/guest-ne-a.png"
+    },
+    {
+      "name": "guest-se-b",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 4,
+      "nominalCellBounds": [
+        0,
+        340,
+        340,
+        680
+      ],
+      "cellBounds": [
+        0,
+        340,
+        340,
+        680
+      ],
+      "trimBoundsInCell": [
+        123,
+        76,
+        222,
+        272
+      ],
+      "cropDimensions": [
+        99,
+        196
+      ],
+      "crop": "crops/guest-se-b.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        12,
+        23
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        18,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest-se-b.png",
+      "logical": "logical/guest-se-b.png"
+    },
+    {
+      "name": "guest-sw-b",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 5,
+      "nominalCellBounds": [
+        340,
+        340,
+        680,
+        680
+      ],
+      "cellBounds": [
+        340,
+        340,
+        680,
+        680
+      ],
+      "trimBoundsInCell": [
+        120,
+        75,
+        219,
+        271
+      ],
+      "cropDimensions": [
+        99,
+        196
+      ],
+      "crop": "crops/guest-sw-b.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        12,
+        23
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        18,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest-sw-b.png",
+      "logical": "logical/guest-sw-b.png"
+    },
+    {
+      "name": "guest-nw-b",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 6,
+      "nominalCellBounds": [
+        680,
+        340,
+        1020,
+        680
+      ],
+      "cellBounds": [
+        680,
+        340,
+        1020,
+        680
+      ],
+      "trimBoundsInCell": [
+        118,
+        75,
+        215,
+        271
+      ],
+      "cropDimensions": [
+        97,
+        196
+      ],
+      "crop": "crops/guest-nw-b.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        11,
+        23
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        17,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest-nw-b.png",
+      "logical": "logical/guest-nw-b.png"
+    },
+    {
+      "name": "guest-ne-b",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 7,
+      "nominalCellBounds": [
+        1020,
+        340,
+        1360,
+        680
+      ],
+      "cellBounds": [
+        1020,
+        340,
+        1360,
+        680
+      ],
+      "trimBoundsInCell": [
+        124,
+        75,
+        220,
+        271
+      ],
+      "cropDimensions": [
+        96,
+        196
+      ],
+      "crop": "crops/guest-ne-b.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        11,
+        23
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        17,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest-ne-b.png",
+      "logical": "logical/guest-ne-b.png"
+    },
+    {
+      "name": "car-se",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 8,
+      "nominalCellBounds": [
+        0,
+        680,
+        340,
+        1020
+      ],
+      "cellBounds": [
+        0,
+        680,
+        340,
+        1020
+      ],
+      "trimBoundsInCell": [
+        76,
+        84,
+        274,
+        238
+      ],
+      "cropDimensions": [
+        198,
+        154
+      ],
+      "crop": "crops/car-se.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "sourceToLogicalScale": 0.15584415584415584,
+      "logicalVisibleDimensions": [
+        31,
+        24
+      ],
+      "logicalBounds": [
+        8,
+        6,
+        39,
+        30
+      ],
+      "scaleGroup": "car",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-se.png",
+      "logical": "logical/car-se.png"
+    },
+    {
+      "name": "car-sw",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 9,
+      "nominalCellBounds": [
+        340,
+        680,
+        680,
+        1020
+      ],
+      "cellBounds": [
+        340,
+        680,
+        680,
+        1020
+      ],
+      "trimBoundsInCell": [
+        69,
+        84,
+        267,
+        238
+      ],
+      "cropDimensions": [
+        198,
+        154
+      ],
+      "crop": "crops/car-sw.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "sourceToLogicalScale": 0.15584415584415584,
+      "logicalVisibleDimensions": [
+        31,
+        24
+      ],
+      "logicalBounds": [
+        8,
+        6,
+        39,
+        30
+      ],
+      "scaleGroup": "car",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-sw.png",
+      "logical": "logical/car-sw.png"
+    },
+    {
+      "name": "car-nw",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 10,
+      "nominalCellBounds": [
+        680,
+        680,
+        1020,
+        1020
+      ],
+      "cellBounds": [
+        680,
+        680,
+        1020,
+        1020
+      ],
+      "trimBoundsInCell": [
+        59,
+        85,
+        255,
+        230
+      ],
+      "cropDimensions": [
+        196,
+        145
+      ],
+      "crop": "crops/car-nw.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "sourceToLogicalScale": 0.15584415584415584,
+      "logicalVisibleDimensions": [
+        31,
+        23
+      ],
+      "logicalBounds": [
+        8,
+        7,
+        39,
+        30
+      ],
+      "scaleGroup": "car",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-nw.png",
+      "logical": "logical/car-nw.png"
+    },
+    {
+      "name": "car-ne",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 11,
+      "nominalCellBounds": [
+        1020,
+        680,
+        1360,
+        1020
+      ],
+      "cellBounds": [
+        1020,
+        680,
+        1360,
+        1020
+      ],
+      "trimBoundsInCell": [
+        83,
+        85,
+        279,
+        230
+      ],
+      "cropDimensions": [
+        196,
+        145
+      ],
+      "crop": "crops/car-ne.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "sourceToLogicalScale": 0.15584415584415584,
+      "logicalVisibleDimensions": [
+        31,
+        23
+      ],
+      "logicalBounds": [
+        8,
+        7,
+        39,
+        30
+      ],
+      "scaleGroup": "car",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-ne.png",
+      "logical": "logical/car-ne.png"
+    },
+    {
+      "name": "guest2-se",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 12,
+      "nominalCellBounds": [
+        0,
+        1020,
+        340,
+        1360
+      ],
+      "cellBounds": [
+        0,
+        1020,
+        340,
+        1360
+      ],
+      "trimBoundsInCell": [
+        138,
+        46,
+        209,
+        242
+      ],
+      "cropDimensions": [
+        71,
+        196
+      ],
+      "crop": "crops/guest2-se.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        8,
+        23
+      ],
+      "logicalBounds": [
+        8,
+        5,
+        16,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest2-se.png",
+      "logical": "logical/guest2-se.png"
+    },
+    {
+      "name": "guest2-sw",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 13,
+      "nominalCellBounds": [
+        340,
+        1020,
+        680,
+        1360
+      ],
+      "cellBounds": [
+        340,
+        1020,
+        680,
+        1360
+      ],
+      "trimBoundsInCell": [
+        131,
+        46,
+        201,
+        242
+      ],
+      "cropDimensions": [
+        70,
+        196
+      ],
+      "crop": "crops/guest2-sw.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        8,
+        23
+      ],
+      "logicalBounds": [
+        8,
+        5,
+        16,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest2-sw.png",
+      "logical": "logical/guest2-sw.png"
+    },
+    {
+      "name": "guest2-nw",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 14,
+      "nominalCellBounds": [
+        680,
+        1020,
+        1020,
+        1360
+      ],
+      "cellBounds": [
+        680,
+        1020,
+        1020,
+        1360
+      ],
+      "trimBoundsInCell": [
+        133,
+        46,
+        209,
+        242
+      ],
+      "cropDimensions": [
+        76,
+        196
+      ],
+      "crop": "crops/guest2-nw.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        9,
+        23
+      ],
+      "logicalBounds": [
+        8,
+        5,
+        17,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest2-nw.png",
+      "logical": "logical/guest2-nw.png"
+    },
+    {
+      "name": "guest2-ne",
+      "atlas": "mobile",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "cellIndex": 15,
+      "nominalCellBounds": [
+        1020,
+        1020,
+        1360,
+        1360
+      ],
+      "cellBounds": [
+        1020,
+        1020,
+        1360,
+        1360
+      ],
+      "trimBoundsInCell": [
+        128,
+        46,
+        205,
+        242
+      ],
+      "cropDimensions": [
+        77,
+        196
+      ],
+      "crop": "crops/guest2-ne.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        9,
+        23
+      ],
+      "logicalBounds": [
+        8,
+        5,
+        17,
+        28
+      ],
+      "scaleGroup": "guest",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/guest2-ne.png",
+      "logical": "logical/guest2-ne.png"
+    },
+    {
+      "name": "wheel-rim",
+      "atlas": "modular",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 0,
+      "nominalCellBounds": [
+        0,
+        0,
+        672,
+        672
+      ],
+      "cellBounds": [
+        0,
+        0,
+        672,
+        672
+      ],
+      "trimBoundsInCell": [
+        77,
+        71,
+        597,
+        585
+      ],
+      "cropDimensions": [
+        520,
+        514
+      ],
+      "crop": "crops/wheel-rim.png",
+      "logicalCanvas": [
+        152,
+        152
+      ],
+      "logicalPivot": [
+        76,
+        76
+      ],
+      "sourceToLogicalScale": 0.27692307692307694,
+      "logicalVisibleDimensions": [
+        144,
+        142
+      ],
+      "logicalBounds": [
+        4,
+        5,
+        148,
+        147
+      ],
+      "scaleGroup": "wheel-rim",
+      "fileScale": 4,
+      "canvas": [
+        608,
+        608
+      ],
+      "pivot": [
+        304,
+        304
+      ],
+      "asset": "assets/wheel-rim.png",
+      "logical": "logical/wheel-rim.png"
+    },
+    {
+      "name": "wheel-support",
+      "atlas": "modular",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 1,
+      "nominalCellBounds": [
+        672,
+        0,
+        1344,
+        672
+      ],
+      "cellBounds": [
+        672,
+        0,
+        1344,
+        672
+      ],
+      "trimBoundsInCell": [
+        96,
+        124,
+        576,
+        613
+      ],
+      "cropDimensions": [
+        480,
+        489
+      ],
+      "crop": "crops/wheel-support.png",
+      "logicalCanvas": [
+        128,
+        176
+      ],
+      "logicalPivot": [
+        64,
+        164
+      ],
+      "sourceToLogicalScale": 0.24166666666666667,
+      "logicalVisibleDimensions": [
+        116,
+        118
+      ],
+      "logicalBounds": [
+        6,
+        46,
+        122,
+        164
+      ],
+      "scaleGroup": "wheel-support",
+      "fileScale": 4,
+      "canvas": [
+        512,
+        704
+      ],
+      "pivot": [
+        256,
+        656
+      ],
+      "asset": "assets/wheel-support.png",
+      "logical": "logical/wheel-support.png"
+    },
+    {
+      "name": "wheel-cabin",
+      "atlas": "modular",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 2,
+      "nominalCellBounds": [
+        1344,
+        0,
+        2016,
+        672
+      ],
+      "cellBounds": [
+        1344,
+        0,
+        2016,
+        672
+      ],
+      "trimBoundsInCell": [
+        220,
+        169,
+        453,
+        548
+      ],
+      "cropDimensions": [
+        233,
+        379
+      ],
+      "crop": "crops/wheel-cabin.png",
+      "logicalCanvas": [
+        32,
+        40
+      ],
+      "logicalPivot": [
+        16,
+        4
+      ],
+      "sourceToLogicalScale": 0.08443271767810026,
+      "logicalVisibleDimensions": [
+        20,
+        32
+      ],
+      "logicalBounds": [
+        6,
+        4,
+        26,
+        36
+      ],
+      "scaleGroup": "wheel-cabin",
+      "fileScale": 4,
+      "canvas": [
+        128,
+        160
+      ],
+      "pivot": [
+        64,
+        16
+      ],
+      "asset": "assets/wheel-cabin.png",
+      "logical": "logical/wheel-cabin.png"
+    },
+    {
+      "name": "carousel-roof",
+      "atlas": "modular",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 3,
+      "nominalCellBounds": [
+        0,
+        672,
+        672,
+        1344
+      ],
+      "cellBounds": [
+        0,
+        672,
+        672,
+        1344
+      ],
+      "trimBoundsInCell": [
+        51,
+        129,
+        621,
+        484
+      ],
+      "cropDimensions": [
+        570,
+        355
+      ],
+      "crop": "crops/carousel-roof.png",
+      "logicalCanvas": [
+        112,
+        80
+      ],
+      "logicalPivot": [
+        56,
+        40
+      ],
+      "sourceToLogicalScale": 0.1824561403508772,
+      "logicalVisibleDimensions": [
+        104,
+        65
+      ],
+      "logicalBounds": [
+        4,
+        8,
+        108,
+        73
+      ],
+      "scaleGroup": "carousel-roof",
+      "fileScale": 4,
+      "canvas": [
+        448,
+        320
+      ],
+      "pivot": [
+        224,
+        160
+      ],
+      "asset": "assets/carousel-roof.png",
+      "logical": "logical/carousel-roof.png"
+    },
+    {
+      "name": "carousel-base",
+      "atlas": "modular",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 4,
+      "nominalCellBounds": [
+        672,
+        672,
+        1344,
+        1344
+      ],
+      "cellBounds": [
+        672,
+        672,
+        1344,
+        1344
+      ],
+      "trimBoundsInCell": [
+        54,
+        210,
+        618,
+        491
+      ],
+      "cropDimensions": [
+        564,
+        281
+      ],
+      "crop": "crops/carousel-base.png",
+      "logicalCanvas": [
+        112,
+        80
+      ],
+      "logicalPivot": [
+        56,
+        40
+      ],
+      "sourceToLogicalScale": 0.18439716312056736,
+      "logicalVisibleDimensions": [
+        104,
+        52
+      ],
+      "logicalBounds": [
+        4,
+        14,
+        108,
+        66
+      ],
+      "scaleGroup": "carousel-base",
+      "fileScale": 4,
+      "canvas": [
+        448,
+        320
+      ],
+      "pivot": [
+        224,
+        160
+      ],
+      "asset": "assets/carousel-base.png",
+      "logical": "logical/carousel-base.png"
+    },
+    {
+      "name": "carousel-horse",
+      "atlas": "modular",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 5,
+      "nominalCellBounds": [
+        1344,
+        672,
+        2016,
+        1344
+      ],
+      "cellBounds": [
+        1344,
+        672,
+        2016,
+        1344
+      ],
+      "trimBoundsInCell": [
+        170,
+        91,
+        500,
+        530
+      ],
+      "cropDimensions": [
+        330,
+        439
+      ],
+      "crop": "crops/carousel-horse.png",
+      "logicalCanvas": [
+        40,
+        56
+      ],
+      "logicalPivot": [
+        20,
+        48
+      ],
+      "sourceToLogicalScale": 0.09696969696969697,
+      "logicalVisibleDimensions": [
+        32,
+        43
+      ],
+      "logicalBounds": [
+        4,
+        5,
+        36,
+        48
+      ],
+      "scaleGroup": "carousel-horse",
+      "fileScale": 4,
+      "canvas": [
+        160,
+        224
+      ],
+      "pivot": [
+        80,
+        192
+      ],
+      "asset": "assets/carousel-horse.png",
+      "logical": "logical/carousel-horse.png"
+    }
+  ]
+}
