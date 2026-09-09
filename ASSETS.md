@@ -25,3 +25,9 @@ Die vorherigen hochaufgelösten Illustrationsatlanten bleiben als Quellhistorie 
 Jedes Outfit hat vier Richtungen mit je vier Bildern. Die Bilder wechseln sichtbar zwischen Schritt- und Durchgangspose; die jeweils gegenüberliegenden Kontaktphasen bleiben ähnlich. Das sind überwiegend zwei ausgeprägte Posen mit Variationen, kein anatomisch vollständiger Vierphasengang. Diese Grenze ist auch in Manifest und Provenienz festgehalten. Alle Bilder behalten 24 × 32 logische Pixel, Fußpunkt (12, 28) und dieselbe vierfache Nearest-Neighbor-Vergrößerung.
 
 Die Engine steuert Anfahren und Bremsen der Fahrgeschäfte über gedämpfte Motorbewegung. Riesenradfelge und Gondelaufhängungen teilen dieselbe Projektion. Der Zug hält feste Wagenabstände entlang der Strecke und benötigt bergauf mehr Zeit. Sämtliche Weltbewegungen folgen der Simulationszeit einschließlich Pause und 3×-Tempo.
+
+## Erweiterung, Version 4
+
+24 zusätzliche PNGs aus drei OpenArt-MCP-Generierungen: zwölf Wagenansichten (je vier für Stahl-, Holz- und Launch-Coaster), drei Stationen, drei Attraktionsicons und sechs montierbare Teile für Kettenkarussell, Fallturm und Piratenschaukel. Laufzeitdateien unter `public/assets/expansion-v4/`; Quellen, exakte Prompts und Montagepunkte unter [`art/expansion-v4/`](art/expansion-v4/).
+
+Die Wagen behalten 48 × 40 logische Pixel und Anker (24,30); Stationen nutzen 72 × 96 und (36,80). Die Engine bewegt Sitze an ihren Aufhängungen, die Turmgondel auf ihrer vertikalen Achse und das Schiff um seinen oberen Drehpunkt. Stahl-/Launch-Schienen und Holztragwerke sind konstruktive Spielgeometrie. Die 3D-Mitfahrt erzeugt Schienen, Schwellen und Stützen aus derselben gespeicherten Strecke; die Parkumgebung wird mit vereinfachten 3D-Modellen dargestellt.

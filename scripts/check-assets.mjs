@@ -37,3 +37,16 @@ for (const asset of walks.assets) {
   assert.deepEqual(asset.logicalCanvas, [24, 32]);
 }
 console.log("PASS: 32 OpenArt walking frames with matching canvas sizes and foot anchors");
+
+const expansion = JSON.parse(
+  readFileSync(new URL("../art/expansion-v4/manifest.json", import.meta.url), "utf8"),
+);
+assert.equal(expansion.assets.length, 24);
+for (const a of expansion.assets) {
+  const bytes = readFileSync(
+    new URL(`../public/assets/expansion-v4/${a.name}.png`, import.meta.url),
+  );
+  assert.equal(bytes.subarray(1, 4).toString(), "PNG");
+  assert.deepEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], a.canvas);
+}
+console.log("PASS: 24 OpenArt expansion sprites, including 12 directional coaster cars");

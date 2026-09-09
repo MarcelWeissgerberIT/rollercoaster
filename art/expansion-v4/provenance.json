@@ -1,0 +1,195 @@
+{
+  "projectId": "ZUPnQYt5rmIl9G729LjL",
+  "model": "gpt-image-2-5-sunburst",
+  "mode": "image2image",
+  "entries": [
+    {
+      "atlas": "cars",
+      "columns": 4,
+      "rows": 3,
+      "names": [
+        "car-steel-se",
+        "car-steel-sw",
+        "car-steel-nw",
+        "car-steel-ne",
+        "car-wood-se",
+        "car-wood-sw",
+        "car-wood-nw",
+        "car-wood-ne",
+        "car-launch-se",
+        "car-launch-sw",
+        "car-launch-nw",
+        "car-launch-ne"
+      ],
+      "params": {
+        "prompt": "PRODUCTION GAME SPRITE ATLAS for Coaster Grove. Use the supplied original game assets as EXACT visual style reference. Authentic late1990s PC theme park management game PIXEL ART. These are miniature functional sprites, simple chunky square pixels and hard stair-step edges, 2-3 flat palette shades per material, dark modest outlines. Keep low detail that is readable when very small. No smooth illustration, no concept art, no realistic rendering, no texture, no gradients, no antialiasing, no blur, no ambient occlusion, no glow, no ground shadows. Isometric ORTHOGRAPHIC 2:1 projection, camera azimuth45degrees and elevation26.565degrees. Every ground edge runs TWO horizontal screen pixels for ONE vertical pixel, no converging perspective.\nEntire background exactly uniform bright MAGENTA #FF00FF, including gaps, holes and between every object. No gradients in background. No text or labels, no cell borders, no grid, no ground tiles, no attached landscape, no scenery, no decorative bases. Each object fully isolated and complete inside one cell with at least12percent clear margin. Do not allow any part to touch a cell edge. Crisp original objects matching reference palette coral-red, teal, cream, gold, restrained brown; launch purple must be DEEP VIOLET #61428C, never magenta.\nEXACT layout FOUR equal columns by THREE equal rows, twelve equal square cells. All12cars same physical game scale. Each cell represents a64x64 logicalpixel canvas enlarged nearest-neighbor, each car occupies roughly40x30logicalpixels, simple large color clusters, same pixel density as supplied small coaster cars.\nThe four columns show FOUR views of the same car of each row: column1 FRONT points diagonally SCREEN LOWER RIGHT (SE), column2 FRONT points SCREEN LOWER LEFT (SW), column3 FRONT points SCREEN UPPER LEFT (NW), column4 FRONT points SCREEN UPPER RIGHT (NE). Each car has a clear pointed front nose and blunt back, and faces exact indicated screen direction. Rear views must expose REAR backs of seats and rear of chassis, never another front view. There is no train, no track, no support and no rider; only ONE complete separate car percell.\nEvery car has exactly TWO clearly separated transverse BENCH ROWS one behind another along its long axis, each row wide enough for two people: FOUR seats total, obvious cream cushions with dark seat gaps and simple lap bars. Make recognizably little rollercoaster cars, not buses, road cars, boats, or huge illustrations. Dark small rail-wheel assemblies beneath chassis.\nROW1: modern STEEL coaster car. Rounded coral-red aerodynamic nose and red sides, dark-teal undercarriage, cream two-row seats. Match existing car with a more clearly readable two-row seating layout.\nROW2: traditional WOODEN coaster car. Boxier warm walnut-brown body, golden-yellow slim trim, black undercarriage, cream two-row seats. Small wood panel clusters, no texture. Clearly squared front ledge unlike red rounded car.\nROW3: LAUNCH coaster car. Low sleek angular turquoise nose and turquoise body, deep-violet purple #61428C seat backs and side accent, charcoal undercarriage, cream two-row cushions. Clearly a distinct sharper sporty outline but same game size.\nExactly12 isolated cars.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "kPGGzt6lGzp5mHN0q0Nq",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938063832_39ad46fa.png",
+            "label": "Existing exact game pixel car style"
+          }
+        ],
+        "aspectRatio": "4:3",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "status": "COMPLETED",
+      "historyId": "8Tl7hRFV0lSeb4EtSoGs",
+      "capabilityId": "gpt-image-2-5-sunburst:image2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "4:3",
+      "resources": [
+        {
+          "id": "TBEmTDCPXTne881jllF4",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942931461_ab48ea9d.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942931668_04166ef8.webp",
+          "metadata": {
+            "width": 1792,
+            "height": 1344,
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "atlas": "structures",
+      "columns": 3,
+      "rows": 2,
+      "names": [
+        "station-steel",
+        "station-wood",
+        "station-launch",
+        "ride-swing",
+        "ride-drop",
+        "ride-pirate"
+      ],
+      "params": {
+        "prompt": "PRODUCTION GAME SPRITE ATLAS for Coaster Grove. Use the supplied original game assets as EXACT visual style reference. Authentic late1990s PC theme park management game PIXEL ART. These are miniature functional sprites, simple chunky square pixels and hard stair-step edges, 2-3 flat palette shades per material, dark modest outlines. Keep low detail that is readable when very small. No smooth illustration, no concept art, no realistic rendering, no texture, no gradients, no antialiasing, no blur, no ambient occlusion, no glow, no ground shadows. Isometric ORTHOGRAPHIC 2:1 projection, camera azimuth45degrees and elevation26.565degrees. Every ground edge runs TWO horizontal screen pixels for ONE vertical pixel, no converging perspective.\nEntire background exactly uniform bright MAGENTA #FF00FF, including gaps, holes and between every object. No gradients in background. No text or labels, no cell borders, no grid, no ground tiles, no attached landscape, no scenery, no decorative bases. Each object fully isolated and complete inside one cell with at least12percent clear margin. Do not allow any part to touch a cell edge. Crisp original objects matching reference palette coral-red, teal, cream, gold, restrained brown; launch purple must be DEEP VIOLET #61428C, never magenta.\nEXACT layout THREE equal columns by TWO equal rows, six equal SQUARE cells. Eachcell a160x160 logicalpixelcanvas enlarged nearest-neighbor; obvious chunky outputpixelblocks. Do not make large illustrations. Station objects about90x60logicalpixels; rides roughly105x125logicalpixels. Every sprite full height within its cell, clear wide gutters.\nROW1 left to right:\n1 STEEL rollercoaster STATION: compact open loading shelter, coral-red gable canopy with cream trim, four cream supports, short red steel tracks on brown sleepers through the opening, tiny teal loading platform edge. No train, no text. Match existing station but vivid red roof.\n2 WOOD coaster STATION: compact timber loading shelter, brown gable shingle roof, warm golden timber posts, short brown/gold rails on sleepers through opening. No train, no text, no landscape.\n3 LAUNCH coaster STATION: low compact futuristic angular TURQUOISE canopy with deep-violet #61428C fascia, cream slim posts, short charcoal launch tracks beneath, small violet console shape. No train, no text, no glow.\nROW2 left to right: These are complete STATIC catalogue icons, all mechanical parts assembled.\n4 Complete SWING CHAIR ride / Kettenkarussell: shallow circular cream-and-coral striped umbrella roof, teal edge and simple golden finial, teal central vertical mast, tiny round actual ride platform; six small coral/cream empty chairs hanging from thin golden chains around canopy edge. Realistic simple compact swing ride silhouette. No fence, no landscape.\n5 Complete DROP TOWER / Freifallturm: tall slim turquoise rectangular lattice mast, cream top cap with coral crown, broad coral-and-cream circular passenger seat ring around lower third, actual small four-foot support at base, no huge concrete ground pad. Clear single vertically moving seat ring and straight vertical tower. No landscape.\n6 Complete PIRATE SHIP ride / Piratenschiff: two warm-timber A-frame supports with teal top axle caps and golden crossbeam, one brown/gold curved pirate-ship hull suspended below central axle on two golden long arms; visible cream benchrows, small coral flag, NO sail or mast on hull. Ship oriented across screen left-right and rests level at bottom. Footprints in2:1 isometric. No landscape.\nExactly6 isolated compact pixelgameicons.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "fIUXDJnpSyuQj5WHsC18",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938052837_fba95327.png",
+            "label": "Existing exact game buildings and rides pixel style"
+          }
+        ],
+        "aspectRatio": "3:2",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "status": "COMPLETED",
+      "historyId": "cGZRYlqRg7asLHY6dpwd",
+      "capabilityId": "gpt-image-2-5-sunburst:image2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "3:2",
+      "resources": [
+        {
+          "id": "2PWtn7a4J7TTrjecYX1K",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942936076_abfa6039.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942936335_6d27ea52.webp",
+          "metadata": {
+            "width": 2016,
+            "height": 1344,
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "atlas": "parts",
+      "columns": 2,
+      "rows": 3,
+      "names": [
+        "swing-canopy",
+        "swing-seat",
+        "drop-tower",
+        "drop-gondola",
+        "pirate-frame",
+        "pirate-ship"
+      ],
+      "params": {
+        "prompt": "PRODUCTION GAME SPRITE ATLAS for Coaster Grove. Use the supplied original game assets as EXACT visual style reference. Authentic late1990s PC theme park management game PIXEL ART. These are miniature functional sprites, simple chunky square pixels and hard stair-step edges, 2-3 flat palette shades per material, dark modest outlines. Keep low detail that is readable when very small. No smooth illustration, no concept art, no realistic rendering, no texture, no gradients, no antialiasing, no blur, no ambient occlusion, no glow, no ground shadows. Isometric ORTHOGRAPHIC 2:1 projection, camera azimuth45degrees and elevation26.565degrees. Every ground edge runs TWO horizontal screen pixels for ONE vertical pixel, no converging perspective.\nEntire background exactly uniform bright MAGENTA #FF00FF, including gaps, holes and between every object. No gradients in background. No text or labels, no cell borders, no grid, no ground tiles, no attached landscape, no scenery, no decorative bases. Each object fully isolated and complete inside one cell with at least12percent clear margin. Do not allow any part to touch a cell edge. Crisp original objects matching reference palette coral-red, teal, cream, gold, restrained brown; launch purple must be DEEP VIOLET #61428C, never magenta.\nEXACT layout TWO equal columns by THREE equal rows, six equal SQUARE cells. These are separate MOVABLE/STATIC COMPONENTS for the same three rides, not finished rides. Each cell a160x160 logicalpixelcanvas enlarged nearestneighbor. Parts have different real sizes: do not enlarge the tiny seat to tower size. Keep clear magenta padding.\nROW1 for the SWING CHAIR ride:\nLEFT cell: ONLY a complete stationary shallow cream-and-coral striped umbrella CANOPY, teal edge, smallgoldfinial, plus its SINGLE CENTRAL TEAL MAST extending down to a tiny actual circular teal rideplatform. Roof elliptical2:1 in projection, view fromabove. EMPTY under canopy, NO CHAINS, NO CHAIRS, NO SEATS, no hanging items. Canopy about105logicalpixelswide, supportgroupabout120logicalpixelshigh.\nRIGHT cell: ONLY ONE small CORAL/CREAM SWING CHAIR with its two thin GOLDEN SUSPENSION CHAINS going straight upward to a tiny shared suspension-point near top center. Chair slight2:1 isometric, empty cream seat cushion and coral back. The chains must be fully present, whole sprite about16logicalpixelswide and42logicalpixelshigh, much tinier than canopy, surrounded by lots of magenta. No canopy, no mast, no floor, no stand. Pivot is the very top attachment.\nROW2 for DROP TOWER:\nLEFT cell: ONLY the tall slim TURQUOISE VERTICAL LATTICE DROP-TOWER MAST with cream top cap and coral crown, simple dark-teal vertical rail, actual small four-foot supports at base. Entire height140logicalpixels, widthatbase45logicalpixels. NO GONDOLA, NO SEAT RING, NO RIDERS, NO stray railcars. Tower is stationary.\nRIGHT cell: ONLY a single detached horizontally oval CORAL AND CREAM DROP-TOWER PASSENGER GONDOLA RING. Six simple cream seatbacks and coral seat shell around a small CLEAR MAGENTA CENTRAL HOLE for tower mast; dark underside, no riders. Ring in exact2:1isometric, about58logicalpixelswide and30logicalpixelshigh. No tower, no legs, no platform, no ground. Keep ring's hole visibly empty.\nROW3 for PIRATE SHIP:\nLEFT cell: ONLY stationary supporting TIMBER A-FRAME pair with golden top CROSSBEAM and teal central axle bearing, four foot points in2:1isometric, about130logicalpixelswide and120logicalpixelshigh. Magenta through all empty interior spaces. NO SHIP, NO HULL, NO SEATS, NO SUSPENSION ARMS, NO SAILS. Central bearing clearly readable at topmiddle.\nRIGHT cell: ONLY a movable curved WOODEN PIRATE SHIP HULL, warmbrown and golden trim, simple cream benchrows, small coral flag, NO sails, plus its two slim GOLDEN LONG SUSPENSION ARMS extending from hull ends upward into a single small topmost central axle hub. This WHOLE COMPONENT rotates from that top hub. Ship is broadside across screenleft-right, level bottomrestposition; whole componentabout110logicalpixelswide and110logicalpixelshigh, hull in bottomquarter. No fixed supportframe, no platform, no background. Topmost centerhub is rotationpivot, keep it empty around hub except its arms.\nExactly6 isolated components. No combined full rides.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "fIUXDJnpSyuQj5WHsC18",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938052837_fba95327.png",
+            "label": "Existing exact game buildings and rides pixel style"
+          },
+          {
+            "type": "image",
+            "id": "IyGyirrYDQsxdDvvxpd3",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938062207_54617930.png",
+            "label": "Existing isolated animated component style"
+          }
+        ],
+        "aspectRatio": "2:3",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "status": "COMPLETED",
+      "historyId": "sLc1vJwFWmFt0bX892RV",
+      "capabilityId": "gpt-image-2-5-sunburst:image2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "2:3",
+      "resources": [
+        {
+          "id": "uzx1CDqTu26mLr4kjsFA",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942936345_8e52dc17.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942936508_6e5be8c0.webp",
+          "metadata": {
+            "width": 1344,
+            "height": 2016,
+            "format": "png"
+          }
+        }
+      ]
+    }
+  ],
+  "processing": "Technical processing only: atlas-cell crops (structures row split moved into empty gutter y600, parts first split y628 to retain complete tower finials), magenta color key to binary alpha, transparent trim, isotropic nearest-neighbor normalization, fixed logical canvases and pivots, exact4x nearest-neighbor PNG copies. Pirate ship translated2logicalpixels to align hub. No visual features painted, filled, or synthesized in code. Deep violet launch accents are preserved by a narrow bright-magenta key.",
+  "manifest": "manifest.json",
+  "validation": {
+    "assetCount": 24,
+    "uniqueLogicalImages": 24,
+    "visualReview": {
+      "reviewed": [
+        "raw/cars.png",
+        "raw/structures.png",
+        "raw/parts.png",
+        "contact/cars-1x.png",
+        "contact/structures-1x.png",
+        "contact/parts-1x.png",
+        "contact/structures-2x.png",
+        "contact/parts-2x.png"
+      ],
+      "result": "24 isolated, readable game sprites with style and palette consistent with pixel-v2. All four car orientations and three types are distinct. Two transverse cream bench rows are visible. All six modular components are isolated without the other moving or static half. Tower finials retained after gutter correction.",
+      "limitations": [
+        "Individual passenger slots within each bench are not separated; two bench rows are the readable seating unit.",
+        "Modular pirate frame/ship are broadside and do not reproduce the complete static icon exact angled geometry.",
+        "A single swing-chair view is supplied; orbit and depth ordering remain renderer work.",
+        "These are fixed pixel projection assets; exact analytical 2:1 geometry and intercomponent perspective were not machine-verified."
+      ]
+    },
+    "technicalChecks": {
+      "exact4xNearestCopies": true,
+      "binaryAlpha": true,
+      "allCropsClearOfCellBoundaries": true,
+      "allFramesNonempty": true,
+      "count": 24
+    }
+  }
+}

@@ -1,7 +1,9 @@
 "use client";
 /* oxlint-disable next/no-img-element, react/react-compiler -- Native transparent sprite images and a mutable external simulation are intentional. */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Volume2,
+  VolumeX,
   RollerCoaster,
   FerrisWheel,
   Trees,
@@ -25,10 +27,6 @@ import {
   Trophy,
   Sparkles,
   Check,
-  ArrowUp,
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
   Undo2,
   FlaskConical,
   Settings2,
@@ -42,6 +40,10 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
+  buildingBaseCost,
+  COASTER_TYPES,
+  trackCost,
+  type CoasterType,
   newPark,
   tick,
   CATALOG,
@@ -59,7 +61,6 @@ import {
 } from "@/game/simulation";
 import { draw, loadSprites, projection, type View } from "@/game/render";
 import {
-  blueprint,
   planPlacement,
   place,
   planConnection,
@@ -74,6 +75,19 @@ import {
   type BuildTool,
   type EditRecord,
 } from "@/game/construction";
+import {
+  startTrack,
+  appendPiece,
+  prefabBlueprint,
+  closeTrack,
+  pieceError,
+  PIECES,
+  type Piece,
+} from "@/game/prefabs";
+import { ParkAudio, DEFAULT_AUDIO, AUDIO_KEY, parseAudio, type AudioSettings } from "@/game/audio";
+const RideView = lazy(() => import("@/components/ride-view"));
+const assetUrl = (name: string) =>
+  `${import.meta.env.BASE_URL}assets/${/^(car-(steel|wood|launch)|station-(steel|wood|launch)|ride-)/.test(name) ? "expansion-v4" : "pixel-v2"}/${name}.png`;
 const EUR = (n: number) =>
   new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -123,6 +137,50 @@ export default function Home() {
   const [message, setMessage] = useState(
     "Willkommen im Waldhain. Dein erster Park wartet auf neue Ideen.",
   );
+  const [coasterType, setCoasterType] = useState<CoasterType>("steel");
+  const [piece, setPiece] = useState<Piece>("straight");
+  const draftHistory = useRef<Point[][]>([]);
+  const [ride, setRide] = useState<{ park: Park; building: Building } | null>(null);
+  const rideActive = useRef(false);
+  const audio = useRef<ParkAudio | null>(null);
+  const [audioSettings, setAudioSettings] = useState<AudioSettings>(DEFAULT_AUDIO);
+  const audioPreferences = useRef(DEFAULT_AUDIO);
+  const setSound = (value: AudioSettings) => {
+    audioPreferences.current = value;
+    setAudioSettings(value);
+    audio.current?.setSettings(value);
+    if (value.enabled) void audio.current?.unlock();
+    try {
+      localStorage.setItem(AUDIO_KEY, JSON.stringify(value));
+    } catch {}
+  };
+  const toggleSound = () =>
+    setSound({ ...audioPreferences.current, enabled: !audioPreferences.current.enabled });
+  useEffect(() => {
+    const engine = new ParkAudio();
+    audio.current = engine;
+    let pref = { ...DEFAULT_AUDIO };
+    try {
+      pref = parseAudio(localStorage.getItem(AUDIO_KEY));
+    } catch {}
+    audioPreferences.current = pref;
+    setAudioSettings(pref);
+    engine.setSettings(pref);
+    const unlock = () => {
+      void engine.unlock();
+    };
+    const visibility = () => engine.visibility(document.hidden);
+    window.addEventListener("pointerdown", unlock, { capture: true });
+    window.addEventListener("keydown", unlock, { capture: true });
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      window.removeEventListener("pointerdown", unlock, { capture: true });
+      window.removeEventListener("keydown", unlock, { capture: true });
+      document.removeEventListener("visibilitychange", visibility);
+      engine.dispose();
+      audio.current = null;
+    };
+  }, []);
   const [draft, setDraft] = useState<Point[]>([]);
   const [blueprintMode, setBlueprintMode] = useState(true);
   const [rotation, setRotation] = useState(0);
@@ -137,6 +195,7 @@ export default function Home() {
   const history = useRef<EditRecord[][]>([]);
   const stroke = useRef<EditRecord[] | null>(null);
   const [undoCount, setUndoCount] = useState(0);
+  const [worldRevision, setWorldRevision] = useState(0);
   const [height, setHeight] = useState(0);
   const [assets, setAssets] = useState(false);
   const [assetError, setAssetError] = useState(false);
@@ -163,6 +222,8 @@ export default function Home() {
     if (!park.current) return;
     const record = recordEdit(park.current, label, fn);
     if (record) {
+      audio.current?.effect("build");
+      setWorldRevision((v) => v + 1);
       if (stroke.current) stroke.current.push(record);
       else {
         history.current.push([record]);
@@ -174,13 +235,14 @@ export default function Home() {
   };
   const undo = useCallback(() => {
     if (draft.length && !blueprintMode) {
-      setDraft(draft.slice(0, -1));
+      setDraft(draftHistory.current.pop() ?? []);
       return;
     }
     finishStroke();
     const records = history.current.pop();
     if (!records || !park.current) return;
     undoEdits(park.current, records);
+    setWorldRevision((v) => v + 1);
     setUndoCount(history.current.length);
     if (adjust) {
       setAdjust(null);
@@ -212,8 +274,10 @@ export default function Home() {
   const previewTrack = useMemo(
     () =>
       adjustmentPlan?.geometry.track ??
-      (tool === "coaster" && blueprintMode && hoverTile ? blueprint(hoverTile, rotation) : draft),
-    [tool, blueprintMode, hoverTile, rotation, draft, adjustmentPlan],
+      (tool === "coaster" && blueprintMode && hoverTile
+        ? prefabBlueprint(hoverTile, rotation, coasterType)
+        : draft),
+    [tool, blueprintMode, hoverTile, rotation, draft, adjustmentPlan, coasterType],
   );
   const placement = useMemo(
     () =>
@@ -308,8 +372,18 @@ export default function Home() {
       const dt = Math.min(0.08, (time - last) / 1000);
       last = time;
       if (park.current) {
-        if (!document.hidden && assets) tick(park.current, dt);
-        draw(ctx, el.clientWidth, el.clientHeight, park.current, view.current, time);
+        if (!document.hidden && assets && !rideActive.current) {
+          const income = park.current.income;
+          tick(park.current, dt);
+          if (
+            park.current.income > income &&
+            Math.floor(time / 1500) !== Math.floor((time - dt * 1000) / 1500)
+          )
+            audio.current?.effect("cash");
+        }
+        audio.current?.park(rideActive.current || park.current.speed > 0);
+        if (!rideActive.current)
+          draw(ctx, el.clientWidth, el.clientHeight, park.current, view.current, time);
       }
       frame = requestAnimationFrame(loop);
     };
@@ -352,7 +426,7 @@ export default function Home() {
           : t === "erase"
             ? "Klicke auf ein Gebäude oder einen Weg. Gebäude erstatten 40 % des Grundpreises."
             : t === "coaster"
-              ? "Waldflug platzieren · R dreht die Vorlage · eigene Strecke im Baufenster."
+              ? "Wähle einen Bahntyp. R dreht den Schnellbau; unter Bauteile planst du deine eigene Strecke."
               : t === "queue"
                 ? "Verbinde den Attraktionseingang über eine Warteschlange mit einem Parkweg."
                 : t === "path"
@@ -385,7 +459,7 @@ export default function Home() {
       if (target.closest('input,textarea,[role="slider"],[role="dialog"],[contenteditable]'))
         return;
       const s = park.current;
-      if (!s) return;
+      if (!s || rideActive.current) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
         undo();
@@ -506,15 +580,11 @@ export default function Home() {
           notify("Die Station braucht freie Wiese.");
           return;
         }
-        setDraft([{ ...p, z: 0 }]);
-        notify("Station gesetzt. Ergänze benachbarte Felder oder nutze die Richtungspfeile.");
+        setDraft(startTrack(p, rotation, coasterType));
+        draftHistory.current = [];
+        notify("Station gesetzt. Wähle ein Bauteil: Es dockt automatisch am Streckenende an.");
       } else {
-        const last = draft.at(-1)!;
-        if (Math.abs(last.x - p.x) + Math.abs(last.y - p.y) !== 1) {
-          notify("Wähle ein benachbartes Feld.");
-          return;
-        }
-        extend(p.x - last.x, p.y - last.y);
+        addPiece(piece);
       }
       return;
     }
@@ -529,7 +599,7 @@ export default function Home() {
           s,
           tool as BuildTool,
           p,
-          tool === "coaster" ? blueprint(p, rotation) : undefined,
+          tool === "coaster" ? prefabBlueprint(p, rotation, coasterType) : undefined,
           autoClear,
         );
         if (result.error) {
@@ -540,19 +610,26 @@ export default function Home() {
       },
     );
   };
-  const extend = (dx: number, dy: number) => {
-    if (!draft.length) return;
-    const prev = draft.at(-1)!;
-    const p = { x: prev.x + dx, y: prev.y + dy, z: height };
-    if (Math.abs(height - (prev.z ?? 0)) > 1) {
-      notify("Höchstens eine Höhenstufe pro Abschnitt.");
+  const rememberDraft = (next: Point[]) => {
+    draftHistory.current.push(draft);
+    setDraft(next);
+  };
+  const addPiece = (part: Piece) => {
+    if (!park.current || !draft.length) return;
+    if (part === "loop" && !COASTER_TYPES[coasterType].loop) {
+      notify("Holzbahnen unterstützen keine Loopings.");
       return;
     }
-    if (p.x < 0 || p.y < 0 || p.x >= 30 || p.y >= 30) {
-      notify("Das ist außerhalb des Parks.");
-      return;
-    }
-    setDraft([...draft, p]);
+    const next = appendPiece(draft, part),
+      error = pieceError(park.current, draft, next, autoClear);
+    if (error) notify(error);
+    else rememberDraft(next);
+  };
+  const autoClose = () => {
+    if (!park.current) return;
+    const result = closeTrack(park.current, draft, autoClear);
+    if (result.error) notify(result.error);
+    else if (result.track) rememberDraft(result.track);
   };
   const coasterBuild = () => {
     const s = park.current;
@@ -566,12 +643,6 @@ export default function Home() {
       completeBuild(result.id!, "coaster");
     });
   };
-  const template = () => {
-    if (!draft.length) return;
-    setDraft(blueprint(draft[0], rotation));
-    setHeight(0);
-    notify("Waldflug-Vorlage eingesetzt. Mit „Strecke bauen“ abschließen.");
-  };
   const b = snapshot?.buildings.find((b) => b.id === selected);
   const connection =
     b && snapshot && !decorative(b.kind) ? planConnection(snapshot, b, autoClear) : null;
@@ -581,9 +652,9 @@ export default function Home() {
   const recommendedStation = useMemo(
     () =>
       b?.kind === "coaster" && snapshot && !reachable
-        ? suggestStation(snapshot, b, autoClear)
+        ? suggestStation({ ...snapshot, cash: Number.MAX_SAFE_INTEGER }, b, autoClear)
         : null,
-    [b, snapshot, reachable, autoClear],
+    [b, b?.track, worldRevision, autoClear],
   );
   const readyRides =
     snapshot?.buildings.filter((b) => isRide(b.kind) && b.open && b.tested && access(snapshot, b))
@@ -596,7 +667,7 @@ export default function Home() {
           className={`asset-card ${tool === k ? "active" : ""}`}
           onClick={() => pickTool(k)}
         >
-          <img src={`${import.meta.env.BASE_URL}assets/pixel-v2/${CATALOG[k].sprite}.png`} alt="" />
+          <img src={assetUrl(CATALOG[k].sprite)} alt="" />
           <strong>{CATALOG[k].name}</strong>
           <span>{EUR(CATALOG[k].cost)}</span>
         </button>
@@ -658,6 +729,14 @@ export default function Home() {
           </div>
         </div>
         <div className="topactions">
+          <button
+            className="iconbtn"
+            aria-label={audioSettings.enabled ? "Sound ausschalten" : "Sound einschalten"}
+            title="Sound · Lautstärke in der Parkverwaltung"
+            onClick={toggleSound}
+          >
+            {audioSettings.enabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+          </button>
           <span className="save-label">{saved}</span>
           <button
             className="iconbtn"
@@ -797,7 +876,7 @@ export default function Home() {
             <div className="panelbody">
               {category === "rides" && (
                 <>
-                  {catalog(["wheel", "carousel"])}
+                  {catalog(["wheel", "carousel", "swing", "drop", "pirate"])}
                   <button
                     className="primary"
                     style={{ marginTop: 12 }}
@@ -864,6 +943,23 @@ export default function Home() {
               )}
               {category === "coaster" && (
                 <>
+                  <div className="coaster-types" role="group" aria-label="Achterbahntyp">
+                    {(Object.keys(COASTER_TYPES) as CoasterType[]).map((type) => (
+                      <button
+                        key={type}
+                        className={coasterType === type ? "active" : ""}
+                        disabled={draft.length > 0}
+                        onClick={() => {
+                          setCoasterType(type);
+                          if (type === "wood" && piece === "loop") setPiece("straight");
+                        }}
+                      >
+                        <img src={assetUrl(`car-${type}-se`)} alt="" />
+                        <strong>{COASTER_TYPES[type].name}</strong>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="small">{COASTER_TYPES[coasterType].description}</p>
                   <div className="build-modes" role="group" aria-label="Achterbahn-Bauweise">
                     <button
                       className={blueprintMode ? "active" : ""}
@@ -871,6 +967,7 @@ export default function Home() {
                       onClick={() => {
                         setBlueprintMode(true);
                         setDraft([]);
+                        draftHistory.current = [];
                       }}
                     >
                       Schnellbau
@@ -881,105 +978,106 @@ export default function Home() {
                       onClick={() => {
                         setBlueprintMode(false);
                         setDraft([]);
+                        draftHistory.current = [];
                       }}
                     >
-                      Eigene Strecke
+                      Bauteile
                     </button>
                   </div>
                   {blueprintMode ? (
                     <>
                       <img
                         className="blueprint-art"
-                        src={`${import.meta.env.BASE_URL}assets/pixel-v2/station.png`}
+                        src={assetUrl(`station-${coasterType}`)}
                         alt=""
                       />
-                      <h3 className="blueprint-title">Waldflug</h3>
+                      <h3 className="blueprint-title">{COASTER_TYPES[coasterType].name}</h3>
                       <p className="small">
-                        Ein kompletter Rundkurs mit Lift und Abfahrt. Bewege ihn über den Park und
-                        klicke zum Bauen.
+                        {coasterType === "launch"
+                          ? "Launch-Geraden und ein 20 m hoher Looping."
+                          : coasterType === "wood"
+                            ? "Weiche Kurven und zwei Hügel auf einem Holztragwerk."
+                            : "Ein Rundkurs mit Kettenlift, Abfahrt und weiten Kurven."}{" "}
+                        Klicke auf freie Wiese zum Bauen.
                       </p>
                       <div className="draftstats">
-                        <span>6 × 4 Felder · 10 m</span>
-                        <b>{EUR(4705)}</b>
+                        <span>
+                          {trackStats(prefabBlueprint({ x: 0, y: 0 }, 0, coasterType)).length} m
+                          Strecke
+                        </span>
+                        <b>{EUR(trackCost(prefabBlueprint({ x: 0, y: 0 }, 0, coasterType)))}</b>
                       </div>
                       <button
                         className="secondary"
                         style={{ width: "100%" }}
                         onClick={() => setRotation((r) => (r + 1) % 4)}
                       >
-                        <Undo2 size={16} /> Vorlage drehen <kbd>R</kbd>
+                        <RotateCw size={16} /> Vorlage drehen <kbd>R</kbd>
                       </button>
-                      <p className="buildnote">
-                        Die Testfahrt startet automatisch. Danach genügt ein Klick zum Anschließen
-                        und Eröffnen.
-                      </p>
                     </>
                   ) : (
                     <>
                       <p className="small">
                         {draft.length
-                          ? "Ergänze Abschnitte. Der Rundkurs endet am Startpunkt auf Höhe 0."
-                          : "Klicke auf freie Wiese, um deine Station zu setzen."}
+                          ? "Jedes Bauteil dockt automatisch an der gelben Gleisspitze an."
+                          : "Klicke auf freie Wiese, um die Station zu setzen."}
                       </p>
+                      {!draft.length && (
+                        <button
+                          className="secondary"
+                          onClick={() => setRotation((r) => (r + 1) % 4)}
+                        >
+                          <RotateCw size={16} /> Startrichtung drehen ·{" "}
+                          {["Südost", "Südwest", "Nordwest", "Nordost"][rotation % 4]}
+                        </button>
+                      )}
                       <div className="draftstats">
-                        <span>{Math.max(0, draft.length - 1)} Abschnitte</span>
-                        <b>{EUR(3600 + draft.length * 65)}</b>
+                        <span>
+                          {draft.length ? trackStats(draft).length : 0} m ·{" "}
+                          {Math.round((draft.at(-1)?.z ?? 0) * 5)} m Höhe
+                        </span>
+                        <b>{EUR(trackCost(draft))}</b>
                       </div>
-                      <div className="editorlabel">
-                        <span>Nächste Gleishöhe</span>
-                        <b>{height * 5} m</b>
-                      </div>
-                      <Slider
-                        aria-label="Gleishöhe"
-                        min={0}
-                        max={5}
-                        step={1}
-                        value={[height]}
-                        onValueChange={(v) => setHeight(Array.isArray(v) ? v[0] : v)}
-                      />
-                      <div className="directions">
-                        <div />
-                        <button
-                          disabled={!draft.length}
-                          aria-label="Gleis nach Nordwesten"
-                          onClick={() => extend(-1, 0)}
-                        >
-                          <ArrowUp />
-                        </button>
-                        <div />
-                        <button
-                          disabled={!draft.length}
-                          aria-label="Gleis nach Südwesten"
-                          onClick={() => extend(0, 1)}
-                        >
-                          <ArrowLeft />
-                        </button>
-                        <button
-                          disabled={!draft.length}
-                          aria-label="Letzten Abschnitt entfernen"
-                          onClick={() => setDraft(draft.slice(0, -1))}
-                        >
-                          <Undo2 />
-                        </button>
-                        <button
-                          disabled={!draft.length}
-                          aria-label="Gleis nach Nordosten"
-                          onClick={() => extend(0, -1)}
-                        >
-                          <ArrowRight />
-                        </button>
-                        <div />
-                        <button
-                          disabled={!draft.length}
-                          aria-label="Gleis nach Südosten"
-                          onClick={() => extend(1, 0)}
-                        >
-                          <ArrowDown />
-                        </button>
+                      <div className="prefab-grid">
+                        {(Object.entries(PIECES) as [Piece, (typeof PIECES)[Piece]][]).map(
+                          ([id, item]) => (
+                            <button
+                              key={id}
+                              className={piece === id ? "active" : ""}
+                              disabled={
+                                !draft.length || (id === "loop" && !COASTER_TYPES[coasterType].loop)
+                              }
+                              title={
+                                id === "loop" && !COASTER_TYPES[coasterType].loop
+                                  ? "Nur Stahl- und Launch-Bahnen"
+                                  : item.detail
+                              }
+                              onClick={() => {
+                                setPiece(id);
+                                addPiece(id);
+                              }}
+                            >
+                              <span className="piece-glyph">{item.glyph}</span>
+                              <strong>{item.name}</strong>
+                              <small>{item.detail}</small>
+                            </button>
+                          ),
+                        )}
                       </div>
                       <div className="actionstack">
-                        <button className="secondary" disabled={!draft.length} onClick={template}>
-                          <Sparkles size={16} /> Waldflug-Vorlage
+                        <button
+                          className="secondary"
+                          disabled={!draft.length}
+                          onClick={() => setDraft(draftHistory.current.pop() ?? [])}
+                        >
+                          <Undo2 size={16} /> Letztes Bauteil entfernen
+                        </button>
+                        <button
+                          className="secondary"
+                          disabled={draft.length < 2}
+                          onClick={autoClose}
+                        >
+                          <Route size={16} /> Automatisch zur Station
                         </button>
                         <button
                           className="primary"
@@ -988,10 +1086,20 @@ export default function Home() {
                         >
                           <Check size={16} /> Strecke bauen
                         </button>
+                        <button
+                          className="text-action"
+                          disabled={!draft.length}
+                          onClick={() => {
+                            setDraft([]);
+                            draftHistory.current = [];
+                          }}
+                        >
+                          Entwurf zurücksetzen
+                        </button>
                       </div>
                       <p className="buildnote">
-                        Grundpreis 3.600 € + 65 € pro Streckenpunkt. Höhenwechsel: maximal 5 m pro
-                        Abschnitt. Bis zum Bauen ist der Entwurf kostenlos.
+                        Der Entwurf ist kostenlos. Beim Bauen werden Strecke und freigeräumte Deko
+                        berechnet. Strg/⌘ Z entfernt ein ganzes Bauteil.
                       </p>
                     </>
                   )}
@@ -1069,7 +1177,11 @@ export default function Home() {
                     <>
                       <img
                         className="detailhero"
-                        src={`${import.meta.env.BASE_URL}assets/pixel-v2/${CATALOG[b.kind].sprite}.png`}
+                        src={assetUrl(
+                          b.kind === "coaster"
+                            ? `car-${b.track?.[0]?.style ?? "steel"}-se`
+                            : CATALOG[b.kind].sprite,
+                        )}
                         alt={b.name}
                       />
                       <div
@@ -1089,6 +1201,21 @@ export default function Home() {
                                   ? "Geöffnet · Besucher sind willkommen."
                                   : "Geschlossen · Bereit zur Eröffnung."}
                       </div>
+                      {b.kind === "coaster" && b.track && (
+                        <button
+                          className="primary ride-launch"
+                          onClick={() => {
+                            const copy = structuredClone(park.current!);
+                            rideActive.current = true;
+                            setRide({
+                              park: copy,
+                              building: copy.buildings.find((x) => x.id === b.id)!,
+                            });
+                          }}
+                        >
+                          <Play size={18} /> 3D-Mitfahren
+                        </button>
+                      )}
                       <div className="adjust-actions">
                         {b.kind === "coaster" && (
                           <button className="secondary" onClick={() => startAdjustment("station")}>
@@ -1336,7 +1463,7 @@ export default function Home() {
                   (adjust
                     ? `${adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
                     : placement
-                      ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? "Waldflug" : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Warteschlange" : "Wasser"))} · ${EUR(placement.cost)}`
+                      ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? COASTER_TYPES[coasterType].name : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Warteschlange" : "Wasser"))} · ${EUR(placement.cost)}`
                       : "Bewege den Zeiger auf den Bauplatz")}
               </strong>
               <span>
@@ -1349,7 +1476,9 @@ export default function Home() {
                       ? "Klick baut · R dreht · Esc beendet"
                       : ["path", "queue", "water", "erase"].includes(tool)
                         ? "Ziehen baut mehrere Felder · Strg/⌘ Z nimmt den Bauzug zurück"
-                        : "Klick baut · Shift für mehrere · Esc beendet")}
+                        : tool === "coaster"
+                          ? "Bauteil im Baufenster wählen · Klick ergänzt · Esc beendet"
+                          : "Klick baut · Shift für mehrere · Esc beendet")}
               </span>
             </div>
             <label className="clear-toggle">
@@ -1498,8 +1627,10 @@ export default function Home() {
             <li>
               <b>Achterbahn:</b> Im Schnellbau setzt du einen vollständigen Rundkurs; R dreht ihn.
               Für eine eigene Strecke setze eine Station. Baue mit den Pfeilen oder benachbarten
-              Kartenfeldern weiter. Wähle die Höhe vor dem nächsten Abschnitt. Kehre zur Station auf
-              Höhe 0 zurück, baue, teste und eröffne die Strecke.
+              Geraden, Steigungen, Kurven und Loopings. „Automatisch zur Station“ sucht einen
+              passenden Rückweg. Danach bauen, testen und anschließen. Wähle eine fertige Bahn und
+              „3D-Mitfahren“ für eine Probefahrt; Sound und Musik stellst du in der Parkverwaltung
+              ein.
             </li>
             <li>
               <b>Nachträglich anpassen:</b> Klicke eine Bahn an. „Station versetzen“ bietet grüne,
@@ -1532,6 +1663,40 @@ export default function Home() {
           </footer>
         </DialogContent>
       </Dialog>
+      <Dialog
+        open={!!ride}
+        onOpenChange={(open) => {
+          if (!open) {
+            rideActive.current = false;
+            setRide(null);
+            audio.current?.ride(0, false);
+          }
+        }}
+      >
+        <DialogContent className="ride-modal" showCloseButton={false}>
+          <DialogTitle className="sr-only">3D-Mitfahrt</DialogTitle>
+          <DialogDescription className="sr-only">
+            Probefahrt auf deiner gebauten Achterbahn. Der Park pausiert.
+          </DialogDescription>
+          {ride && (
+            <Suspense
+              fallback={<div className="ride-loading">Deine 3D-Strecke wird aufgebaut …</div>}
+            >
+              <RideView
+                {...ride}
+                audio={audio.current}
+                muted={!audioSettings.enabled}
+                onMute={toggleSound}
+                onClose={() => {
+                  rideActive.current = false;
+                  setRide(null);
+                  audio.current?.ride(0, false);
+                }}
+              />
+            </Suspense>
+          )}
+        </DialogContent>
+      </Dialog>
       <Dialog open={settings} onOpenChange={setSettings}>
         <DialogContent className="manual">
           <DialogTitle>Dein Park, deine Regeln.</DialogTitle>
@@ -1540,7 +1705,51 @@ export default function Home() {
             <TabsList className="tabsrow">
               <TabsTrigger value="park">Parkbetrieb</TabsTrigger>
               <TabsTrigger value="save">Spielstand</TabsTrigger>
+              <TabsTrigger value="audio">Sound</TabsTrigger>
             </TabsList>
+            <TabsContent value="audio">
+              <button className="primary" onClick={toggleSound}>
+                {audioSettings.enabled ? <Volume2 /> : <VolumeX />}{" "}
+                {audioSettings.enabled ? "Sound ausschalten" : "Sound einschalten"}
+              </button>
+              <p className="small">
+                Parkmusik, Bau- und Kassentöne sowie Fahrtwind. Die Musik läuft unabhängig vom
+                Spieltempo.
+              </p>
+              {(["master", "music", "effects"] as const).map((key) => (
+                <div key={key}>
+                  <div className="controlrow">
+                    <span>
+                      {key === "master"
+                        ? "Gesamtlautstärke"
+                        : key === "music"
+                          ? "Parkmusik"
+                          : "Effekte & Fahrtwind"}
+                    </span>
+                    <strong>{Math.round(audioSettings[key] * 100)} %</strong>
+                  </div>
+                  <Slider
+                    aria-label={
+                      key === "master"
+                        ? "Gesamtlautstärke"
+                        : key === "music"
+                          ? "Parkmusik"
+                          : "Effekte"
+                    }
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={[audioSettings[key] * 100]}
+                    onValueChange={(v) =>
+                      setSound({
+                        ...audioPreferences.current,
+                        [key]: (Array.isArray(v) ? v[0] : v) / 100,
+                      })
+                    }
+                  />
+                </div>
+              ))}
+            </TabsContent>
             <TabsContent value="park">
               <div className="controlrow">
                 <span>Parkeintritt</span>

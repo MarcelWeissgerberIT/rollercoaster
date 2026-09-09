@@ -7,12 +7,14 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 ## Im Spiel
 
 - 30 × 30 Felder mit Wegen, Warteschlangen, Wasser und Dekoration.
-- Achterbahn-Schnellbau mit drehbarer 6 × 4-Vorlage, eigenem Streckeneditor, Höhenstufen und automatischer Testfahrt.
+- Drei Achterbahntypen mit eigenen Wagen, Stationen, Preisen und Kapazitäten: Stahlfalke, Holzexpress und Blitzstart. Drehbare Rundkurs-Vorlagen sowie automatisch andockende Geraden, Steigungen, Abfahrten, Links-/Rechtskurven und echte räumliche Loopings.
 - Gültige/ungültige Bauvorschau mit Gesamtkosten, optionales Deko-Freiräumen, automatischer Anschluss und Rückgängig für die letzten 30 Bauaktionen.
 - Bestehende Stationen auf ebene, gerade Gleisfelder versetzen; ganze Bahnen verschieben und um ihre Station drehen. Der Umbau behält ID, Fahrpreise, Testresultat und Statistik und ist rückgängig machbar.
-- Panoramarad und Karussell, Burgergarten, Limonadenbar und Toiletten.
+- Panoramarad, Karussell, Wellenflug, Himmelssturz und Piratenschaukel; Burgergarten, Limonadenbar und Toiletten.
 - Gäste mit vier Blickrichtungen, Gehposen für beide Outfits, individuellen Geschwindigkeiten, Zielen, Hunger, Durst und Zufriedenheit. Wartende verteilen sich auf Queue-Felder.
 - Fahrgeschäfte fahren sanft an und bremsen; Gondeln schwingen, Karussellpferde heben sich. Achterbahnzüge beschleunigen, fahren Steigungen langsam und Abfahrten schneller. Einnahmen erscheinen kurz direkt am Gebäude.
+- 3D-Probefahrt auf der tatsächlich gebauten Strecke: Frontkamera, Verfolger, Parkblick, Pause und Neustart. Der Park pausiert währenddessen. WebGL 2 ist erforderlich; die 3D-Umgebung ist eine vereinfachte räumliche Darstellung des Parks.
+- Originale, prozedurale Parkmusik, Bau-/Kassentöne und geschwindigkeitsabhängiger Fahrtwind. Sound startet nach Aktivierung; Gesamt-, Musik- und Effektlautstärke werden getrennt gespeichert.
 - Eintritts- und Fahrpreise, Personal, Einnahmen, Baukosten und tägliche Betriebskosten.
 - Waldhain-Szenario mit 16.000 € und einem bereits geöffneten Park. Ziel: 150 Gäste begrüßen, vier Attraktionen betreiben und mindestens 75 % Zufriedenheit erreichen.
 - Freies Spiel mit 100.000 € Startkapital.
@@ -22,7 +24,7 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 
 Wähle unten ein Werkzeug. Die grüne/rote Vorschau zeigt, ob das Bauwerk passt, und nennt den Gesamtpreis. **Deko freiräumen** entfernt störende Bäume oder Blumen für 10 € pro Objekt. Bestehende Gebäude werden dabei nicht entfernt. Nach dem Platzieren öffnet sich direkt die Verwaltung; **Anschließen & öffnen** baut einen passenden Weg oder eine Warteschlange zum bestehenden Wegenetz. Ein direkt angrenzender, mit dem Parkeingang verbundener Parkweg genügt: Er bietet vier Warteplätze. Eine eigene Warteschlange wird bevorzugt und kann mehr Gäste aufnehmen. Der Anschlussplaner nutzt vorhandene Wege, füllt Lücken und sucht Verbindungen mit bis zu 30 neuen Feldern. Vorhandene Wege werden nicht umgefärbt.
 
-Eine Achterbahn kannst du im **Schnellbau** vollständig platzieren und mit **R** drehen. Ihre Testfahrt startet automatisch; nach dem Anschluss eröffnet sie sich, sobald der Test abgeschlossen ist. Unter **Eigene Strecke** kannst du weiterhin eine Station setzen, benachbarte Abschnitte ergänzen und ihre Höhe wählen. Der Rundkurs muss zur Station auf Höhe 0 zurückkehren.
+Eine Achterbahn kannst du im **Schnellbau** vollständig platzieren und mit **R** drehen. Ihre Testfahrt startet automatisch; nach dem Anschluss eröffnet sie sich, sobald der Test abgeschlossen ist. Unter **Bauteile** setzt du eine Station und klickst auf fertige Geraden, Steigungen, Abfahrten, Kurven oder Loopings. Jedes Teil passt seine Richtung und Höhe automatisch an den letzten Anschluss an. **Automatisch zur Station** sucht einen freien, geschlossenen Rückweg; **Letztes Bauteil entfernen** und Strg/⌘ Z entfernen jeweils einen vollständigen Bauschritt. Holzbahnen bleiben ohne Inversionen und sind auf 20 m begrenzt, Stahl-/Launch-Bahnen auf 40 m. **3D-Mitfahren** im Bahnfenster öffnet eine unabhängige Probefahrt.
 
 Zum Umbau eine bestehende Achterbahn auswählen: **Station versetzen** markiert geeignete gerade Abschnitte am Boden. Die Gleisform bleibt dabei unverändert. **Bahn verschieben / drehen** bewegt die gesamte Anlage; **R** dreht sie um die Station. Mausbewegung zeigt die Vorschau und mögliche Anschlusskosten. Klicke auf die Karte oder **Position übernehmen**, um den Umbau abzuschließen. **Abbrechen** und **Esc** verwerfen die Vorschau. Bei fehlendem Zugang kann das Spiel einen besseren Stationsplatz vorschlagen.
 
@@ -60,7 +62,7 @@ npm run build
 npm run preview
 ```
 
-React, TypeScript, Canvas 2D und Vite. GitHub Pages liefert nur statische Dateien aus; kein Backend und keine Zugangsdaten werden für das Spiel benötigt. Spielstände liegen im Browser (`coaster-grove-v1`) und werden nicht zwischen Geräten synchronisiert.
+React, TypeScript, Canvas 2D, Three.js und Web Audio mit Vite. Der 3D-Code wird erst beim Öffnen der Mitfahrt geladen. GitHub Pages liefert nur statische Dateien aus; kein Backend und keine Zugangsdaten werden für das Spiel benötigt. Spielstände liegen im Browser (`coaster-grove-v1`) und werden nicht zwischen Geräten synchronisiert.
 
 ## Veröffentlichung
 
@@ -70,4 +72,8 @@ Pushes auf `main` starten `.github/workflows/pages.yml`: Installation, Simulatio
 
 Die Spielsprites stammen ausschließlich aus dem OpenArt-Projekt des Nutzers. Die aktive Grafik wurde über den **OpenArt MCP** als einheitlicher Pixel-Art-Satz neu erzeugt, mit festen Größen, Ankerpunkten, Richtungsansichten und beweglichen Fahrgeschäftsteilen. Quellen, Prompts und Verarbeitung stehen in [ASSETS.md](ASSETS.md). Es werden keine Originalgrafiken oder Spieldateien von RollerCoaster Tycoon verwendet.
 
-Dies ist eine kompakte Browser-Parksimulation. Fahrphysik und Wirtschaft sind vereinfachte Spielmodelle; sie enthalten beispielsweise keine Gelände-Höhenbearbeitung, vertikalen Loopings oder Mehrspielerfunktion.
+Dies ist eine kompakte Browser-Parksimulation. Fahrphysik und Wirtschaft sind vereinfachte Spielmodelle; sie enthalten beispielsweise keine Gelände-Höhenbearbeitung oder Mehrspielerfunktion.
+
+## Audio-Prüfung im Browser
+
+Im laufenden Vite-Entwicklungsserver `/rollercoaster/scripts/audio-check.html` öffnen und **Audio prüfen** anklicken. Der native OfflineAudioContext prüft hörbare, endliche Samples, Headroom und voneinander unabhängige Musik-/Effektkanäle sowie exakte Stille bei Master 0. Diese Prüfseite gehört nicht zum Produktionsbuild.

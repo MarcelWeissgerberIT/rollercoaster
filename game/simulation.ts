@@ -1,8 +1,49 @@
-export type Point = { x: number; y: number; z?: number };
+export type CoasterType = "steel" | "wood" | "launch";
+export type Point = {
+  x: number;
+  y: number;
+  z?: number;
+  smooth?: boolean;
+  inversion?: boolean;
+  heading?: number;
+  style?: CoasterType;
+};
+export const COASTER_TYPES = {
+  steel: {
+    name: "Stahlfalke",
+    description: "Stahlbahn · Kettenlift & Loopings",
+    color: "#d95135",
+    cost: 3600,
+    capacity: 8,
+    duration: 22,
+    loop: true,
+  },
+  wood: {
+    name: "Holzexpress",
+    description: "Holzbahn · Hügel & weiche Kurven",
+    color: "#a06b36",
+    cost: 2900,
+    capacity: 12,
+    duration: 28,
+    loop: false,
+  },
+  launch: {
+    name: "Blitzstart",
+    description: "Launch-Coaster · Beschleunigung & Loopings",
+    color: "#1cabb1",
+    cost: 4600,
+    capacity: 8,
+    duration: 18,
+    loop: true,
+  },
+};
 export type Kind =
   | "coaster"
   | "wheel"
   | "carousel"
+  | "swing"
+  | "drop"
+  | "pirate"
   | "burger"
   | "drink"
   | "toilet"
@@ -120,6 +161,42 @@ export const CATALOG: Record<
     sprite: "carousel",
     description: "Eine kleine Runde großes Glück.",
   },
+  swing: {
+    name: "Wellenflug",
+    cost: 1450,
+    size: 3,
+    price: 6,
+    duration: 20,
+    capacity: 10,
+    appeal: 6,
+    upkeep: 13,
+    sprite: "ride-swing",
+    description: "Schwingende Sitze über den Baumwipfeln.",
+  },
+  drop: {
+    name: "Himmelssturz",
+    cost: 2600,
+    size: 2,
+    price: 9,
+    duration: 18,
+    capacity: 8,
+    appeal: 8,
+    upkeep: 22,
+    sprite: "ride-drop",
+    description: "Hoch hinaus. Im freien Fall zurück.",
+  },
+  pirate: {
+    name: "Piratenschaukel",
+    cost: 1950,
+    size: 3,
+    price: 7,
+    duration: 21,
+    capacity: 12,
+    appeal: 7,
+    upkeep: 17,
+    sprite: "ride-pirate",
+    description: "Eine schwungvolle Fahrt auf hoher See.",
+  },
   burger: {
     name: "Burgergarten",
     cost: 480,
@@ -205,7 +282,8 @@ export const CATALOG: Record<
     description: "Kurz durchatmen und weiterziehen.",
   },
 };
-export const isRide = (k: Kind) => ["coaster", "wheel", "carousel"].includes(k);
+export const isRide = (k: Kind) =>
+  ["coaster", "wheel", "carousel", "swing", "drop", "pirate"].includes(k);
 export const decorative = (k: Kind) => CATALOG[k].capacity === 0;
 export const inBounds = (x: number, y: number) => x >= 0 && y >= 0 && x < SIZE && y < SIZE;
 export const key = (p: Point) => `${p.x},${p.y}`;
@@ -216,7 +294,7 @@ const dirs = [
   [0, -1],
 ];
 export function footprint(b: Pick<Building, "x" | "y" | "kind" | "track">): Point[] {
-  if (b.kind === "coaster" && b.track) return b.track.map((p) => ({ x: p.x, y: p.y }));
+  if (b.kind === "coaster" && b.track) return trackFootprint(b.track);
   const n = CATALOG[b.kind].size;
   return Array.from({ length: n * n }, (_, i) => ({
     x: b.x + (i % n),
@@ -317,6 +395,46 @@ export function spend(s: Park, cost: number) {
   s.dayExpenses += cost;
   return true;
 }
+const footprintCache = new WeakMap<Point[], Point[]>();
+export function trackFootprint(track: Point[]): Point[] {
+  const cached = footprintCache.get(track);
+  if (cached) return cached;
+  const cells = new Map<string, Point>();
+  for (let i = 0; i < track.length; i++) {
+    const a = track[Math.max(0, i - 1)],
+      b = track[i];
+    const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) * 4));
+    for (let j = 0; j <= steps; j++) {
+      const p = {
+        x: Math.round(a.x + ((b.x - a.x) * j) / steps),
+        y: Math.round(a.y + ((b.y - a.y) * j) / steps),
+      };
+      cells.set(`${p.x},${p.y}`, p);
+    }
+  }
+  const points = [...cells.values()];
+  footprintCache.set(track, points);
+  return points;
+}
+export const buildingBaseCost = (b: Pick<Building, "kind" | "track">) =>
+  b.kind === "coaster" ? COASTER_TYPES[b.track?.[0]?.style ?? "steel"].cost : CATALOG[b.kind].cost;
+export const rideDuration = (b: Building) =>
+  b.kind === "coaster"
+    ? COASTER_TYPES[b.track?.[0]?.style ?? "steel"].duration
+    : CATALOG[b.kind].duration;
+export const rideCapacity = (b: Building) =>
+  b.kind === "coaster"
+    ? COASTER_TYPES[b.track?.[0]?.style ?? "steel"].capacity
+    : CATALOG[b.kind].capacity;
+export function trackCost(track: Point[]) {
+  let units = 1;
+  for (let i = 1; i < track.length; i++)
+    units += Math.max(
+      Math.hypot(track[i].x - track[i - 1].x, track[i].y - track[i - 1].y),
+      Math.abs((track[i].z ?? 0) - (track[i - 1].z ?? 0)),
+    );
+  return COASTER_TYPES[track[0]?.style ?? "steel"].cost + Math.round(units * 65);
+}
 export function trackStats(track: Point[]) {
   let length = 0,
     drop = 0,
@@ -328,12 +446,15 @@ export function trackStats(track: Point[]) {
     drop = Math.max(drop, (a.z ?? 0) - (b.z ?? 0));
     height = Math.max(height, b.z ?? 0);
   }
+  const style = track[0]?.style,
+    inversion = track.some((p) => p.inversion);
   return {
     length: Math.round(length),
     height: height * 5,
-    speed: Math.round(25 + Math.sqrt(height * 98)),
-    excitement: Math.min(9.9, 3 + height * 0.7 + length / 180).toFixed(1),
-    intensity: Math.min(9.9, 2 + drop * 1.3 + height * 0.3).toFixed(1),
+    speed:
+      style === "launch" ? 86 : Math.round((style === "wood" ? 21 : 25) + Math.sqrt(height * 98)),
+    excitement: Math.min(9.9, 3 + height * 0.7 + length / 180 + (inversion ? 1 : 0)).toFixed(1),
+    intensity: Math.min(9.9, 2 + drop * 1.3 + height * 0.3 + (inversion ? 2 : 0)).toFixed(1),
   };
 }
 export function validateTrack(s: Park, track: Point[]): string | null {
@@ -342,6 +463,54 @@ export function validateTrack(s: Park, track: Point[]): string | null {
     b = track[track.length - 1];
   if (a.x !== b.x || a.y !== b.y || (a.z ?? 0) !== (b.z ?? 0))
     return "Verbinde das Ende auf Stationshöhe mit dem Startpunkt.";
+  if (track[0].smooth) {
+    const style = track[0].style ?? "steel";
+    if (
+      !(style in COASTER_TYPES) ||
+      track.some(
+        (p) =>
+          p.style !== track[0].style ||
+          p.smooth !== true ||
+          (style === "wood" && (p.inversion || (p.z ?? 0) > 4)),
+      )
+    )
+      return "Dieser Bahntyp unterstützt diese Bauteile nicht.";
+    if (
+      track.length > 2048 ||
+      track.some(
+        (p) => !Number.isFinite(p.x + p.y + (p.z ?? 0)) || (p.z ?? 0) < 0 || (p.z ?? 0) > 8,
+      )
+    )
+      return "Ungültige Gleisgeometrie.";
+    if (
+      trackFootprint(track).some(
+        (p) => !inBounds(p.x, p.y) || s.tiles[p.y][p.x] !== "grass" || occupant(s, p.x, p.y),
+      )
+    )
+      return "Die Strecke braucht freie Landfelder.";
+    const distances = [0];
+    for (let i = 1; i < track.length; i++) {
+      const p = track[i],
+        prev = track[i - 1];
+      const d = Math.hypot(p.x - prev.x, p.y - prev.y, (p.z ?? 0) - (prev.z ?? 0));
+      if (d > 1.5 || d < 1e-8) return "Die Bauteile müssen lückenlos verbunden sein.";
+      distances.push(distances[i - 1] + d);
+    }
+    if (distances.at(-1)! < 8) return "Baue mindestens 8 Streckenabschnitte.";
+    for (let i = 0; i < track.length - 1; i++)
+      for (let j = i + 1; j < track.length - 1; j++) {
+        const separation = Math.min(
+          distances[j] - distances[i],
+          distances.at(-1)! - (distances[j] - distances[i]),
+        );
+        if (separation < 2.5) continue;
+        const p = track[i],
+          q = track[j];
+        if (Math.hypot(p.x - q.x, p.y - q.y) < 0.35 && Math.abs((p.z ?? 0) - (q.z ?? 0)) < 0.6)
+          return "Die Strecke kreuzt sich ohne ausreichenden Höhenabstand.";
+      }
+    return null;
+  }
   for (let i = 0; i < track.length; i++) {
     const p = track[i];
     if (!inBounds(p.x, p.y) || s.tiles[p.y][p.x] !== "grass" || occupant(s, p.x, p.y))
@@ -382,14 +551,26 @@ export function build(
     )
   )
     return { error: "Hier ist kein Platz. Wähle freie Wiese." };
-  const cost = CATALOG[kind].cost + (track ? track.length * 65 : 0);
+  const cost = track ? trackCost(track) : CATALOG[kind].cost;
   if (!spend(s, cost)) return { error: "Dafür reicht dein Parkbudget nicht." };
   const b: Building = {
     ...proto,
     id: s.nextId++,
-    name: kind === "coaster" ? "Waldflug" : CATALOG[kind].name,
+    name:
+      kind === "coaster"
+        ? track?.[0]?.style
+          ? COASTER_TYPES[track[0].style].name
+          : "Waldflug"
+        : CATALOG[kind].name,
     open: !isRide(kind),
-    price: CATALOG[kind].price,
+    price:
+      kind === "coaster" && track?.[0]?.style
+        ? track[0].style === "wood"
+          ? 9
+          : track[0].style === "launch"
+            ? 15
+            : 12
+        : CATALOG[kind].price,
     served: 0,
     revenue: 0,
     queue: [],
@@ -415,7 +596,7 @@ export function remove(s: Park, x: number, y: number) {
   const b = occupant(s, x, y);
   if (b) {
     s.buildings = s.buildings.filter((o) => o.id !== b.id);
-    const refund = Math.round(CATALOG[b.kind].cost * 0.4);
+    const refund = Math.round(buildingBaseCost(b) * 0.4);
     s.cash += refund;
     s.income += refund;
     s.dayIncome += refund;
@@ -671,8 +852,8 @@ export function tick(s: Park, dt: number) {
       b.riders = [];
     }
     if (!b.riders.length && b.queue.length && b.cycle <= 0) {
-      b.riders = b.queue.splice(0, CATALOG[b.kind].capacity);
-      b.cycle = CATALOG[b.kind].duration;
+      b.riders = b.queue.splice(0, rideCapacity(b));
+      b.cycle = rideDuration(b);
       for (const id of b.riders) {
         const g = s.guests.find((g) => g.id === id);
         if (g) g.state = "ride";
@@ -808,6 +989,21 @@ export function validSave(v: unknown): v is Park {
       Number.isInteger(p.y) &&
       inBounds(p.x, p.y) &&
       (p.z === undefined || (Number.isInteger(p.z) && p.z >= 0 && p.z <= 5));
+    const trackPoint = (p: Point) =>
+      p &&
+      (p.smooth === undefined || typeof p.smooth === "boolean") &&
+      (p.inversion === undefined || typeof p.inversion === "boolean") &&
+      (p.heading === undefined || num(p.heading)) &&
+      (p.style === undefined || ["steel", "wood", "launch"].includes(p.style)) &&
+      (p.smooth
+        ? num(p.x) &&
+          num(p.y) &&
+          inBounds(p.x, p.y) &&
+          num(p.z) &&
+          p.z! >= 0 &&
+          p.z! <= (p.style === "wood" ? 4 : 8) &&
+          !(p.style === "wood" && p.inversion)
+        : point(p));
     if (
       s.version !== 1 ||
       !["scenario", "sandbox"].includes(s.mode) ||
@@ -878,7 +1074,10 @@ export function validSave(v: unknown): v is Park {
         !Array.isArray(b.riders) ||
         !b.riders.every(Number.isInteger) ||
         (b.kind === "coaster" &&
-          (!Array.isArray(b.track) || b.track.length < 9 || !b.track.every(point)))
+          (!Array.isArray(b.track) ||
+            b.track.length < 9 ||
+            b.track.length > 2048 ||
+            !b.track.every(trackPoint)))
       )
         return false;
       ids.add(b.id);

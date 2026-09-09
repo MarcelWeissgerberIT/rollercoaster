@@ -1,0 +1,1652 @@
+{
+  "projectId": "ZUPnQYt5rmIl9G729LjL",
+  "model": "gpt-image-2-5-sunburst",
+  "mode": "image2image",
+  "processing": "Technical processing only: atlas-cell crops (structures row split moved into empty gutter y600, parts first split y628 to retain complete tower finials), magenta color key to binary alpha, transparent trim, isotropic nearest-neighbor normalization, fixed logical canvases and pivots, exact4x nearest-neighbor PNG copies. Pirate ship translated2logicalpixels to align hub. No visual features painted, filled, or synthesized in code. Deep violet launch accents are preserved by a narrow bright-magenta key.",
+  "fileScale": 4,
+  "assets": [
+    {
+      "name": "car-steel-se",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 0,
+      "nominalCellBounds": [
+        0,
+        0,
+        448,
+        448
+      ],
+      "cellBounds": [
+        0,
+        0,
+        448,
+        448
+      ],
+      "trimBoundsInCell": [
+        98,
+        147,
+        364,
+        359
+      ],
+      "cropDimensions": [
+        266,
+        212
+      ],
+      "crop": "crops/car-steel-se.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        10,
+        7,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        29,
+        23
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-steel-se.png",
+      "logical": "logical/car-steel-se.png",
+      "sha256": "b49e5171f0f925d443925865a53b84e0acdb165d4321961bad2055dce85fa276"
+    },
+    {
+      "name": "car-steel-sw",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 1,
+      "nominalCellBounds": [
+        448,
+        0,
+        896,
+        448
+      ],
+      "cellBounds": [
+        448,
+        0,
+        896,
+        448
+      ],
+      "trimBoundsInCell": [
+        91,
+        147,
+        355,
+        359
+      ],
+      "cropDimensions": [
+        264,
+        212
+      ],
+      "crop": "crops/car-steel-sw.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        10,
+        7,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        29,
+        23
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-steel-sw.png",
+      "logical": "logical/car-steel-sw.png",
+      "sha256": "0dfb02de047306e1c99ac8cfb858f1feacdb582655f38d542f869ee567f3e75e"
+    },
+    {
+      "name": "car-steel-nw",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 2,
+      "nominalCellBounds": [
+        896,
+        0,
+        1344,
+        448
+      ],
+      "cellBounds": [
+        896,
+        0,
+        1344,
+        448
+      ],
+      "trimBoundsInCell": [
+        76,
+        150,
+        350,
+        353
+      ],
+      "cropDimensions": [
+        274,
+        203
+      ],
+      "crop": "crops/car-steel-nw.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        9,
+        8,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        30,
+        22
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-steel-nw.png",
+      "logical": "logical/car-steel-nw.png",
+      "sha256": "74e2203506e4eac1edeef2718b9889b926235cc4b1a080430147f4bfc351091e"
+    },
+    {
+      "name": "car-steel-ne",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 3,
+      "nominalCellBounds": [
+        1344,
+        0,
+        1792,
+        448
+      ],
+      "cellBounds": [
+        1344,
+        0,
+        1792,
+        448
+      ],
+      "trimBoundsInCell": [
+        93,
+        150,
+        366,
+        353
+      ],
+      "cropDimensions": [
+        273,
+        203
+      ],
+      "crop": "crops/car-steel-ne.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        9,
+        8,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        30,
+        22
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-steel-ne.png",
+      "logical": "logical/car-steel-ne.png",
+      "sha256": "57634b072edace2b8ff378d43fcdc5b7548e0fa3b849ca7136adeaa7a9598c3c"
+    },
+    {
+      "name": "car-wood-se",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 4,
+      "nominalCellBounds": [
+        0,
+        448,
+        448,
+        896
+      ],
+      "cellBounds": [
+        0,
+        448,
+        448,
+        896
+      ],
+      "trimBoundsInCell": [
+        94,
+        89,
+        372,
+        328
+      ],
+      "cropDimensions": [
+        278,
+        239
+      ],
+      "crop": "crops/car-wood-se.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        9,
+        4,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        30,
+        26
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-wood-se.png",
+      "logical": "logical/car-wood-se.png",
+      "sha256": "efa17b8a05a51d1f466a8cf132a2b2ef98fca5fb2c7a107b2a95954a0f841267"
+    },
+    {
+      "name": "car-wood-sw",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 5,
+      "nominalCellBounds": [
+        448,
+        448,
+        896,
+        896
+      ],
+      "cellBounds": [
+        448,
+        448,
+        896,
+        896
+      ],
+      "trimBoundsInCell": [
+        83,
+        91,
+        358,
+        327
+      ],
+      "cropDimensions": [
+        275,
+        236
+      ],
+      "crop": "crops/car-wood-sw.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        9,
+        4,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        30,
+        26
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-wood-sw.png",
+      "logical": "logical/car-wood-sw.png",
+      "sha256": "c0891811e9dabfd9ca91c7400a62134f6a73fe5a4dd0c5d5b4f68761364fbac9"
+    },
+    {
+      "name": "car-wood-nw",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 6,
+      "nominalCellBounds": [
+        896,
+        448,
+        1344,
+        896
+      ],
+      "cellBounds": [
+        896,
+        448,
+        1344,
+        896
+      ],
+      "trimBoundsInCell": [
+        80,
+        92,
+        350,
+        324
+      ],
+      "cropDimensions": [
+        270,
+        232
+      ],
+      "crop": "crops/car-wood-nw.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        10,
+        5,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        29,
+        25
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-wood-nw.png",
+      "logical": "logical/car-wood-nw.png",
+      "sha256": "e0b7eeb03d73e24c73d80cce4a9f70cbfc3a320becd305d918146a70edf542ed"
+    },
+    {
+      "name": "car-wood-ne",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 7,
+      "nominalCellBounds": [
+        1344,
+        448,
+        1792,
+        896
+      ],
+      "cellBounds": [
+        1344,
+        448,
+        1792,
+        896
+      ],
+      "trimBoundsInCell": [
+        94,
+        91,
+        362,
+        324
+      ],
+      "cropDimensions": [
+        268,
+        233
+      ],
+      "crop": "crops/car-wood-ne.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        10,
+        5,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        29,
+        25
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-wood-ne.png",
+      "logical": "logical/car-wood-ne.png",
+      "sha256": "9f73bae4f605c5cd8ad83a34253024d10dbd9a411fd51231c6a0f37520fd6079"
+    },
+    {
+      "name": "car-launch-se",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 8,
+      "nominalCellBounds": [
+        0,
+        896,
+        448,
+        1344
+      ],
+      "cellBounds": [
+        0,
+        896,
+        448,
+        1344
+      ],
+      "trimBoundsInCell": [
+        98,
+        71,
+        372,
+        287
+      ],
+      "cropDimensions": [
+        274,
+        216
+      ],
+      "crop": "crops/car-launch-se.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        9,
+        7,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        30,
+        23
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-launch-se.png",
+      "logical": "logical/car-launch-se.png",
+      "sha256": "2575fe4bb99cbcebaa245e7a30599d8d81572df2d9446256010951deadda8a76"
+    },
+    {
+      "name": "car-launch-sw",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 9,
+      "nominalCellBounds": [
+        448,
+        896,
+        896,
+        1344
+      ],
+      "cellBounds": [
+        448,
+        896,
+        896,
+        1344
+      ],
+      "trimBoundsInCell": [
+        82,
+        67,
+        356,
+        287
+      ],
+      "cropDimensions": [
+        274,
+        220
+      ],
+      "crop": "crops/car-launch-sw.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        9,
+        6,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        30,
+        24
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-launch-sw.png",
+      "logical": "logical/car-launch-sw.png",
+      "sha256": "ddefb3f7f956abdf792a98d4f046714c59bee07444f9b488a9b9cbce4c016e3f"
+    },
+    {
+      "name": "car-launch-nw",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 10,
+      "nominalCellBounds": [
+        896,
+        896,
+        1344,
+        1344
+      ],
+      "cellBounds": [
+        896,
+        896,
+        1344,
+        1344
+      ],
+      "trimBoundsInCell": [
+        72,
+        78,
+        357,
+        287
+      ],
+      "cropDimensions": [
+        285,
+        209
+      ],
+      "crop": "crops/car-launch-nw.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        8,
+        7,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        31,
+        23
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-launch-nw.png",
+      "logical": "logical/car-launch-nw.png",
+      "sha256": "c2c830b3c3cbca341df051c337aedaf49bc3ce229d25c58ea36a0770c0a645c7"
+    },
+    {
+      "name": "car-launch-ne",
+      "atlas": "cars",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 11,
+      "nominalCellBounds": [
+        1344,
+        896,
+        1792,
+        1344
+      ],
+      "cellBounds": [
+        1344,
+        896,
+        1792,
+        1344
+      ],
+      "trimBoundsInCell": [
+        87,
+        75,
+        371,
+        287
+      ],
+      "cropDimensions": [
+        284,
+        212
+      ],
+      "crop": "crops/car-launch-ne.png",
+      "logicalCanvas": [
+        48,
+        40
+      ],
+      "logicalPivot": [
+        24,
+        30
+      ],
+      "logicalBounds": [
+        8,
+        7,
+        39,
+        30
+      ],
+      "logicalVisibleDimensions": [
+        31,
+        23
+      ],
+      "sourceToLogicalScale": 0.1087866108786611,
+      "scaleGroup": "cars",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        192,
+        160
+      ],
+      "pivot": [
+        96,
+        120
+      ],
+      "asset": "assets/car-launch-ne.png",
+      "logical": "logical/car-launch-ne.png",
+      "sha256": "3ad8f98996262a1d07a779090067d751863fc1fb1bd4b69fff6645e347ffa7ba"
+    },
+    {
+      "name": "station-steel",
+      "atlas": "structures",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 0,
+      "nominalCellBounds": [
+        0,
+        0,
+        672,
+        672
+      ],
+      "cellBounds": [
+        0,
+        0,
+        672,
+        600
+      ],
+      "trimBoundsInCell": [
+        74,
+        115,
+        611,
+        570
+      ],
+      "cropDimensions": [
+        537,
+        455
+      ],
+      "crop": "crops/station-steel.png",
+      "logicalCanvas": [
+        72,
+        96
+      ],
+      "logicalPivot": [
+        36,
+        80
+      ],
+      "logicalBounds": [
+        4,
+        26,
+        68,
+        80
+      ],
+      "logicalVisibleDimensions": [
+        64,
+        54
+      ],
+      "sourceToLogicalScale": 0.11829944547134935,
+      "scaleGroup": "stations",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        288,
+        384
+      ],
+      "pivot": [
+        144,
+        320
+      ],
+      "asset": "assets/station-steel.png",
+      "logical": "logical/station-steel.png",
+      "sha256": "0528958e0e163a6a3495147210ebbe66e29f42e0d5ba3d96a24d38915a3a6719"
+    },
+    {
+      "name": "station-wood",
+      "atlas": "structures",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 1,
+      "nominalCellBounds": [
+        672,
+        0,
+        1344,
+        672
+      ],
+      "cellBounds": [
+        672,
+        0,
+        1344,
+        600
+      ],
+      "trimBoundsInCell": [
+        60,
+        115,
+        597,
+        575
+      ],
+      "cropDimensions": [
+        537,
+        460
+      ],
+      "crop": "crops/station-wood.png",
+      "logicalCanvas": [
+        72,
+        96
+      ],
+      "logicalPivot": [
+        36,
+        80
+      ],
+      "logicalBounds": [
+        4,
+        26,
+        68,
+        80
+      ],
+      "logicalVisibleDimensions": [
+        64,
+        54
+      ],
+      "sourceToLogicalScale": 0.11829944547134935,
+      "scaleGroup": "stations",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        288,
+        384
+      ],
+      "pivot": [
+        144,
+        320
+      ],
+      "asset": "assets/station-wood.png",
+      "logical": "logical/station-wood.png",
+      "sha256": "a95474f3c4abcd798d0b13eff6cc26bd3ca7c7ad5951241a4df2cefd0356a112"
+    },
+    {
+      "name": "station-launch",
+      "atlas": "structures",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 2,
+      "nominalCellBounds": [
+        1344,
+        0,
+        2016,
+        672
+      ],
+      "cellBounds": [
+        1344,
+        0,
+        2016,
+        600
+      ],
+      "trimBoundsInCell": [
+        51,
+        104,
+        592,
+        575
+      ],
+      "cropDimensions": [
+        541,
+        471
+      ],
+      "crop": "crops/station-launch.png",
+      "logicalCanvas": [
+        72,
+        96
+      ],
+      "logicalPivot": [
+        36,
+        80
+      ],
+      "logicalBounds": [
+        4,
+        24,
+        68,
+        80
+      ],
+      "logicalVisibleDimensions": [
+        64,
+        56
+      ],
+      "sourceToLogicalScale": 0.11829944547134935,
+      "scaleGroup": "stations",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        288,
+        384
+      ],
+      "pivot": [
+        144,
+        320
+      ],
+      "asset": "assets/station-launch.png",
+      "logical": "logical/station-launch.png",
+      "sha256": "d488b7f722531706a6a8d46f9d13dac43c77e6a7abebb9604ef4ccdcd0fd5ae9"
+    },
+    {
+      "name": "ride-swing",
+      "atlas": "structures",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 3,
+      "nominalCellBounds": [
+        0,
+        672,
+        672,
+        1344
+      ],
+      "cellBounds": [
+        0,
+        600,
+        672,
+        1344
+      ],
+      "trimBoundsInCell": [
+        99,
+        70,
+        584,
+        664
+      ],
+      "cropDimensions": [
+        485,
+        594
+      ],
+      "crop": "crops/ride-swing.png",
+      "logicalCanvas": [
+        128,
+        160
+      ],
+      "logicalPivot": [
+        64,
+        144
+      ],
+      "logicalBounds": [
+        10,
+        12,
+        118,
+        144
+      ],
+      "logicalVisibleDimensions": [
+        108,
+        132
+      ],
+      "sourceToLogicalScale": 0.2222222222222222,
+      "scaleGroup": "ride-swing",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        512,
+        640
+      ],
+      "pivot": [
+        256,
+        576
+      ],
+      "asset": "assets/ride-swing.png",
+      "logical": "logical/ride-swing.png",
+      "sha256": "2995fdfc2382002e063bde6afc35e0316f6585207de72ea66eefc9d970c9009c"
+    },
+    {
+      "name": "ride-drop",
+      "atlas": "structures",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 4,
+      "nominalCellBounds": [
+        672,
+        672,
+        1344,
+        1344
+      ],
+      "cellBounds": [
+        672,
+        600,
+        1344,
+        1344
+      ],
+      "trimBoundsInCell": [
+        212,
+        18,
+        456,
+        670
+      ],
+      "cropDimensions": [
+        244,
+        652
+      ],
+      "crop": "crops/ride-drop.png",
+      "logicalCanvas": [
+        96,
+        224
+      ],
+      "logicalPivot": [
+        48,
+        208
+      ],
+      "logicalBounds": [
+        12,
+        12,
+        85,
+        208
+      ],
+      "logicalVisibleDimensions": [
+        73,
+        196
+      ],
+      "sourceToLogicalScale": 0.3006134969325153,
+      "scaleGroup": "ride-drop",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        384,
+        896
+      ],
+      "pivot": [
+        192,
+        832
+      ],
+      "asset": "assets/ride-drop.png",
+      "logical": "logical/ride-drop.png",
+      "sha256": "9b132182d9e072f25e9732abcdec69706f6383c1918c8f5e26e104c876f2333f"
+    },
+    {
+      "name": "ride-pirate",
+      "atlas": "structures",
+      "atlasDimensions": [
+        2016,
+        1344
+      ],
+      "cellIndex": 5,
+      "nominalCellBounds": [
+        1344,
+        672,
+        2016,
+        1344
+      ],
+      "cellBounds": [
+        1344,
+        600,
+        2016,
+        1344
+      ],
+      "trimBoundsInCell": [
+        6,
+        104,
+        644,
+        659
+      ],
+      "cropDimensions": [
+        638,
+        555
+      ],
+      "crop": "crops/ride-pirate.png",
+      "logicalCanvas": [
+        160,
+        176
+      ],
+      "logicalPivot": [
+        80,
+        160
+      ],
+      "logicalBounds": [
+        6,
+        31,
+        154,
+        160
+      ],
+      "logicalVisibleDimensions": [
+        148,
+        129
+      ],
+      "sourceToLogicalScale": 0.23197492163009403,
+      "scaleGroup": "ride-pirate",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        640,
+        704
+      ],
+      "pivot": [
+        320,
+        640
+      ],
+      "asset": "assets/ride-pirate.png",
+      "logical": "logical/ride-pirate.png",
+      "sha256": "21a266c2a0b2521447f83a45d279463f851176e888ca54122f16e7bce0774998"
+    },
+    {
+      "name": "swing-canopy",
+      "atlas": "parts",
+      "atlasDimensions": [
+        1344,
+        2016
+      ],
+      "cellIndex": 0,
+      "nominalCellBounds": [
+        0,
+        0,
+        672,
+        672
+      ],
+      "cellBounds": [
+        0,
+        0,
+        672,
+        628
+      ],
+      "trimBoundsInCell": [
+        124,
+        52,
+        597,
+        585
+      ],
+      "cropDimensions": [
+        473,
+        533
+      ],
+      "crop": "crops/swing-canopy.png",
+      "logicalCanvas": [
+        128,
+        160
+      ],
+      "logicalPivot": [
+        64,
+        144
+      ],
+      "logicalBounds": [
+        6,
+        13,
+        122,
+        144
+      ],
+      "logicalVisibleDimensions": [
+        116,
+        131
+      ],
+      "sourceToLogicalScale": 0.2452431289640592,
+      "scaleGroup": "swing-canopy",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        512,
+        640
+      ],
+      "pivot": [
+        256,
+        576
+      ],
+      "asset": "assets/swing-canopy.png",
+      "logical": "logical/swing-canopy.png",
+      "sha256": "de18021efb7dba595eb729e47ad3e19fdaee6db9f5e0fe2b48f913e8691d3aac"
+    },
+    {
+      "name": "swing-seat",
+      "atlas": "parts",
+      "atlasDimensions": [
+        1344,
+        2016
+      ],
+      "cellIndex": 1,
+      "nominalCellBounds": [
+        672,
+        0,
+        1344,
+        672
+      ],
+      "cellBounds": [
+        672,
+        0,
+        1344,
+        628
+      ],
+      "trimBoundsInCell": [
+        267,
+        126,
+        389,
+        564
+      ],
+      "cropDimensions": [
+        122,
+        438
+      ],
+      "crop": "crops/swing-seat.png",
+      "logicalCanvas": [
+        28,
+        56
+      ],
+      "logicalPivot": [
+        14,
+        4
+      ],
+      "logicalBounds": [
+        8,
+        4,
+        21,
+        52
+      ],
+      "logicalVisibleDimensions": [
+        13,
+        48
+      ],
+      "sourceToLogicalScale": 0.1095890410958904,
+      "scaleGroup": "swing-seat",
+      "alignment": "top",
+      "fileScale": 4,
+      "canvas": [
+        112,
+        224
+      ],
+      "pivot": [
+        56,
+        16
+      ],
+      "asset": "assets/swing-seat.png",
+      "logical": "logical/swing-seat.png",
+      "sha256": "588c9fb800eb3c5adb42dab2d973230cb544a4ebd1b6ba284ec4da60025cc7d1"
+    },
+    {
+      "name": "drop-tower",
+      "atlas": "parts",
+      "atlasDimensions": [
+        1344,
+        2016
+      ],
+      "cellIndex": 2,
+      "nominalCellBounds": [
+        0,
+        672,
+        672,
+        1344
+      ],
+      "cellBounds": [
+        0,
+        628,
+        672,
+        1344
+      ],
+      "trimBoundsInCell": [
+        252,
+        39,
+        467,
+        679
+      ],
+      "cropDimensions": [
+        215,
+        640
+      ],
+      "crop": "crops/drop-tower.png",
+      "logicalCanvas": [
+        96,
+        224
+      ],
+      "logicalPivot": [
+        48,
+        208
+      ],
+      "logicalBounds": [
+        15,
+        12,
+        81,
+        208
+      ],
+      "logicalVisibleDimensions": [
+        66,
+        196
+      ],
+      "sourceToLogicalScale": 0.30625,
+      "scaleGroup": "drop-tower",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        384,
+        896
+      ],
+      "pivot": [
+        192,
+        832
+      ],
+      "asset": "assets/drop-tower.png",
+      "logical": "logical/drop-tower.png",
+      "sha256": "3472a2c561d2e95fc3b2c326dad3d72c4477ee6b08df2ee83ebd284bc6cc71c5"
+    },
+    {
+      "name": "drop-gondola",
+      "atlas": "parts",
+      "atlasDimensions": [
+        1344,
+        2016
+      ],
+      "cellIndex": 3,
+      "nominalCellBounds": [
+        672,
+        672,
+        1344,
+        1344
+      ],
+      "cellBounds": [
+        672,
+        628,
+        1344,
+        1344
+      ],
+      "trimBoundsInCell": [
+        159,
+        243,
+        506,
+        508
+      ],
+      "cropDimensions": [
+        347,
+        265
+      ],
+      "crop": "crops/drop-gondola.png",
+      "logicalCanvas": [
+        80,
+        64
+      ],
+      "logicalPivot": [
+        40,
+        32
+      ],
+      "logicalBounds": [
+        4,
+        3,
+        76,
+        58
+      ],
+      "logicalVisibleDimensions": [
+        72,
+        55
+      ],
+      "sourceToLogicalScale": 0.207492795389049,
+      "scaleGroup": "drop-gondola",
+      "alignment": "hole",
+      "fileScale": 4,
+      "canvas": [
+        320,
+        256
+      ],
+      "pivot": [
+        160,
+        128
+      ],
+      "asset": "assets/drop-gondola.png",
+      "logical": "logical/drop-gondola.png",
+      "sha256": "3e9c2ef9cbdd4039a4a8499bf71017cd1b2aecb369774debe52d3f047a044c91"
+    },
+    {
+      "name": "pirate-frame",
+      "atlas": "parts",
+      "atlasDimensions": [
+        1344,
+        2016
+      ],
+      "cellIndex": 4,
+      "nominalCellBounds": [
+        0,
+        1344,
+        672,
+        2016
+      ],
+      "cellBounds": [
+        0,
+        1344,
+        672,
+        2016
+      ],
+      "trimBoundsInCell": [
+        48,
+        28,
+        666,
+        543
+      ],
+      "cropDimensions": [
+        618,
+        515
+      ],
+      "crop": "crops/pirate-frame.png",
+      "logicalCanvas": [
+        160,
+        176
+      ],
+      "logicalPivot": [
+        80,
+        160
+      ],
+      "logicalBounds": [
+        6,
+        37,
+        154,
+        160
+      ],
+      "logicalVisibleDimensions": [
+        148,
+        123
+      ],
+      "sourceToLogicalScale": 0.23948220064724918,
+      "scaleGroup": "pirate-frame",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        640,
+        704
+      ],
+      "pivot": [
+        320,
+        640
+      ],
+      "asset": "assets/pirate-frame.png",
+      "logical": "logical/pirate-frame.png",
+      "sha256": "a29b4e61a6bf9be9ca3c3fb9d288e413b35392fda990bd8d31f55226a288ad7f"
+    },
+    {
+      "name": "pirate-ship",
+      "atlas": "parts",
+      "atlasDimensions": [
+        1344,
+        2016
+      ],
+      "cellIndex": 5,
+      "nominalCellBounds": [
+        672,
+        1344,
+        1344,
+        2016
+      ],
+      "cellBounds": [
+        672,
+        1344,
+        1344,
+        2016
+      ],
+      "trimBoundsInCell": [
+        67,
+        31,
+        626,
+        527
+      ],
+      "cropDimensions": [
+        559,
+        496
+      ],
+      "crop": "crops/pirate-ship.png",
+      "logicalCanvas": [
+        144,
+        144
+      ],
+      "logicalPivot": [
+        72,
+        16
+      ],
+      "logicalBounds": [
+        8,
+        8,
+        140,
+        125
+      ],
+      "logicalVisibleDimensions": [
+        132,
+        117
+      ],
+      "sourceToLogicalScale": 0.23613595706618962,
+      "scaleGroup": "pirate-ship",
+      "alignment": "hub",
+      "fileScale": 4,
+      "canvas": [
+        576,
+        576
+      ],
+      "pivot": [
+        288,
+        64
+      ],
+      "asset": "assets/pirate-ship.png",
+      "logical": "logical/pirate-ship.png",
+      "sha256": "524cc9c4bd2fbd9860b3a4cf69b9b372526b41945eb45067572a37f44fafd63b"
+    }
+  ],
+  "validation": {
+    "assetCount": 24,
+    "uniqueLogicalImages": 24,
+    "visualReview": {
+      "reviewed": [
+        "raw/cars.png",
+        "raw/structures.png",
+        "raw/parts.png",
+        "contact/cars-1x.png",
+        "contact/structures-1x.png",
+        "contact/parts-1x.png",
+        "contact/structures-2x.png",
+        "contact/parts-2x.png"
+      ],
+      "result": "24 isolated, readable game sprites with style and palette consistent with pixel-v2. All four car orientations and three types are distinct. Two transverse cream bench rows are visible. All six modular components are isolated without the other moving or static half. Tower finials retained after gutter correction.",
+      "limitations": [
+        "Individual passenger slots within each bench are not separated; two bench rows are the readable seating unit.",
+        "Modular pirate frame/ship are broadside and do not reproduce the complete static icon exact angled geometry.",
+        "A single swing-chair view is supplied; orbit and depth ordering remain renderer work.",
+        "These are fixed pixel projection assets; exact analytical 2:1 geometry and intercomponent perspective were not machine-verified."
+      ]
+    },
+    "technicalChecks": {
+      "exact4xNearestCopies": true,
+      "binaryAlpha": true,
+      "allCropsClearOfCellBoundaries": true,
+      "allFramesNonempty": true,
+      "count": 24
+    }
+  },
+  "assemblyHints": {
+    "units": "logical pixels; approximate attachment points measured from normalized sprite geometry",
+    "swing": {
+      "static": "swing-canopy",
+      "moving": "swing-seat",
+      "canopySuspensionEllipse": {
+        "center": [
+          64,
+          67
+        ],
+        "radius": [
+          53,
+          16
+        ]
+      },
+      "seatAttachment": [
+        14,
+        4
+      ],
+      "recommendedSeatCount": 6,
+      "notes": "Canopy includes stationary central mast and base. Each chair includes full chain; position its top pivot around the canopy ellipse, and depth-sort rear chairs behind canopy."
+    },
+    "drop": {
+      "static": "drop-tower",
+      "moving": "drop-gondola",
+      "towerTravelTop": [
+        48,
+        55
+      ],
+      "towerTravelBottom": [
+        48,
+        170
+      ],
+      "gondolaCenterHole": [
+        40,
+        32
+      ],
+      "notes": "Gondola transparent center hole is32logicalpixelswide. Tower is a separate sprite. Front seats may need foreground compositing for correct mast occlusion."
+    },
+    "pirate": {
+      "static": "pirate-frame",
+      "moving": "pirate-ship",
+      "frameAxle": [
+        80,
+        46
+      ],
+      "shipAxle": [
+        72,
+        16
+      ],
+      "notes": "Ship includes suspension arms and a top axle hub. Rotate the entire ship around its pivot. The moving component is drawn broadside, while the complete catalogue icon uses an angled view."
+    }
+  }
+}

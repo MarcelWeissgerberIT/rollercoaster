@@ -1,0 +1,146 @@
+{
+  "car-steel-se": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-steel-sw": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-steel-nw": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-steel-ne": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-wood-se": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-wood-sw": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-wood-nw": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-wood-ne": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-launch-se": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-launch-sw": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-launch-nw": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "car-launch-ne": {
+    "width": 48,
+    "height": 40,
+    "anchorX": 24,
+    "anchorY": 30
+  },
+  "station-steel": {
+    "width": 72,
+    "height": 96,
+    "anchorX": 36,
+    "anchorY": 80
+  },
+  "station-wood": {
+    "width": 72,
+    "height": 96,
+    "anchorX": 36,
+    "anchorY": 80
+  },
+  "station-launch": {
+    "width": 72,
+    "height": 96,
+    "anchorX": 36,
+    "anchorY": 80
+  },
+  "ride-swing": {
+    "width": 128,
+    "height": 160,
+    "anchorX": 64,
+    "anchorY": 144
+  },
+  "ride-drop": {
+    "width": 96,
+    "height": 224,
+    "anchorX": 48,
+    "anchorY": 208
+  },
+  "ride-pirate": {
+    "width": 160,
+    "height": 176,
+    "anchorX": 80,
+    "anchorY": 160
+  },
+  "swing-canopy": {
+    "width": 128,
+    "height": 160,
+    "anchorX": 64,
+    "anchorY": 144
+  },
+  "swing-seat": {
+    "width": 28,
+    "height": 56,
+    "anchorX": 14,
+    "anchorY": 4
+  },
+  "drop-tower": {
+    "width": 96,
+    "height": 224,
+    "anchorX": 48,
+    "anchorY": 208
+  },
+  "drop-gondola": {
+    "width": 80,
+    "height": 64,
+    "anchorX": 40,
+    "anchorY": 32
+  },
+  "pirate-frame": {
+    "width": 160,
+    "height": 176,
+    "anchorX": 80,
+    "anchorY": 160
+  },
+  "pirate-ship": {
+    "width": 144,
+    "height": 144,
+    "anchorX": 72,
+    "anchorY": 16
+  }
+}

@@ -1,5 +1,7 @@
 import {
   CATALOG,
+  trackCost,
+  buildingBaseCost,
   SIZE,
   ENTRANCE,
   access,
@@ -44,7 +46,7 @@ export function blueprint(origin: Point, rotation = 0): Point[] {
   return t.map((p) => {
     let { x, y } = p;
     for (let i = 0; i < rotation % 4; i++) [x, y] = [-y, x];
-    return { x: origin.x + x, y: origin.y + y, z: p.z };
+    return { ...p, x: origin.x + x, y: origin.y + y };
   });
 }
 export function planPlacement(
@@ -67,7 +69,7 @@ export function planPlacement(
     const b = occupant(s, p.x, p.y);
     return {
       ...plan,
-      cost: b ? -Math.round(CATALOG[b.kind].cost * 0.4) : 0,
+      cost: b ? -Math.round(buildingBaseCost(b) * 0.4) : 0,
       error: !b && p.x === ENTRANCE.x && p.y === ENTRANCE.y ? "Der Eingang bleibt erhalten" : null,
     };
   }
@@ -99,7 +101,9 @@ export function planPlacement(
         : tool === "queue"
           ? 18
           : 35
-    : CATALOG[tool as Kind].cost + (track ? track.length * 65 : 0);
+    : track
+      ? trackCost(track)
+      : CATALOG[tool as Kind].cost;
   plan.cost += plan.clearIds.length * 10;
   if (tool === "coaster") {
     const virtual = { ...s, buildings: s.buildings.filter((b) => !plan.clearIds.includes(b.id)) };
@@ -285,11 +289,13 @@ export function stationPositions(b: Building): Point[] {
       const prev = ring[(i + ring.length - 1) % ring.length],
         next = ring[(i + 1) % ring.length];
       return (
+        Number.isInteger(p.x) &&
+        Number.isInteger(p.y) &&
         (p.z ?? 0) === 0 &&
         (prev.z ?? 0) === 0 &&
         (next.z ?? 0) === 0 &&
-        prev.x + next.x === 2 * p.x &&
-        prev.y + next.y === 2 * p.y
+        Math.abs(prev.x + next.x - 2 * p.x) < 1e-5 &&
+        Math.abs(prev.y + next.y - 2 * p.y) < 1e-5
       );
     })
     .map((p) => ({ ...p }));
@@ -331,11 +337,8 @@ export function planStationMove(s: Park, b: Building, p: Point, clear = true): A
     i = ring.findIndex((q) => q.x === p.x && q.y === p.y && (q.z ?? 0) === 0);
   const reordered = [...ring.slice(i), ...ring.slice(0, i)].map((q) => ({ ...q }));
   const geometry = { x: p.x, y: p.y, track: [...reordered, { ...reordered[0] }] };
-  const error = validateTrack(
-    { ...s, buildings: s.buildings.filter((item) => item.id !== b.id) },
-    geometry.track,
-  );
-  return withConnection(s, b, { ...empty, geometry, changed: true, error }, clear);
+  // A cyclic reorder preserves every segment and its clearance. Only the entrance changes.
+  return withConnection(s, b, { ...empty, geometry, changed: true, error: null }, clear);
 }
 export function planRelocation(
   s: Park,
@@ -352,7 +355,12 @@ export function planRelocation(
       let x = q.x - b.x,
         y = q.y - b.y;
       for (let i = 0; i < turns; i++) [x, y] = [-y, x];
-      return { x: p.x + x, y: p.y + y, z: q.z };
+      return {
+        ...q,
+        x: p.x + x,
+        y: p.y + y,
+        heading: q.heading === undefined ? undefined : q.heading + (rotation * Math.PI) / 2,
+      };
     }),
   };
   const points = unique(footprint({ ...b, ...geometry }));

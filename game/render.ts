@@ -1,5 +1,7 @@
+import expansionSpecs from "./expansion-sprites.json";
 import {
   SIZE,
+  rideDuration,
   CATALOG,
   footprint,
   access,
@@ -45,6 +47,7 @@ type SpriteSpec = { width: number; height: number; anchorX: number; anchorY: num
 const sprites: Record<string, HTMLImageElement> = {};
 // Every number is in logical screen pixels for a 48 × 24 ground tile.
 const specs: Record<string, SpriteSpec> = {
+  ...expansionSpecs,
   wheel: { width: 152, height: 216, anchorX: 76, anchorY: 176 },
   carousel: { width: 104, height: 152, anchorX: 52, anchorY: 124 },
   burger: { width: 56, height: 88, anchorX: 28, anchorY: 60 },
@@ -82,7 +85,7 @@ export function loadSprites(base = "/assets/pixel-v2") {
             resolve();
           };
           im.onerror = () => reject(Error(name));
-          im.src = `${name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
+          im.src = `${name in expansionSpecs ? base.replace(/pixel-v2$/, "expansion-v4") : name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
         }),
     ),
   );
@@ -118,6 +121,32 @@ const motors = new WeakMap<Building, Spin & { time: number }>();
 const trains = new WeakMap<Building, TrainMotor & { track: Point[] }>();
 const routes = new WeakMap<Point[], RouteMotion>();
 const service = new WeakMap<Building, { served: number; time: number; value: number }>();
+const displayTracks = new WeakMap<Point[], Point[]>();
+function displayTrack(track: Point[]) {
+  if (track[0]?.smooth || track.length < 4) return track;
+  const cached = displayTracks.get(track);
+  if (cached) return cached;
+  const ring = track.slice(0, -1),
+    out: Point[] = [];
+  const mix = (a: Point, b: Point, t: number): Point => ({
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+    z: (a.z ?? 0) + ((b.z ?? 0) - (a.z ?? 0)) * t,
+    smooth: true,
+  });
+  for (let i = 0; i < ring.length; i++) {
+    const p = ring[i],
+      a = mix(p, ring[(i + ring.length - 1) % ring.length], 0.32),
+      b = mix(p, ring[(i + 1) % ring.length], 0.32);
+    for (let j = 0; j < 8; j++) {
+      const t = j / 8;
+      out.push(mix(mix(a, p, t), mix(p, b, t), t));
+    }
+  }
+  out.push({ ...out[0] });
+  displayTracks.set(track, out);
+  return out;
+}
 export function draw(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -278,6 +307,8 @@ export function draw(
     ctx.restore();
   };
   const rail = (a: Point, b: Point, ghost = false) => {
+    const wood = a.style === "wood",
+      launch = a.style === "launch";
     const pa = project(a.x, a.y, a.z ?? 0),
       pb = project(b.x, b.y, b.z ?? 0);
     const dx = pb.x - pa.x,
@@ -285,8 +316,8 @@ export function draw(
       len = Math.hypot(dx, dy) || 1,
       nx = (-dy / len) * 3.3 * scale,
       ny = (dx / len) * 3.3 * scale;
-    line(pa, pb, ghost ? "#ffc652" : "#763b2d", 9);
-    for (let t = 0.12; t < 1; t += 0.24) {
+    line(pa, pb, ghost ? "#ffc652" : wood ? "#7c522c" : "#334f4f", 7);
+    for (let t = 0.1; t < 1; t += Math.max(0.24, (7 * scale) / len)) {
       const x = pa.x + dx * t,
         y = pa.y + dy * t;
       line(
@@ -300,8 +331,8 @@ export function draw(
       line(
         { x: pa.x + nx * side, y: pa.y + ny * side },
         { x: pb.x + nx * side, y: pb.y + ny * side },
-        ghost ? "#fff3b9" : "#ed7650",
-        2.1,
+        ghost ? "#fff3b9" : wood ? "#dbc495" : launch ? "#49d4d1" : "#f07851",
+        2.7,
       );
   };
   const objects: Array<{ depth: number; draw: () => void }> = [];
@@ -327,7 +358,7 @@ export function draw(
     return next;
   };
   // Advance each motor once; translucent placement previews never affect running rides.
-  for (const b of s.buildings) if (b.kind === "wheel" || b.kind === "carousel") motor(b);
+  for (const b of s.buildings) if (isRide(b.kind) && b.kind !== "coaster") motor(b);
   const wheel = (b: Building, p: Point, alpha = 1) => {
     const spin = motors.get(b) ?? { angle: 0, velocity: 0 },
       angle = spin.angle,
@@ -395,18 +426,62 @@ export function draw(
       p = project(b.x + (n - 1) / 2, b.y + (n - 1) / 2);
     if (b.kind === "wheel") wheel(b, p, alpha);
     else if (b.kind === "carousel") carousel(b, p, alpha);
-    else frame(CATALOG[b.kind].sprite, p, specs[CATALOG[b.kind].sprite], alpha);
+    else if (b.kind === "swing") {
+      const phase = motor(b).angle,
+        spec = specs["swing-canopy"];
+      const center = { x: p.x + (64 - spec.anchorX) * scale, y: p.y + (67 - spec.anchorY) * scale };
+      const seats = Array.from({ length: 6 }, (_, i) => {
+        const a = phase + (i * Math.PI) / 3;
+        return {
+          x: center.x + Math.cos(a) * 53 * scale,
+          y: center.y + Math.sin(a) * 16 * scale,
+          back: Math.sin(a) < 0,
+          angle: Math.cos(a) * Math.min(0.35, motor(b).velocity * 0.2),
+        };
+      });
+      const chair = (q: (typeof seats)[number]) =>
+        frame("swing-seat", q, { ...specs["swing-seat"], anchorX: 14, anchorY: 4 }, alpha, q.angle);
+      seats.filter((q) => q.back).forEach(chair);
+      frame("swing-canopy", p, spec, alpha);
+      seats.filter((q) => !q.back).forEach(chair);
+    } else if (b.kind === "drop") {
+      const spec = specs["drop-tower"];
+      frame("drop-tower", p, spec, alpha);
+      const phase = b.open && b.riders.length ? 1 - b.cycle / CATALOG.drop.duration : 0;
+      const elevation =
+        phase < 0.6 ? phase / 0.6 : phase < 0.72 ? 1 : Math.max(0, 1 - ((phase - 0.72) / 0.2) ** 2);
+      frame(
+        "drop-gondola",
+        {
+          x: p.x + (48 - spec.anchorX) * scale,
+          y: p.y + (170 - elevation * 115 - spec.anchorY) * scale,
+        },
+        { ...specs["drop-gondola"], anchorX: 40, anchorY: 32 },
+        alpha,
+      );
+    } else if (b.kind === "pirate") {
+      const spec = specs["pirate-frame"],
+        spin = motor(b);
+      frame("pirate-frame", p, spec, alpha);
+      frame(
+        "pirate-ship",
+        { x: p.x + (80 - spec.anchorX) * scale, y: p.y + (46 - spec.anchorY) * scale },
+        { ...specs["pirate-ship"], anchorX: 72, anchorY: 16 },
+        alpha,
+        Math.sin(spin.angle) * Math.min(0.9, spin.velocity),
+      );
+    } else frame(CATALOG[b.kind].sprite, p, specs[CATALOG[b.kind].sprite], alpha);
   };
   for (const b of s.buildings) {
     const firstObject = objects.length;
     if (b.id === v.selected) for (const p of footprint(b)) tile(p.x, p.y, "#ffef9166", "#fff0bb");
     if (b.kind === "coaster") {
-      const pts = b.track ?? [];
+      const pts = displayTrack(b.track ?? []);
       for (let i = 1; i < pts.length; i++) {
         const a = pts[i - 1],
           b = pts[i],
           depth = (a.x + a.y + b.x + b.y) / 2;
-        if ((a.z ?? 0) > 0)
+        if ((a.z ?? 0) > 0 && (!a.smooth || i % 8 === 0))
           objects.push({
             depth: a.x + a.y - 0.02,
             draw: () => {
@@ -415,20 +490,20 @@ export function draw(
               line(
                 { x: base.x - 3 * scale, y: base.y },
                 { x: top.x - 3 * scale, y: top.y },
-                "#b6c2bc",
-                2,
+                a.style === "wood" ? "#a17b43" : "#418a85",
+                4,
               );
               line(
                 { x: base.x + 3 * scale, y: base.y },
                 { x: top.x + 3 * scale, y: top.y },
-                "#647974",
-                2,
+                a.style === "wood" ? "#79542e" : "#235f60",
+                4,
               );
               line(
                 { x: base.x - 3 * scale, y: base.y },
                 { x: top.x + 3 * scale, y: top.y },
-                "#83928b",
-                1,
+                a.style === "wood" ? "#ad8550" : "#4d928b",
+                2,
               );
             },
           });
@@ -446,7 +521,7 @@ export function draw(
         const progress = b.testing
           ? 1 - b.testing / 8
           : b.open && b.riders.length && access(s, b, net)
-            ? 1 - b.cycle / CATALOG.coaster.duration
+            ? 1 - b.cycle / rideDuration(b)
             : 0;
         const desired = trainDistance(route, progress),
           running = !!b.testing || !!(b.open && b.riders.length && access(s, b, net));
@@ -464,23 +539,28 @@ export function draw(
         trains.set(b, { ...motor, track: pts });
         const head = motor.angle;
         for (let car = 0; car < 4; car++) {
-          const q = routePosition(route, head - car * 0.55);
+          const q = routePosition(route, head - car * 0.74);
           objects.push({
             depth: q.x + q.y + (q.z ?? 0) * 0.035 + 0.15,
             draw: () =>
               frame(
-                `car-${heading(q.dx, q.dy)}`,
+                `car-${pts[0]?.style ?? "steel"}-${heading(q.dx, q.dy)}`,
                 project(q.x, q.y, q.z),
                 { width: 48, height: 40, anchorX: 24, anchorY: 30 },
                 1,
-                -q.pitch * 0.12 * Math.sign(q.dx - q.dy),
+                -Math.atan(q.pitch) * 0.8 * Math.sign(q.dx - q.dy),
               ),
           });
         }
       }
       objects.push({
         depth: b.x + b.y - 0.15,
-        draw: () => frame("station", project(b.x, b.y), specs.station),
+        draw: () =>
+          frame(
+            `station-${pts[0]?.style ?? "steel"}`,
+            project(b.x, b.y),
+            specs[`station-${pts[0]?.style ?? "steel"}`],
+          ),
       });
     } else {
       const n = CATALOG[b.kind].size;
@@ -659,10 +739,31 @@ export function draw(
   if (v.draft.length && v.adjustment?.mode !== "station") {
     for (let i = 1; i < v.draft.length; i++) rail(v.draft[i - 1], v.draft[i], true);
     v.draft.forEach((p, i) => {
+      if (i !== 0 && i !== v.draft.length - 1 && p.smooth) return;
       const q = project(p.x, p.y, p.z ?? 0);
       ctx.fillStyle = i === 0 ? "#fff7cd" : "#ffd66b";
       ctx.fillRect(q.x - 2 * scale, q.y - 2 * scale, 4 * scale, 4 * scale);
     });
+  }
+  if (v.draft.length && v.tool === "coaster") {
+    const end = v.draft.at(-1)!,
+      a = project(end.x, end.y, end.z ?? 0),
+      heading = end.heading ?? 0,
+      b = project(end.x + Math.cos(heading) * 0.8, end.y + Math.sin(heading) * 0.8, end.z ?? 0);
+    line(a, b, "#fff1a6", 4);
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+    line(
+      b,
+      { x: b.x - Math.cos(angle - 0.6) * 9 * scale, y: b.y - Math.sin(angle - 0.6) * 9 * scale },
+      "#fff1a6",
+      3,
+    );
+    line(
+      b,
+      { x: b.x - Math.cos(angle + 0.6) * 9 * scale, y: b.y - Math.sin(angle + 0.6) * 9 * scale },
+      "#fff1a6",
+      3,
+    );
   }
   const hover = v.adjustment ? v.adjustment.geometry : v.hover;
   if (hover && v.tool !== "select") {
@@ -704,7 +805,12 @@ export function draw(
       if (v.adjustment && !v.preview?.error) {
         const pending = { ...v.adjustment.building, ...v.adjustment.geometry, id: -1, open: false };
         if (pending.kind === "coaster")
-          frame("station", project(pending.x, pending.y), specs.station, 0.85);
+          frame(
+            `station-${pending.track?.[0]?.style ?? "steel"}`,
+            project(pending.x, pending.y),
+            specs[`station-${pending.track?.[0]?.style ?? "steel"}`],
+            0.85,
+          );
         else drawBuilding(pending, 0.65);
       }
       if (d && v.tool !== "coaster")

@@ -1399,3 +1399,264 @@ button:hover:not(:disabled) {
   flex-shrink: 0;
   margin-top: 2px;
 }
+
+.coaster-types {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin-bottom: 12px;
+}
+.coaster-types button {
+  border: 1px solid #dce4d3;
+  border-radius: 10px;
+  padding: 4px 2px 8px;
+  background: #eff2e6;
+  font-size: 11px;
+  cursor: pointer;
+}
+.coaster-types img {
+  width: 70px;
+  height: 52px;
+  object-fit: contain;
+  margin: auto;
+  image-rendering: pixelated;
+}
+.coaster-types strong {
+  display: block;
+}
+.coaster-types button.active,
+.prefab-grid button.active {
+  background: #e3edda;
+  border-color: #39744f;
+  box-shadow: inset 0 0 0 1px #39744f;
+}
+.coaster-types button:disabled {
+  cursor: default;
+}
+.prefab-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 12px 0;
+}
+.prefab-grid button {
+  padding: 9px;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  grid-template-rows: auto auto;
+  gap: 2px 6px;
+  text-align: left;
+  border: 1px solid #d4dfcc;
+  border-radius: 10px;
+  background: #f2f5eb;
+  cursor: pointer;
+}
+.prefab-grid button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.prefab-grid strong {
+  font-size: 13px;
+}
+.prefab-grid small {
+  font-size: 11px;
+  color: #658065;
+}
+.piece-glyph {
+  font-size: 30px;
+  grid-row: span 2;
+  line-height: 1.2;
+  color: #2b6c4b;
+}
+.text-action {
+  font-size: 12px;
+  color: #567452;
+  text-decoration: underline;
+  padding: 8px;
+  cursor: pointer;
+}
+.ride-launch {
+  width: 100%;
+  margin: 10px 0;
+}
+.ride-modal[data-slot] {
+  width: calc(100vw - 32px);
+  max-width: 1440px;
+  height: calc(100dvh - 32px);
+  max-height: 940px;
+  padding: 0;
+  overflow: hidden;
+  background: #f7f8ed;
+  border: 1px solid #66856d;
+  gap: 0;
+  display: block;
+}
+.ride-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.ride-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: #173f32;
+  color: #fff;
+  gap: 12px;
+}
+.ride-top h2 {
+  font-family: Georgia, serif;
+  font-size: 25px;
+  margin: 0;
+}
+.ride-top .eyebrow {
+  font-size: 10px;
+  color: #bdd5b1;
+  letter-spacing: 2px;
+}
+.ride-top .secondary {
+  background: #285544;
+  color: #fff;
+  border-color: #688271;
+  font-size: 13px;
+}
+.ride-scene {
+  flex: 1;
+  min-height: 160px;
+  position: relative;
+}
+.ride-scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ride-hud {
+  position: absolute;
+  top: 100px;
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: white;
+  text-shadow: 0 2px 5px #12392b;
+  background: #183f32c9;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 12px;
+  pointer-events: none;
+}
+.ride-hud strong {
+  font-size: 25px;
+  font-variant-numeric: tabular-nums;
+}
+.ride-hud span {
+  margin: 0 4px;
+}
+.ride-controls {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px 4px;
+}
+.ride-controls .build-modes {
+  margin: 0;
+}
+.ride-controls .primary,
+.ride-controls .secondary {
+  padding: 10px 15px;
+  min-height: 42px;
+}
+.ride-caption {
+  margin: 4px 12px 12px;
+  text-align: center;
+  color: #6b7a63;
+  font-size: 12px;
+}
+.ride-error {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 25px;
+  background: #fffae9;
+  border-radius: 16px;
+  width: min(90%, 440px);
+}
+.ride-error p {
+  margin: 12px 0;
+}
+.ride-loading {
+  padding: 80px;
+  text-align: center;
+}
+@media (max-width: 640px) {
+  .ride-modal[data-slot] {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+  }
+  .ride-top {
+    padding: 12px;
+  }
+  .ride-top h2 {
+    font-size: 20px;
+  }
+  .ride-top .secondary {
+    font-size: 11px;
+    padding: 8px;
+  }
+  .ride-controls {
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .ride-controls .build-modes button {
+    padding: 8px;
+    font-size: 12px;
+  }
+  .ride-caption {
+    font-size: 10px;
+  }
+  .ride-hud {
+    top: 90px;
+    left: 12px;
+  }
+}
+
+.ride-controls .primary {
+  width: auto;
+  min-width: 110px;
+}
+.ride-controls .secondary {
+  width: auto;
+}
+.ride-controls .build-modes {
+  flex: 0 1 auto;
+}
+
+.prefab-grid,
+.coaster-types {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.coaster-types {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.prefab-grid button {
+  grid-template-columns: 24px minmax(0, 1fr);
+  padding: 8px 6px;
+}
+.prefab-grid strong {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.prefab-grid small {
+  font-size: 10px;
+}
+.piece-glyph {
+  font-size: 24px;
+}
+.coaster-types img {
+  max-width: 100%;
+}
