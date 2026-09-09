@@ -3348,6 +3348,16 @@ button:hover:not(:disabled) {
   fill: color-mix(in srgb, var(--pm8-color) var(--pm8-shade, 25%), var(--pm8-wash));
   stroke: #fffaf0;
   stroke-width: 1.5px;
+  transition:
+    fill 130ms ease,
+    stroke 130ms ease;
+}
+.pm8-item-sector {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 .pm8-heading {
   pointer-events: auto;
@@ -3400,42 +3410,55 @@ button:hover:not(:disabled) {
 .pm8-item {
   pointer-events: auto;
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  clip-path: var(--pm8-clip);
+  background: transparent;
+  color: var(--pm8-dark);
+  font-size: 11px;
+  line-height: 1.15;
+  font-weight: 650;
+  text-align: center;
+}
+.pm8-label {
+  position: absolute;
   left: var(--pm8-x);
   top: var(--pm8-y);
   transform: translate(-50%, -50%);
   width: 84px;
   min-height: 74px;
   padding: 6px 3px;
-  border: 1px solid transparent;
-  border-radius: 20px;
-  background: transparent;
-  color: var(--pm8-dark);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  font-size: 11px;
-  line-height: 1.15;
-  font-weight: 650;
-  text-align: center;
-  transition:
-    background 130ms,
-    box-shadow 130ms;
+  pointer-events: none;
 }
 .pm8-group {
-  width: 88px;
   font-size: 13px;
+}
+.pm8-group .pm8-label {
+  width: 88px;
   gap: 9px;
 }
-.pm8-item > span:last-child {
+.pm8-label > span:last-child {
   overflow-wrap: anywhere;
   max-width: 100%;
 }
-.pm8-item:hover:not(:disabled),
+.pm8-item:hover:not(:disabled) .pm8-sector,
+.pm8-item:focus-visible .pm8-sector {
+  fill: color-mix(in srgb, var(--pm8-color) 72%, var(--pm8-wash));
+  stroke: color-mix(in srgb, var(--pm8-dark) 45%, var(--pm8-color));
+  stroke-width: 3px;
+}
 .pm8-item:focus-visible {
-  background: #fffdf6bd;
-  box-shadow: 0 5px 15px #34493f10;
+  outline: none;
 }
 .pm8-icon {
   position: relative;
@@ -3453,15 +3476,19 @@ button:hover:not(:disabled) {
   width: 30px;
   height: 30px;
 }
-.pm8-item.is-active {
-  background: #fffdf3d9;
-  border-color: color-mix(in srgb, var(--pm8-dark) 24%, transparent);
-  box-shadow: 0 3px 10px #34493f10;
+.pm8-item.is-active .pm8-sector,
+.pm8-item.has-active .pm8-sector {
+  fill: color-mix(in srgb, var(--pm8-color) 60%, var(--pm8-wash));
+  stroke: var(--pm8-dark);
+  stroke-width: 3px;
 }
-.pm8-item.has-active .pm8-icon {
-  background: #fffdf4c9;
-  box-shadow: 0 0 0 5px #fffdf4c9;
-  border-radius: 50%;
+.pm8-item.is-active:hover .pm8-sector,
+.pm8-item.has-active:hover .pm8-sector {
+  fill: color-mix(in srgb, var(--pm8-color) 85%, var(--pm8-wash));
+}
+.pm8 .pm8-item:focus-visible .pm8-sector {
+  stroke: var(--pm8-dark);
+  stroke-width: 5px;
 }
 .pm8-icon > svg.pm8-check {
   position: absolute;
@@ -3619,7 +3646,8 @@ button:hover:not(:disabled) {
     overflow-y: auto;
     overscroll-behavior: contain;
   }
-  .pm8-wheel {
+  .pm8-wheel,
+  .pm8-item-sector {
     display: none;
   }
   .pm8-heading {
@@ -3656,7 +3684,9 @@ button:hover:not(:disabled) {
     transform: none;
     width: auto;
     min-width: 0;
+    height: auto;
     min-height: 70px;
+    clip-path: none;
     border-radius: 18px;
     padding: 10px 8px;
     flex-direction: row;
@@ -3665,6 +3695,21 @@ button:hover:not(:disabled) {
     background: color-mix(in srgb, var(--pm8-color) var(--pm8-shade, 18%), var(--pm8-wash));
     font-size: 12px;
     text-align: left;
+  }
+  .pm8-label,
+  .pm8-group .pm8-label {
+    position: static;
+    transform: none;
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .pm8-item:focus-visible {
+    outline: 3px solid var(--pm8-dark);
+    outline-offset: 2px;
   }
   .pm8-group {
     min-height: 76px;

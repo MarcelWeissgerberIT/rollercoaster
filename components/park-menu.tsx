@@ -174,10 +174,29 @@ function wedge(index: number, count: number) {
   const d = coordinates(180 - index * step - gap, 88);
   return `M${a.x},${a.y} A212,212 0 0 1 ${b.x},${b.y} L${c.x},${c.y} A88,88 0 0 0 ${d.x},${d.y} Z`;
 }
+function Sector({ index, count }: { index: number; count: number }) {
+  return (
+    <svg className="pm8-item-sector" viewBox="0 0 440 244" aria-hidden="true">
+      <path className="pm8-sector" d={wedge(index, count)} />
+    </svg>
+  );
+}
 function tileStyle(index: number, count: number, shade: number): CSSProperties {
   const angle = 180 - ((index + 0.5) * 180) / count;
   const p = coordinates(angle, count <= 4 ? 150 : 162);
+  // Match the visible annular wedge, including its gaps, for pointer hit testing.
+  const start = 180 - (index * 180) / count - 1.6;
+  const end = 180 - ((index + 1) * 180) / count + 1.6;
+  const steps = Math.ceil((start - end) / 2);
+  const points = [212, 88].flatMap((radius, ring) =>
+    Array.from({ length: steps + 1 }, (_, i) => {
+      const t = ring === 0 ? i / steps : 1 - i / steps;
+      const point = coordinates(start + (end - start) * t, radius);
+      return `${(point.x / 440) * 100}% ${(point.y / 244) * 100}%`;
+    }),
+  );
   return {
+    "--pm8-clip": `polygon(${points.join(",")})`,
     "--pm8-x": `${(p.x / 440) * 100}%`,
     "--pm8-y": `${(p.y / 244) * 100}%`,
     "--pm8-shade": `${8 + shade * 8}%`,
@@ -367,16 +386,6 @@ export default function ParkMenu({ actions, open, setOpen }: Props) {
           </div>
           <svg className="pm8-wheel" viewBox="0 0 440 244" aria-hidden="true">
             <path className="pm8-wheel-base" d="M3 244 A217 217 0 0 1 437 244 Z" />
-            {(current ? visible : [...entries, ...(demolition ? [{ id: "demolition" }] : [])]).map(
-              (item, i, list) => (
-                <path
-                  key={item.id}
-                  className={`pm8-sector pm8-${current?.id ?? item.id}`}
-                  style={{ "--pm8-shade": `${8 + i * 8}%` } as CSSProperties}
-                  d={wedge(i, list.length)}
-                />
-              ),
-            )}
           </svg>
           <div className="pm8-items">
             {current
@@ -393,19 +402,21 @@ export default function ParkMenu({ actions, open, setOpen }: Props) {
                       aria-label={a.label}
                       aria-pressed={a.active === undefined ? undefined : a.active}
                       aria-describedby={tipId}
-                      title={detail(a)}
                       onMouseEnter={() => setTip(detail(a))}
                       onMouseLeave={() => setTip("")}
                       onFocus={() => setTip(detail(a))}
                       onBlur={() => setTip("")}
                       onClick={() => run(a)}
                     >
-                      <span className="pm8-icon">
-                        <Icon size={27} strokeWidth={1.8} />
-                        {a.active && <Check className="pm8-check" size={12} />}
-                        {a.badge && <i className="pm8-dot" />}
+                      <Sector index={i} count={visible.length} />
+                      <span className="pm8-label">
+                        <span className="pm8-icon">
+                          <Icon size={27} strokeWidth={1.8} />
+                          {a.active && <Check className="pm8-check" size={12} />}
+                          {a.badge && <i className="pm8-dot" />}
+                        </span>
+                        <span>{shortLabel(a)}</span>
                       </span>
-                      <span>{shortLabel(a)}</span>
                     </button>
                   );
                 })
@@ -418,7 +429,6 @@ export default function ParkMenu({ actions, open, setOpen }: Props) {
                     style={tileStyle(i, rootCount, i)}
                     aria-label={`${g.label}: ${g.description}`}
                     aria-expanded={false}
-                    title={g.description}
                     aria-describedby={tipId}
                     onMouseEnter={() => setTip(g.description)}
                     onMouseLeave={() => setTip("")}
@@ -430,12 +440,17 @@ export default function ParkMenu({ actions, open, setOpen }: Props) {
                       setTip("");
                     }}
                   >
-                    <span className="pm8-icon">
-                      <g.Icon size={30} strokeWidth={1.65} />
-                      {g.actions.some((a) => a.active) && <Check className="pm8-check" size={12} />}
-                      {g.actions.some((a) => a.badge) && <i className="pm8-dot" />}
+                    <Sector index={i} count={rootCount} />
+                    <span className="pm8-label">
+                      <span className="pm8-icon">
+                        <g.Icon size={30} strokeWidth={1.65} />
+                        {g.actions.some((a) => a.active) && (
+                          <Check className="pm8-check" size={12} />
+                        )}
+                        {g.actions.some((a) => a.badge) && <i className="pm8-dot" />}
+                      </span>
+                      <span>{g.label}</span>
                     </span>
-                    <span>{g.label}</span>
                   </button>
                 ))}
             {!current && demolition && (
@@ -448,18 +463,20 @@ export default function ParkMenu({ actions, open, setOpen }: Props) {
                 aria-label="Abreißen"
                 aria-pressed={demolition.active === undefined ? undefined : demolition.active}
                 aria-describedby={tipId}
-                title={detail(demolition)}
                 onMouseEnter={() => setTip(detail(demolition))}
                 onMouseLeave={() => setTip("")}
                 onFocus={() => setTip(detail(demolition))}
                 onBlur={() => setTip("")}
                 onClick={() => run(demolition)}
               >
-                <span className="pm8-icon">
-                  <Bulldozer size={30} />
-                  {demolition.active && <Check className="pm8-check" size={12} />}
+                <Sector index={entries.length} count={rootCount} />
+                <span className="pm8-label">
+                  <span className="pm8-icon">
+                    <Bulldozer size={30} />
+                    {demolition.active && <Check className="pm8-check" size={12} />}
+                  </span>
+                  <span>Abreißen</span>
                 </span>
-                <span>Abreißen</span>
               </button>
             )}
           </div>
