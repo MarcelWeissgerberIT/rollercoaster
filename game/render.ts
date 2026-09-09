@@ -1264,8 +1264,13 @@ export function draw(
           1,
           moving ? Math.sin((old.phase * Math.PI) / 2) * 0.018 : 0,
         );
-        if (v.showMoods !== false) {
+        // Four seconds per twenty-second cycle, staggered by stable guest IDs.
+        // Simulation time keeps the cues still when paused and stable across saves.
+        const moodPhase = (s.time + ((g.id * 7) % 20)) % 20;
+        const moodAlpha = Math.max(0, Math.min(1, moodPhase / 0.35, (4 - moodPhase) / 0.5));
+        if (v.showMoods !== false && moodAlpha > 0) {
           ctx.save();
+          ctx.globalAlpha *= moodAlpha;
           ctx.translate(p.x, p.y - 29 * scale);
           ctx.scale(scale, scale);
           ctx.fillStyle = g.happiness >= 75 ? "#b8e38d" : g.happiness >= 45 ? "#ffe195" : "#f3967a";

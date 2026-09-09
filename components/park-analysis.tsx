@@ -56,9 +56,12 @@ export default function ParkAnalysis({
           <span>Volle / alle Eimer</span>
         </div>
       </div>
-      <label className="vehicle-alternating">
+      <label
+        className="vehicle-alternating"
+        title="Abwechselnd bei etwa jedem fünften Gast, mit sanftem Ein- und Ausblenden."
+      >
         <input type="checkbox" checked={moods} onChange={(e) => onMoods(e.target.checked)} />
-        Stimmung über den Gästen anzeigen
+        Stimmung gelegentlich anzeigen
       </label>
       <div className="analysis-actions">
         <button className="secondary" onClick={onBin}>
