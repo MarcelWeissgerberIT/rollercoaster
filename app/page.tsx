@@ -1,4 +1,5 @@
-"use client";
+import { habitatViewingSpots } from "../game/zoo-access";
+("use client");
 import { ZooOverview, HabitatPanel } from "../components/zoo-panel";
 import {
   isHabitat,
@@ -966,7 +967,7 @@ export default function Home() {
         notify(
           access(s, b)
             ? "Position übernommen. Der Weg ist erreichbar – du kannst die Attraktion öffnen."
-            : "Position übernommen. Verbinde jetzt den neuen Eingang mit dem Wegenetz.",
+            : "Position übernommen. Verbinde den neuen Standort mit dem Wegenetz.",
         );
       });
       return;
@@ -2320,13 +2321,17 @@ export default function Home() {
                                   : !reachable
                                     ? isRide(b.kind)
                                       ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
-                                      : "Ein erreichbarer Parkweg fehlt."
+                                      : isHabitat(b.kind)
+                                        ? "Ein normaler Besucherweg am Zaun fehlt."
+                                        : "Ein erreichbarer Parkweg fehlt."
                                     : b.testing
                                       ? "Testfahrt läuft …"
                                       : !b.tested
                                         ? "Bereit für die Testfahrt."
                                         : b.open
-                                          ? "Geöffnet · Besucher sind willkommen."
+                                          ? isHabitat(b.kind)
+                                            ? "Geöffnet · Tiere vom Besucherweg beobachten."
+                                            : "Geöffnet · Besucher sind willkommen."
                                           : "Geschlossen · Bereit zur Eröffnung."}
                       </div>
                       {(isAttraction(b.kind) ||
@@ -3124,7 +3129,9 @@ export default function Home() {
                           <p className="small">
                             {connection.error ??
                               (reachable
-                                ? "Vorhandener Zugang wird verwendet. Keine Baukosten."
+                                ? isHabitat(b.kind)
+                                  ? "Der Besucherweg am Zaun wird verwendet. Keine Baukosten."
+                                  : "Vorhandener Zugang wird verwendet. Keine Baukosten."
                                 : `${connection.points.length} Wegfelder${connection.clearIds.length ? ` · ${connection.clearIds.length} Deko freiräumen` : ""}`)}
                           </p>
                           {connection.error && recommendedStation && (
@@ -3144,43 +3151,83 @@ export default function Home() {
                       )}
                       {!decorative(b.kind) && (
                         <>
-                          <div className="detailstats">
-                            <div>
-                              <span>Gäste bedient</span>
-                              <strong>{b.served}</strong>
-                            </div>
-                            <div>
-                              <span>Einnahmen</span>
-                              <strong>{EUR(b.revenue)}</strong>
-                            </div>
-                          </div>
-                          <div className="controlrow">
-                            <span>{isTransport(b.kind) ? "Fahrpreis" : "Preis pro Besuch"}</span>
-                            <strong>{EUR(b.price)}</strong>
-                          </div>
-                          <Slider
-                            aria-label="Fahrpreis"
-                            min={0}
-                            max={30}
-                            step={1}
-                            value={[b.price]}
-                            onValueChange={(v) =>
-                              changeBuilding((b) => (b.price = Array.isArray(v) ? v[0] : v))
-                            }
-                          />
-                          {!decorative(b.kind) && (
-                            <div className="controlrow">
-                              <span>Warteschlange</span>
-                              <strong>
-                                {b.queue.length} /{" "}
-                                {isAttraction(b.kind)
-                                  ? queueCapacity(snapshot, b)
-                                  : isTransport(b.kind)
-                                    ? 16
-                                    : 6}{" "}
-                                {!isTransport(b.kind) && `· ~${Math.ceil(expectedWait(b))} s`}
-                              </strong>
-                            </div>
+                          {isHabitat(b.kind) ? (
+                            <>
+                              <div className="detailstats">
+                                <div>
+                                  <span>Tierbeobachtungen</span>
+                                  <strong>{b.served}</strong>
+                                </div>
+                                <div>
+                                  <span>Gäste am Zaun</span>
+                                  <strong>
+                                    {
+                                      snapshot.guests.filter(
+                                        (g) => g.target === b.id && g.state === "observe",
+                                      ).length
+                                    }
+                                  </strong>
+                                </div>
+                              </div>
+                              <p className="direct-access">
+                                {habitatViewingSpots(snapshot, b).length} erreichbare Wegfelder am
+                                Zaun
+                              </p>
+                              <p className="small">
+                                Normale Parkwege an jeder Zaunseite ermöglichen den Blick ins
+                                Gehege. Gäste bleiben draußen und beobachten die Tiere ohne
+                                Warteschlange. Der Besuch ist im Parkeintritt enthalten.
+                              </p>
+                              <button
+                                className="secondary"
+                                onClick={() => pickTool("path", "paths")}
+                              >
+                                <Route size={16} /> Besucherweg am Zaun bauen
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="detailstats">
+                                <div>
+                                  <span>Gäste bedient</span>
+                                  <strong>{b.served}</strong>
+                                </div>
+                                <div>
+                                  <span>Einnahmen</span>
+                                  <strong>{EUR(b.revenue)}</strong>
+                                </div>
+                              </div>
+                              <div className="controlrow">
+                                <span>
+                                  {isTransport(b.kind) ? "Fahrpreis" : "Preis pro Besuch"}
+                                </span>
+                                <strong>{EUR(b.price)}</strong>
+                              </div>
+                              <Slider
+                                aria-label="Fahrpreis"
+                                min={0}
+                                max={30}
+                                step={1}
+                                value={[b.price]}
+                                onValueChange={(v) =>
+                                  changeBuilding((b) => (b.price = Array.isArray(v) ? v[0] : v))
+                                }
+                              />
+                              {!decorative(b.kind) && (
+                                <div className="controlrow">
+                                  <span>Warteschlange</span>
+                                  <strong>
+                                    {b.queue.length} /{" "}
+                                    {isAttraction(b.kind)
+                                      ? queueCapacity(snapshot, b)
+                                      : isTransport(b.kind)
+                                        ? 16
+                                        : 6}{" "}
+                                    {!isTransport(b.kind) && `· ~${Math.ceil(expectedWait(b))} s`}
+                                  </strong>
+                                </div>
+                              )}
+                            </>
                           )}
                           {b.kind === "coaster" && b.track && (
                             <>
@@ -3242,7 +3289,11 @@ export default function Home() {
                               onClick={() => changeBuilding((b) => (b.open = !b.open))}
                             >
                               {b.open ? <Pause size={16} /> : <Play size={16} />}{" "}
-                              {b.open ? "Attraktion schließen" : "Jetzt eröffnen"}
+                              {b.open
+                                ? isHabitat(b.kind)
+                                  ? "Gehege schließen"
+                                  : "Attraktion schließen"
+                                : "Jetzt eröffnen"}
                             </button>
                           )}
                         </>

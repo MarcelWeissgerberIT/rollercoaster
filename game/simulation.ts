@@ -1,3 +1,4 @@
+import { habitatViewingSpots, viewingDestination, migrateHabitatAccess } from "./zoo-access";
 import { populateCampaign } from "./campaigns";
 import { broken, condition, maintenanceScore, tickMaintenance } from "./maintenance";
 import {
@@ -157,7 +158,7 @@ export type Guest = {
   y: number;
   route: Point[];
   target: number | null;
-  state: "walk" | "queue" | "ride" | "leave";
+  state: "walk" | "queue" | "ride" | "observe" | "leave";
   timer: number;
   happiness: number;
   hunger: number;
@@ -445,6 +446,7 @@ export function startResearch(s: Park, id: ResearchId): string | null {
 }
 /** Old parks retain all previously available content; new scenarios start with research. */
 export function migratePark(s: Park): Park {
+  migrateHabitatAccess(s, CATALOG);
   initCleanliness(s);
   initZoo(s);
   s.scenario ??= "waldhain";
@@ -475,6 +477,7 @@ export function parkValue(s: Park) {
   );
 }
 export function expectedWait(b: Building) {
+  if (isHabitat(b.kind)) return 0;
   return (
     Math.max(0, b.cycle) +
     Math.floor(b.queue.length / Math.max(1, rideCapacity(b))) * rideDuration(b)
@@ -785,7 +788,7 @@ export const CATALOG: Record<
     name: "Zebra-Savanne",
     cost: SPECIES.zebra.cost,
     size: 5,
-    price: 3,
+    price: 0,
     duration: 18,
     capacity: 10,
     appeal: 6,
@@ -797,7 +800,7 @@ export const CATALOG: Record<
     name: "Giraffenhain",
     cost: SPECIES.giraffe.cost,
     size: 6,
-    price: 4,
+    price: 0,
     duration: 22,
     capacity: 12,
     appeal: 8,
@@ -809,7 +812,7 @@ export const CATALOG: Record<
     name: "Flamingo-Lagune",
     cost: SPECIES.flamingo.cost,
     size: 4,
-    price: 2,
+    price: 0,
     duration: 16,
     capacity: 8,
     appeal: 5.5,
@@ -821,7 +824,7 @@ export const CATALOG: Record<
     name: "Pinguin-Küste",
     cost: SPECIES.penguin.cost,
     size: 4,
-    price: 3,
+    price: 0,
     duration: 20,
     capacity: 10,
     appeal: 7,
@@ -970,6 +973,7 @@ export function ensurePods(s: Park, b: Building) {
   if (usesPods(b.kind) && !b.pods) b.pods = effectivePods(s, b);
 }
 export function access(s: Park, b: Building, net = connected(s)) {
+  if (isHabitat(b.kind)) return habitatViewingSpots(s, b, net)[0];
   const points =
     usesPods(b.kind) && b.pods
       ? [podPort(b, CATALOG[b.kind].size, b.pods.entry)]
@@ -983,6 +987,7 @@ export function access(s: Park, b: Building, net = connected(s)) {
   );
 }
 export function exitPath(s: Park, b: Building, net = connected(s), exits = exitNetwork(s, net)) {
+  if (isHabitat(b.kind)) return [];
   const points =
     usesPods(b.kind) && b.pods
       ? [podPort(b, CATALOG[b.kind].size, b.pods.exit)]
@@ -999,7 +1004,18 @@ export function leaveBuilding(
   exits = exitNetwork(s, net),
 ) {
   const route = g.state === "ride" ? exitPath(s, b, net, exits) : [];
-  const p = route[0] ?? access(s, b, net) ?? ENTRANCE;
+  const standing = { x: Math.round(g.x), y: Math.round(g.y) };
+  const nearby = isHabitat(b.kind)
+    ? net.has(key(standing))
+      ? standing
+      : [...net]
+          .map((k) => {
+            const [x, y] = k.split(",").map(Number);
+            return { x, y };
+          })
+          .sort((a, b) => Math.hypot(a.x - g.x, a.y - g.y) - Math.hypot(b.x - g.x, b.y - g.y))[0]
+    : undefined;
+  const p = nearby ?? route[0] ?? access(s, b, net) ?? ENTRANCE;
   g.x = p.x;
   g.y = p.y;
   g.route = route.slice(1);
@@ -1008,6 +1024,7 @@ export function leaveBuilding(
   g.timer = 0;
 }
 export function queueCapacity(s: Park, b: Building) {
+  if (isHabitat(b.kind)) return 0;
   const a = access(s, b);
   if (!a) return 0;
   if (s.tiles[a.y][a.x] === "path") return 4;
@@ -1263,7 +1280,7 @@ export function build(
     cycle: 0,
     tested: kind !== "coaster",
   };
-  if (isHabitat(kind)) ensureHabitat(b);
+  if (isHabitat(kind)) ensureHabitat(b)!.accessVersion = 1;
   s.buildings.push(b);
   return { id: b.id };
 }
@@ -1490,7 +1507,7 @@ function choose(s: Park, g: Guest, net: Set<string>) {
       (!isAttraction(b.kind) || b.tested) &&
       (!isHabitat(b.kind) || (b.habitat?.count ?? 0) > 0) &&
       !broken(b) &&
-      b.queue.length < (isAttraction(b.kind) ? queueCapacity(s, b) : 6),
+      (isHabitat(b.kind) || b.queue.length < (isRide(b.kind) ? queueCapacity(s, b) : 6)),
   );
   const ranked = options
     .map((b) => ({ b, score: guestScore(b, g, s) + Math.random() * 1.4 }))
@@ -1500,7 +1517,7 @@ function choose(s: Park, g: Guest, net: Set<string>) {
     !s.open ||
     g.rides >= 5 ||
     g.happiness < 25 ||
-    (g.wallet ?? 60) < 3 ||
+    ((g.wallet ?? 60) < 3 && !ranked.some((o) => isHabitat(o.b.kind))) ||
     (s.time > 30 && !ranked.length)
   ) {
     g.state = "leave";
@@ -1520,10 +1537,11 @@ function choose(s: Park, g: Guest, net: Set<string>) {
     g.thought = "Ich suche eine passende, offene Attraktion.";
     return;
   }
-  g.route = findRoute(s, g, access(s, b, net)!);
+  const destination = (isHabitat(b.kind) ? viewingDestination(s, b, g, net) : access(s, b, net))!;
+  g.route = findRoute(s, g, destination);
   g.target = b.id;
   g.thought = `Auf dem Weg: ${b.name}`;
-  chooseTransit(s, g, access(s, b, net)!, g.route);
+  chooseTransit(s, g, destination, g.route);
 }
 export function tick(s: Park, dt: number) {
   if (s.speed === 0 || !Number.isFinite(dt) || dt <= 0) return;
@@ -1569,7 +1587,7 @@ export function tick(s: Park, dt: number) {
       b.testing = undefined;
       continue;
     }
-    if (isTransport(b.kind)) continue;
+    if (isTransport(b.kind) || isHabitat(b.kind)) continue;
     if (b.testing) {
       b.testDuration ??= b.testing;
       b.testing = Math.max(0, b.testing - dt);
@@ -1579,7 +1597,7 @@ export function tick(s: Park, dt: number) {
       b.open = true;
       b.autoOpen = false;
     }
-    if (!b.open || !access(s, b, net) || (isHabitat(b.kind) && !b.habitat?.count)) {
+    if (!b.open || !access(s, b, net)) {
       for (const id of [...b.queue, ...b.riders]) {
         const g = s.guests.find((g) => g.id === id);
         if (g) {
@@ -1605,11 +1623,8 @@ export function tick(s: Park, dt: number) {
             const appeal = rideAppeal(b, g.profile),
               change = (appeal - 4) * 2 - b.price * 0.12;
             g.happiness = Math.max(0, Math.min(100, g.happiness + change));
-            g.thought = isHabitat(b.kind)
-              ? welfare(b) >= 75
-                ? "Die Tiere sehen zufrieden aus. Das war ein schöner Besuch!"
-                : "Die Tiere brauchen dringend bessere Pflege."
-              : change > 2
+            g.thought =
+              change > 2
                 ? "Genau mein Geschmack – diese Fahrt hat sich gelohnt!"
                 : change < 0
                   ? "Die Fahrt war für mich zu heftig, zu zahm oder zu teuer."
@@ -1699,6 +1714,40 @@ export function tick(s: Park, dt: number) {
       0,
       g.happiness - dt * (g.hunger > 70 || g.thirst > 70 || (g.bladder ?? 0) > 80 ? 0.22 : 0.012),
     );
+    if (g.state === "observe") {
+      const b = s.buildings.find((b) => b.id === g.target);
+      const spots = b && habitatViewingSpots(s, b, net);
+      if (
+        !b ||
+        !b.open ||
+        !b.habitat?.count ||
+        !spots?.some((p) => Math.hypot(p.x - g.x, p.y - g.y) < 0.25)
+      ) {
+        if (b) leaveBuilding(s, b, g, net, exits);
+        else {
+          g.state = "walk";
+          g.target = null;
+          g.route = [];
+        }
+        g.timer = 1;
+        g.thought = "Ich suche mir einen anderen Aussichtspunkt.";
+        continue;
+      }
+      g.timer -= dt;
+      if (g.timer <= 0) {
+        g.rides++;
+        (g.visited ??= []).push(b.id);
+        g.visited = g.visited.slice(-8);
+        g.happiness = Math.max(0, Math.min(100, g.happiness + (rideAppeal(b, g.profile) - 4) * 2));
+        g.thought =
+          welfare(b) >= 75
+            ? "Die Tiere sehen zufrieden aus. Das war ein schöner Besuch!"
+            : "Die Tiere brauchen dringend bessere Pflege.";
+        leaveBuilding(s, b, g, net, exits);
+        g.timer = 2;
+      }
+      continue;
+    }
     if (g.state === "ride") continue;
     if (g.state === "queue") {
       g.timer += dt;
@@ -1791,6 +1840,29 @@ export function tick(s: Park, dt: number) {
     }
     if (g.target) {
       const b = s.buildings.find((b) => b.id === g.target);
+      if (b && isHabitat(b.kind)) {
+        const spots = habitatViewingSpots(s, b, net);
+        if (!b.open || !b.habitat?.count || !spots.length) {
+          leaveBuilding(s, b, g, net, exits);
+          g.timer = 1;
+          continue;
+        }
+        if (spots.some((p) => Math.hypot(g.x - p.x, g.y - p.y) < 0.2)) {
+          g.state = "observe";
+          g.timer = rideDuration(b) * (0.7 + (g.id % 7) * 0.08);
+          g.route = [];
+          b.served++;
+          g.thought = `Ich beobachte die Tiere: ${b.name}.`;
+        } else {
+          const spot = viewingDestination(s, b, g, net)!;
+          g.route = findRoute(s, g, spot);
+          if (!g.route.length) {
+            leaveBuilding(s, b, g, net, exits);
+            g.timer = 1;
+          }
+        }
+        continue;
+      }
       if (b && b.open && access(s, b, net)) {
         const entrance = access(s, b, net)!;
         if (Math.hypot(g.x - entrance.x, g.y - entrance.y) > 0.2) {
@@ -2027,7 +2099,7 @@ export function validSave(v: unknown): v is Park {
         !Object.hasOwn(CATALOG, b.kind) ||
         !point(b) ||
         (b.pods !== undefined &&
-          (!usesPods(b.kind) ||
+          ((!usesPods(b.kind) && !isHabitat(b.kind)) ||
             !validPods(b.pods, CATALOG[b.kind].size) ||
             Object.values(b.pods).some(
               (p) =>
@@ -2161,7 +2233,9 @@ export function validSave(v: unknown): v is Park {
         g.y >= mapHeight(s) ||
         ![0, 1, 2].includes(g.skin) ||
         typeof g.thought !== "string" ||
-        !["walk", "queue", "ride", "leave"].includes(g.state) ||
+        !["walk", "queue", "ride", "observe", "leave"].includes(g.state) ||
+        (g.state === "observe" &&
+          (g.transit || !s.buildings.some((b) => b.id === g.target && isHabitat(b.kind)))) ||
         !Array.isArray(g.route) ||
         !g.route.every(point) ||
         (g.target !== null && !buildingIds.has(g.target))

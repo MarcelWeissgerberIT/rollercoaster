@@ -442,6 +442,13 @@ export function populatePark(
         walking = true;
         yaw = Math.atan2(-(b.x - a.x), -(b.y - a.y)) + (reverse ? Math.PI : 0);
       }
+      if (g.state === "observe") {
+        const b = park.buildings.find((b) => b.id === g.target);
+        if (b && isHabitat(b.kind)) {
+          const center = (CATALOG[b.kind].size - 1) / 2;
+          yaw = Math.atan2(-(b.x + center - x), -(b.y + center - z));
+        }
+      }
       crowd.pose(i, x * 5, z * 5, yaw, time * 7 + g.id, walking);
     });
     crowd.finish();

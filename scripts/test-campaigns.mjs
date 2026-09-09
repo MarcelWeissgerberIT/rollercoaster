@@ -127,10 +127,9 @@ test("Zoo begins with two actual species and one reachable keeper; future habita
     const r = S.build(copy, kind, x, y);
     assert(r.id, r.error);
     const b = copy.buildings.find((b) => b.id === r.id);
-    b.pods = { entry: { side: 1, offset: 0 }, exit: { side: 1, offset: size - 1 } };
     for (let yy = y + size; yy < 24; yy++) {
-      copy.tiles[yy][x] = "queue";
-      copy.tiles[yy][x + size - 1] = "exit";
+      copy.tiles[yy][x] = "path";
+      copy.tiles[yy][x + size - 1] = "path";
     }
     assert(S.access(copy, b));
   }

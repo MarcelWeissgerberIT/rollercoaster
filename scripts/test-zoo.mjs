@@ -208,13 +208,14 @@ test("Manual care has no free resources or healing when the budget is insufficie
   assert(Z.careHabitat(s, b, access));
   assert.deepEqual(s, before);
 });
-test("Explicit entry pod does not silently switch to a different connected side", () => {
+test("Legacy habitat pod does not block care from another normal fence-side path", () => {
   const s = park(),
     b = occupied(s);
   dirty(b);
   b.pods = { entry: { side: 2, offset: 0 }, exit: { side: 0, offset: 0 } };
-  assert(Z.careHabitat(s, b));
-  assert.equal(Z.zooStats(s).healthyOpen, 0);
+  assert.equal(Z.careHabitat(s, b), null);
+  assert.equal(b.habitat.food, 100);
+  assert.equal(Z.zooStats(s).healthyOpen, 1);
 });
 test("Keepers require a hut connected to the park entrance", () => {
   const s = park(),

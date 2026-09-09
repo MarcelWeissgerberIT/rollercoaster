@@ -39,7 +39,6 @@ import {
   occupant,
   decorative,
   isRide,
-  isAttraction,
   connected,
   validateTrack,
   type Park,
@@ -186,7 +185,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   if (access(s, b)) return empty;
   const n = CATALOG[b.kind].size,
     net = connected(s),
-    ride = isAttraction(b.kind),
+    ride = isRide(b.kind),
     starts: Point[] = [];
   for (let i = 0; i < n; i++)
     starts.push(
@@ -201,7 +200,10 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
     if (!clear || !(decorative(item.kind) && item.kind !== "keeperhut"))
       for (const p of footprint(item)) blocked.add(`${p.x},${p.y}`);
   const passable = (p: Point) =>
-    inside(s, p) && !blocked.has(`${p.x},${p.y}`) && !["water", "exit"].includes(s.tiles[p.y][p.x]);
+    inside(s, p) &&
+    !blocked.has(`${p.x},${p.y}`) &&
+    !["water", "exit"].includes(s.tiles[p.y][p.x]) &&
+    (!isHabitat(b.kind) || s.tiles[p.y][p.x] !== "queue");
   // Dijkstra prefers existing paths (free) and fills only missing cells. It never repaints infrastructure.
   type Search = { p: Point; path: Point[]; cost: number; newCells: number };
   const heap: Search[] = [],
@@ -271,8 +273,9 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   if (!route?.length)
     return {
       ...empty,
-      error:
-        "Kein freier Eingangsweg zur Station. Wasser, Gebäude und rote Ausgangswege blockieren den Anschluss. Versetze die Station oder baue einen Parkweg näher heran.",
+      error: isHabitat(b.kind)
+        ? "Kein freier Besucherweg zum Zaun. Baue einen normalen Parkweg an eine beliebige Gehegeseite."
+        : "Kein freier Eingangsweg zur Station. Wasser, Gebäude und rote Ausgangswege blockieren den Anschluss. Versetze die Station oder baue einen Parkweg näher heran.",
     };
   const points = unique(route).filter((p) => s.tiles[p.y][p.x] === "grass"),
     clearIds = [
@@ -301,7 +304,7 @@ export function connectBuilding(s: Park, b: Building, clear = true): string | nu
   if (plan.error) return plan.error;
   s.buildings = s.buildings.filter((item) => !plan.clearIds.includes(item.id));
   if (plan.clearIds.length) spend(s, plan.clearIds.length * 10);
-  for (const p of plan.points) paint(s, p.x, p.y, isAttraction(b.kind) ? "queue" : "path");
+  for (const p of plan.points) paint(s, p.x, p.y, isRide(b.kind) ? "queue" : "path");
   if (b.kind === "coaster" && !b.tested) {
     if (!b.testing) {
       b.testing = rideDuration(b);
@@ -499,7 +502,7 @@ export function releaseBuildingGuests(s: Park, b: Building) {
   for (const g of s.guests)
     if (g.target === b.id) {
       if (cancelTransitDestination(s, g)) continue;
-      if (g.state === "ride" || g.state === "queue") {
+      if (g.state === "ride" || g.state === "queue" || g.state === "observe") {
         leaveBuilding(s, b, g);
       } else {
         g.target = null;

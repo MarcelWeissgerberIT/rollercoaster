@@ -1236,6 +1236,13 @@ export function draw(
     if ((isQueued || old.queued) && moved > 0.001)
       old.heading = heading(visual.x - old.x, visual.y - old.y);
     else if (next) old.heading = heading(next.x - g.x, next.y - g.y);
+    if (g.state === "observe") {
+      const b = s.buildings.find((b) => b.id === g.target);
+      if (b && isHabitat(b.kind)) {
+        const center = (CATALOG[b.kind].size - 1) / 2;
+        old.heading = heading(b.x + center - g.x, b.y + center - g.y);
+      }
+    }
     old.phase += Math.min(0.3, moved) * 9;
     old.time = s.time;
     old.queued = isQueued || (old.queued && distance > 0.1);

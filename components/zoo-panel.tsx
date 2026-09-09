@@ -21,8 +21,8 @@ export function ZooOverview({
   return (
     <section className="zoo-overview">
       <p>
-        Baue ein Gehege, verbinde seinen Eingang mit einem Weg und nimm Tiere auf. Gäste beobachten
-        sie von außen; Tiere bleiben innerhalb der Zäune.
+        Baue normale Parkwege entlang der Gehegezäune und nimm Tiere auf. Gäste beobachten sie von
+        außen, ohne Warteschlange oder Extra-Ticket. Jede erreichbare Zaunseite ist geeignet.
       </p>
       <div className="analysis-stats">
         <div>

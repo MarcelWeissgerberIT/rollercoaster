@@ -41,7 +41,6 @@ function habitat(s, kind = "zebra", y = 18) {
     id = S.build(s, kind, 15 - n, y).id;
   assert(id);
   const b = s.buildings.find((b) => b.id === id);
-  b.pods = { entry: { side: 0, offset: 0 }, exit: { side: 0, offset: n - 1 } };
   assert.equal(Z.adoptAnimal(s, b), null);
   b.open = true;
   return b;
@@ -52,7 +51,7 @@ function visitor(s, b) {
   Object.assign(g, {
     id: s.nextId++,
     ...p,
-    state: "queue",
+    state: "walk",
     target: b.id,
     route: [],
     timer: 0,
@@ -64,23 +63,24 @@ function visitor(s, b) {
     visited: [],
   });
   s.guests.push(g);
-  b.queue = [g.id];
   return g;
 }
-test("Zoo visitor pays once, stays outside, exits onto a public route and preserves a valid save", () => {
+test("Zoo visitor observes without an extra ticket, stays outside and resumes the public route", () => {
   const s = park(),
     b = habitat(s),
     g = visitor(s, b),
     cash = s.cash,
     expense = s.expenses;
   S.tick(s, 0.1);
-  assert.equal(g.state, "ride");
-  assert.equal(g.wallet, 100 - b.price);
-  assert.equal(s.cash, cash + b.price);
+  assert.equal(g.state, "observe");
+  assert.equal(g.wallet, 100);
+  assert.equal(s.cash, cash);
+  assert.equal(b.revenue, 0);
+  assert.equal(b.queue.length + b.riders.length, 0);
   assert.equal(b.served, 1);
   assert.equal(s.expenses, expense);
   assert(S.validSave(s));
-  for (let t = 0; t < 19; t += 0.1) {
+  for (let t = 0; t < 23; t += 0.1) {
     S.tick(s, 0.1);
     assert(!S.footprint(b).some((p) => Math.hypot(p.x - g.x, p.y - g.y) < 0.4));
   }
@@ -97,7 +97,7 @@ test("Zoo-only admission demand is positive, empty habitats add no attraction de
   b.habitat.count = 0;
   assert.equal(S.entryDemand(s), 0);
 });
-test("Last animal removal closes and releases occupied visitor queues on next tick without rebilling", () => {
+test("Last animal removal closes and releases observers on next tick without billing", () => {
   const s = park(),
     b = habitat(s),
     g = visitor(s, b);

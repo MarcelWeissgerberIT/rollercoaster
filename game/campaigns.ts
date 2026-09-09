@@ -1,4 +1,5 @@
 /** Ready-made campaign parks, with reachable entrances and fresh operating balances. */
+import { isHabitat } from "./zoo";
 import type { Park, Building, Guest, Kind, ResearchId } from "./simulation";
 export type CampaignId = "ruinenpark" | "grosspark" | "zoo";
 export type CampaignDeps = {
@@ -140,6 +141,12 @@ export function populateCampaign(s: Park, id: string, deps: CampaignDeps): boole
     const size = sizeOf[kind] ?? 1,
       y = frontage - size - 2,
       b = place(kind, x, y, condition, open, name);
+    if (isHabitat(kind)) {
+      // A broad public promenade gives several visitors a view of the animals.
+      horizontal(y + size, x, x + size - 1);
+      vertical(x + Math.floor(size / 2), y + size, frontage);
+      return b;
+    }
     b.pods = { entry: { side: 1, offset: 0 }, exit: { side: 1, offset: size - 1 } };
     for (let yy = y + size; yy < frontage; yy++) {
       s.tiles[yy][x] = "queue";

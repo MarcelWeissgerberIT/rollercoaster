@@ -52,6 +52,7 @@ export const SPECIES = {
 } as const;
 export type Species = keyof typeof SPECIES;
 export type Habitat = {
+  accessVersion?: 1;
   count: number;
   food: number;
   water: number;
@@ -124,13 +125,14 @@ function port(s: Park, b: Building, net: Set<string>, access?: ZooAccess): Point
     Number.isInteger(p.y) &&
     exterior(b, p, size) &&
     walkway(s, p) &&
+    (!isHabitat(b.kind) || s.tiles[p.y][p.x] === "path") &&
     net.has(key(p));
   if (access) {
     const p = access(s, b);
     return valid(p) ? { x: p.x, y: p.y } : undefined;
   }
   // Honor an explicitly selected entry; never silently route around the other side.
-  if (b.pods) {
+  if (b.pods && !isHabitat(b.kind)) {
     const p = b.pods.entry;
     const v =
       p.side === 0
@@ -315,7 +317,8 @@ function applyCare(s: Park, h: Habitat): string | null {
 /** Paid manual visit, requires an exterior entrance connected to the park. No keeper hut needed. */
 export function careHabitat(s: Park, b: Building, access?: ZooAccess): string | null {
   if (!s.buildings.includes(b) || !isHabitat(b.kind)) return "Wähle ein Tiergehege.";
-  if (!port(s, b, network(s), access)) return "Verbinde den äußeren Gehegezugang mit dem Parkweg.";
+  if (!port(s, b, network(s), access))
+    return "Baue einen erreichbaren normalen Parkweg an den Gehegezaun.";
   return applyCare(s, ensureHabitat(b)!);
 }
 type Job = { b: ZooBuilding; p: Point };
@@ -478,6 +481,7 @@ export function validZoo(s: Park): boolean {
       if (
         !isHabitat(b.kind) ||
         !h ||
+        (h.accessVersion !== undefined && h.accessVersion !== 1) ||
         !int(h.count) ||
         h.count > SPECIES[b.kind].capacity ||
         !["food", "water", "clean", "health"].every((k) => {
