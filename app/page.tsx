@@ -40,6 +40,8 @@ import {
   MapPin,
   Zap,
   OctagonPause,
+  LogIn,
+  LogOut,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
@@ -65,6 +67,9 @@ import {
   tick,
   CATALOG,
   access,
+  accessNeighbors,
+  exitPath,
+  exitNetwork,
   queueCapacity,
   occupant,
   trackStats,
@@ -281,7 +286,12 @@ export default function Home() {
     point: Point;
     rotation: number;
   } | null>(null);
-  const [hoverInfo, setHoverInfo] = useState<{ id: number; x: number; y: number } | null>(null);
+  const [hoverInfo, setHoverInfo] = useState<{
+    id: number | null;
+    tile?: Point;
+    x: number;
+    y: number;
+  } | null>(null);
   const [hoverTile, setHoverTile] = useState<Point | null>(null);
   const history = useRef<EditRecord[][]>([]);
   const stroke = useRef<EditRecord[] | null>(null);
@@ -629,12 +639,14 @@ export default function Home() {
             : t === "coaster"
               ? "Wähle einen Bahntyp. Unter Fertigteile findest du Looping, Kurven, Hügel und Steigungen."
               : t === "queue"
-                ? "Verbinde den Attraktionseingang über eine Warteschlange mit einem Parkweg."
-                : t === "path"
-                  ? "Klicke oder ziehe, um deinen Park mit Wegen zu verbinden."
-                  : CATALOG[t as Kind]
-                    ? `${CATALOG[t as Kind].name}: Wähle einen freien Platz im Park.`
-                    : "Wähle ein Bauwerk.",
+                ? "Blau = Eingang. Verbinde die Warteschlange mit der Attraktion und einem Parkweg."
+                : t === "exit"
+                  ? "Rot = Ausgang. Ziehe von einer anderen Seite der Attraktion bis zum beigen Parkweg. Pfeile zeigen die Laufrichtung."
+                  : t === "path"
+                    ? "Klicke oder ziehe, um deinen Park mit Wegen zu verbinden."
+                    : CATALOG[t as Kind]
+                      ? `${CATALOG[t as Kind].name}: Wähle einen freien Platz im Park.`
+                      : "Wähle ein Bauwerk.",
       );
     },
     [notify],
@@ -818,7 +830,7 @@ export default function Home() {
     edit(
       tool === "erase"
         ? "Abriss"
-        : ["path", "queue", "water"].includes(tool)
+        : ["path", "queue", "exit", "water"].includes(tool)
           ? "Wegebau"
           : (CATALOG[tool as Kind]?.name ?? "Bau"),
       () => {
@@ -1176,7 +1188,11 @@ export default function Home() {
               pan: e.button === 2 || e.button === 1 || e.altKey || tool === "select",
               tile: tileAt(e),
             };
-            if (e.button === 0 && !e.altKey && ["path", "queue", "water", "erase"].includes(tool)) {
+            if (
+              e.button === 0 &&
+              !e.altKey &&
+              ["path", "queue", "exit", "water", "erase"].includes(tool)
+            ) {
               stroke.current = [];
               const rect = e.currentTarget.getBoundingClientRect();
               act(
@@ -1196,9 +1212,13 @@ export default function Home() {
               (park.current ? occupant(park.current, p.x, p.y)?.id : null);
             view.current.hoveredId = hit ?? null;
             setHoverInfo(
-              !drag.current && tool === "select" && hit != null
+              !drag.current &&
+                tool === "select" &&
+                (hit != null ||
+                  ["path", "queue", "exit"].includes(park.current?.tiles[p.y]?.[p.x] ?? ""))
                 ? {
-                    id: hit,
+                    id: hit ?? null,
+                    tile: hit == null ? p : undefined,
                     x: Math.min(rect.width - 224, px + 18),
                     y: Math.min(rect.height - 80, py + 18),
                   }
@@ -1219,7 +1239,7 @@ export default function Home() {
                 cameraTarget.current = null;
                 view.current.panX = d.px + dx;
                 view.current.panY = d.py + dy;
-              } else if (d.moved && ["path", "queue", "water", "erase"].includes(tool)) {
+              } else if (d.moved && ["path", "queue", "exit", "water", "erase"].includes(tool)) {
                 const last = { ...d.tile };
                 while (last.x !== p.x || last.y !== p.y) {
                   if (Math.abs(p.x - last.x) >= Math.abs(p.y - last.y))
@@ -1238,7 +1258,7 @@ export default function Home() {
               d &&
               !d.moved &&
               e.button === 0 &&
-              !["path", "queue", "water", "erase"].includes(tool)
+              !["path", "queue", "exit", "water", "erase"].includes(tool)
             ) {
               if (cut && b && cut.id === b.id && sections.length) {
                 const rect = e.currentTarget.getBoundingClientRect(),
@@ -1321,6 +1341,29 @@ export default function Home() {
                     · {object.queue.length} warten
                   </small>
                 )}
+              </div>
+            ) : hoverInfo.tile && snapshot ? (
+              <div
+                className="world-tooltip"
+                style={{ left: hoverInfo.x, top: hoverInfo.y }}
+                role="tooltip"
+              >
+                <strong>
+                  {snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "exit"
+                    ? "Ausgangsweg · rot"
+                    : snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "queue"
+                      ? "Eingangsweg · blau"
+                      : "Parkweg"}
+                </strong>
+                <span>
+                  {snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "exit"
+                    ? exitNetwork(snapshot).has(`${hoverInfo.tile.x},${hoverInfo.tile.y}`)
+                      ? "Nur hinaus · mit Parkweg verbunden"
+                      : "Anschluss zum Parkweg fehlt"
+                    : snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "queue"
+                      ? "Warteschlange · 4 Gäste pro Feld"
+                      : "Gemeinsamer Weg in beide Richtungen"}
+                </span>
               </div>
             ) : null;
           })()}
@@ -1495,30 +1538,54 @@ export default function Home() {
               )}
               {category === "paths" && (
                 <div className="stack">
-                  {catalog(["train", "shuttle"])}
-                  <p className="small">
-                    Zwei Halte desselben Typs an Parkwege setzen. Am Halt verbindest du sie zu einer
-                    Linie mit echten Fahrgästen.
-                  </p>
                   <button
-                    className={tool === "path" ? "primary" : "secondary"}
+                    className={`path-tool public ${tool === "path" ? "active" : ""}`}
+                    aria-pressed={tool === "path"}
                     onClick={() => pickTool("path")}
                   >
-                    <Route /> Parkweg · 12 €
+                    <Route />
+                    <span>
+                      <strong>Parkweg · 12 €</strong>
+                      <small>Gemeinsam durch den Park</small>
+                    </span>
                   </button>
                   <button
-                    className={tool === "queue" ? "primary" : "secondary"}
+                    className={`path-tool entrance ${tool === "queue" ? "active" : ""}`}
+                    aria-pressed={tool === "queue"}
                     onClick={() => pickTool("queue")}
                   >
-                    <Users /> Warteschlange · 18 €
+                    <LogIn />
+                    <span>
+                      <strong>Eingangsweg · 18 €</strong>
+                      <small>Blau · anstellen & einsteigen</small>
+                    </span>
+                  </button>
+                  <button
+                    className={`path-tool exit ${tool === "exit" ? "active" : ""}`}
+                    aria-pressed={tool === "exit"}
+                    onClick={() => pickTool("exit")}
+                  >
+                    <LogOut />
+                    <span>
+                      <strong>Ausgangsweg · 18 €</strong>
+                      <small>Rot · aussteigen & weitergehen</small>
+                    </span>
                   </button>
                   <p className="small">
-                    Klicke oder ziehe über freie Wiese. Verbinde neue Wege mit dem Parkeingang.
+                    Klicke oder ziehe. Blau führt zur Attraktion, Rot von einer anderen Seite zurück
+                    auf einen beigen Parkweg. Pfeile auf Rot zeigen den Ausgang; ein Kreuz bedeutet,
+                    dass der Anschluss fehlt.
                   </p>
                   <div className="empty-note">
-                    Eine Warteschlange muss an der Station oder an einer Seite der Attraktion
-                    beginnen und einen normalen Weg erreichen. Pro Feld passen vier Gäste hinein.
+                    Bei Achterbahnen beide Wege neben die Station setzen. Blaue Wege bieten vier
+                    Warteplätze pro Feld. Rote Wege sind nur zum Aussteigen. Ohne fertigen Ausgang
+                    nutzen Gäste weiterhin den bisherigen Zugang.
                   </div>
+                  {catalog(["train", "shuttle"])}
+                  <p className="small">
+                    Zwei Halte desselben Typs an Parkwege setzen und zu einer Linie verbinden.
+                    Fahrzeuge bleiben auf Parkwegen; rote Wege leiten aussteigende Fahrgäste weiter.
+                  </p>
                 </div>
               )}
               {category === "coaster" && (
@@ -2242,6 +2309,41 @@ export default function Home() {
                           Warteschlange schafft mehr Platz.
                         </p>
                       )}
+                      {!decorative(b.kind) &&
+                        (() => {
+                          const outgoing = exitPath(snapshot, b);
+                          const unfinished = accessNeighbors(b).some(
+                            (p) => snapshot.tiles[p.y]?.[p.x] === "exit",
+                          );
+                          return (
+                            <div className="access-status">
+                              <span className="entrance">
+                                <LogIn size={15} /> Eingang:{" "}
+                                {reachable ? "verbunden" : "Anschluss fehlt"}
+                              </span>
+                              <span className="exit">
+                                <LogOut size={15} /> Ausgang:{" "}
+                                {outgoing.length
+                                  ? `verbunden · ${outgoing.length - 1} rote Felder`
+                                  : unfinished
+                                    ? "Parkweg fehlt"
+                                    : "über den bisherigen Zugang"}
+                              </span>
+                              {unfinished && !outgoing.length && (
+                                <small>
+                                  Rot bis zum verbundenen beigen Parkweg weiterbauen. Bis dahin
+                                  bleibt der bisherige Zugang nutzbar.
+                                </small>
+                              )}
+                              <button
+                                className="secondary"
+                                onClick={() => pickTool("exit", "paths")}
+                              >
+                                <LogOut size={15} /> Ausgangsweg bauen
+                              </button>
+                            </div>
+                          );
+                        })()}
                       {connection && (!reachable || !b.open) && (
                         <div className="connect-action">
                           <button
@@ -2547,7 +2649,7 @@ export default function Home() {
                   (adjust
                     ? `${adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
                     : placement
-                      ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? COASTER_TYPES[coasterType].name : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Warteschlange" : "Wasser"))} · ${EUR(placement.cost)}`
+                      ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? COASTER_TYPES[coasterType].name : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Eingangsweg (blau)" : tool === "exit" ? "Ausgangsweg (rot)" : "Wasser"))} · ${EUR(placement.cost)}`
                       : "Bewege den Zeiger auf den Bauplatz")}
               </strong>
               <span>
@@ -2558,7 +2660,7 @@ export default function Home() {
                       : "Klick übernimmt · R dreht · Esc beendet"
                     : tool === "coaster" && blueprintMode
                       ? "Klick baut · R dreht · Esc beendet"
-                      : ["path", "queue", "water", "erase"].includes(tool)
+                      : ["path", "queue", "exit", "water", "erase"].includes(tool)
                         ? "Ziehen baut mehrere Felder · Strg/⌘ Z nimmt den Bauzug zurück"
                         : tool === "coaster"
                           ? "Bauteil im Baufenster wählen · Klick ergänzt · Esc beendet"
@@ -2767,6 +2869,12 @@ export default function Home() {
               <b>Neue Attraktionen:</b> Wähle unten ein Gebäude und klicke auf freie Wiese. Verbinde
               Fahrgeschäfte mit „Anschließen & öffnen“ automatisch mit dem Wegenetz. Ein direkt
               angrenzender Parkweg bietet vier Warteplätze.
+            </li>
+            <li>
+              <b>Besucher lenken:</b> Im Menü „Wege“ ist Blau die Warteschlange zum Eingang, Rot der
+              Ausgang zurück zum beigen Parkweg. Beide an unterschiedliche Seiten der Attraktion
+              setzen; bei Achterbahnen neben die Station. Weiße Pfeile zeigen die Ausgangsrichtung.
+              Ein Kreuz markiert einen noch nicht angeschlossenen Ausgang.
             </li>
             <li>
               <b>Eröffnen:</b> Nach dem Bauen öffnet sich die Verwaltung direkt. Du kannst den

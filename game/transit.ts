@@ -1,4 +1,5 @@
 import type { Park, Point, Building, Guest } from "./simulation";
+import { exitFromCells, exitNetwork } from "./walkways";
 import { pathRoute, insideMap } from "./grid";
 export type TransitKind = "train" | "shuttle";
 export type TransitLine = {
@@ -39,6 +40,17 @@ export function stopAccess(s: Park, b: Building) {
       ]
         .map(([dx, dy]) => ({ x: b.x + dx, y: b.y + dy }))
         .find(adjacent);
+}
+function stopExit(s: Park, b: Building) {
+  return exitFromCells(
+    [
+      [0, 1],
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+    ].map(([dx, dy]) => ({ x: b.x + dx, y: b.y + dy })),
+    exitNetwork(s),
+  );
 }
 export function transitPlan(s: Park, a: Building, b: Building) {
   if (!isTransport(a.kind) || b.kind !== a.kind || a.id === b.id)
@@ -260,7 +272,8 @@ export function tickTransit(s: Park, dt: number) {
         const destination = s.buildings.find(
             (b) => b.id === (line.direction === 1 ? line.b : line.a),
           )!,
-          p = stopAccess(s, destination)!;
+          outgoing = stopExit(s, destination),
+          p = outgoing[0] ?? stopAccess(s, destination)!;
         for (const id of line.passengers) {
           const g = s.guests.find((g) => g.id === id);
           if (!g) continue;
@@ -272,7 +285,7 @@ export function tickTransit(s: Park, dt: number) {
           g.state = "walk";
           g.transit = undefined;
           g.timer = 0.5;
-          g.route = [];
+          g.route = outgoing.slice(1);
           g.thought = "Gut angekommen – weiter zu meiner Attraktion.";
           line.served++;
           line.revenue += fare;
@@ -315,7 +328,8 @@ export function chooseTransit(s: Park, g: Guest, goal: Point, walking: Point[]) 
         b = stopAccess(s, to)!;
       if (from.price > (g.wallet ?? 60) || from.queue.length >= 16) continue;
       const first = pathRoute(s, g, a, true),
-        last = pathRoute(s, b, goal, true);
+        outgoing = stopExit(s, to),
+        last = pathRoute(s, outgoing.at(-1) ?? b, goal, true);
       if (!first.length || !last.length) continue;
       const length = line.route.length - 1,
         v = transportSpeed(line.kind),
@@ -333,7 +347,8 @@ export function chooseTransit(s: Park, g: Guest, goal: Point, walking: Point[]) 
       let depart = (fromId === line.a ? 4 : leg + 4) - phase;
       while (depart < arrive - 1e-8) depart += leg * 2;
       depart += Math.floor(from.queue.length / transportCapacity(line.kind)) * leg * 2;
-      const time = depart + length / v + (last.length - 1) / walkSpeed;
+      const time =
+        depart + length / v + (last.length - 1 + Math.max(0, outgoing.length - 1)) / walkSpeed;
       if (time < walking.length / walkSpeed - 3 && (!best || time < best.time))
         best = { line, from, to, walk: first.slice(1), time };
     }

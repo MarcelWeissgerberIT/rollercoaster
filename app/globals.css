@@ -2445,3 +2445,69 @@ button:hover:not(:disabled) {
   margin: 0;
   padding: 7px;
 }
+.path-tool {
+  --path-color: #8b6c32;
+  --path-background: #f7edda;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--path-color) 35%, transparent);
+  border-left: 5px solid var(--path-color);
+  border-radius: 11px;
+  text-align: left;
+  color: var(--path-color);
+  background: var(--path-background);
+  cursor: pointer;
+}
+.path-tool.entrance {
+  --path-color: #245d99;
+  --path-background: #e7f0fc;
+}
+.path-tool.exit {
+  --path-color: #a33737;
+  --path-background: #fbe9e5;
+}
+.path-tool.active {
+  outline: 2px solid var(--path-color);
+  outline-offset: 2px;
+}
+.path-tool:hover {
+  filter: brightness(0.96);
+}
+.path-tool span {
+  display: grid;
+  gap: 3px;
+}
+.path-tool small {
+  font-size: 12px;
+  font-weight: 400;
+}
+.path-tool svg {
+  flex-shrink: 0;
+}
+.access-status {
+  display: grid;
+  gap: 9px;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #d9e1d0;
+  border-radius: 10px;
+  font-size: 12px;
+}
+.access-status span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.access-status .entrance {
+  color: #245d99;
+}
+.access-status .exit {
+  color: #a33737;
+}
+.access-status small {
+  color: #64745d;
+  line-height: 1.5;
+}

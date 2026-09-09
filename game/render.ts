@@ -11,6 +11,7 @@ import {
   access,
   isRide,
   connected,
+  exitNetwork,
   type Guest,
   type Park,
   type Point,
@@ -218,7 +219,8 @@ export function draw(
 ) {
   v.hitTargets = [];
   let hitOwner: number | undefined;
-  const net = connected(s);
+  const net = connected(s),
+    exits = exitNetwork(s, net);
   const { scale, tw, th, project } = projection(w, h, v);
   ctx.clearRect(0, 0, w, h);
   ctx.imageSmoothingEnabled = false;
@@ -288,7 +290,7 @@ export function draw(
     x < mapWidth(s) &&
     y >= 0 &&
     y < mapHeight(s) &&
-    (s.tiles[y][x] === type || (type === "path" && s.tiles[y][x] === "queue"));
+    (s.tiles[y][x] === type || (type === "path" && ["queue", "exit"].includes(s.tiles[y][x])));
   for (let y = 0; y < mapHeight(s); y++)
     for (let x = 0; x < mapWidth(s); x++) {
       const type = s.tiles[y][x],
@@ -302,13 +304,15 @@ export function draw(
           : type === "path"
             ? "#d9bb83"
             : type === "queue"
-              ? "#8faec0"
-              : ["#7eac47", "#80af49", "#84b24b", "#83ae48"][n % 4],
+              ? "#79aadd"
+              : type === "exit"
+                ? "#db8b81"
+                : ["#7eac47", "#80af49", "#84b24b", "#83ae48"][n % 4],
         v.grid ? "#28522030" : undefined,
       );
-      if (type === "path" || type === "queue") {
+      if (type === "path" || type === "queue" || type === "exit") {
         // One continuous path surface, with borders only at exposed edges.
-        const color = type === "queue" ? "#546e87" : "#ad925f";
+        const color = type === "queue" ? "#36699f" : type === "exit" ? "#a54540" : "#ad925f";
         const edges = [
           [0, -1, -1, 0, 0, -1],
           [1, 0, 0, -1, 1, 0],
@@ -323,18 +327,43 @@ export function draw(
               color,
               1.2,
             );
-        if (type === "queue")
+        if (type === "queue" || type === "exit")
           for (const [dx, dy] of [
             [1, 0],
             [-1, 0],
           ])
-            if (!neighbor(x + dx, y + dy, "queue") && !neighbor(x + dx, y + dy, "path")) {
+            if (!neighbor(x + dx, y + dy, type) && s.tiles[y + dy]?.[x + dx] !== "path") {
               const a = project(x + dx * 0.45, y - 0.45),
                 b = project(x + dx * 0.45, y + 0.45);
               line(a, { x: a.x, y: a.y - 5 * scale }, "#e9eee6", 1.4);
               line(b, { x: b.x, y: b.y - 5 * scale }, "#e9eee6", 1.4);
               line({ x: a.x, y: a.y - 5 * scale }, { x: b.x, y: b.y - 5 * scale }, "#dde6de", 1.4);
             }
+        if (type === "exit") {
+          const next = exits.get(`${x},${y}`);
+          if (next) {
+            const dx = next.x - x,
+              dy = next.y - y;
+            const a = project(x - dx * 0.24, y - dy * 0.24),
+              b = project(x + dx * 0.24, y + dy * 0.24);
+            line(a, b, "#fff5e4", 2);
+            for (const side of [-1, 1])
+              line(
+                b,
+                project(x + dx * 0.04 - dy * side * 0.18, y + dy * 0.04 + dx * side * 0.18),
+                "#fff5e4",
+                2,
+              );
+          } else {
+            for (const side of [-1, 1])
+              line(
+                project(x - 0.15, y - side * 0.15),
+                project(x + 0.15, y + side * 0.15),
+                "#973f3a",
+                1.5,
+              );
+          }
+        }
       }
       if (type === "water" && n % 3 === 0) {
         const off = Math.sin(s.time / 1.6 + x) * 2 * scale;

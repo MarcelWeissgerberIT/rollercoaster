@@ -1,4 +1,5 @@
 import type { Park, Point } from "./simulation";
+export const PARK_ENTRANCE = { x: 15, y: 29 };
 export const INITIAL_SIZE = 30,
   MAX_SIZE = 54,
   LAND_STEP = 6;

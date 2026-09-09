@@ -10,6 +10,7 @@ import {
   SIZE,
   ENTRANCE,
   access,
+  leaveBuilding,
   build,
   paint,
   remove,
@@ -26,7 +27,7 @@ import {
   type Tile,
   type Building,
 } from "./simulation";
-export type BuildTool = Kind | "path" | "queue" | "water" | "erase";
+export type BuildTool = Kind | "path" | "queue" | "exit" | "water" | "erase";
 export type Placement = {
   points: Point[];
   clearIds: number[];
@@ -78,7 +79,7 @@ export function planPlacement(
       error: !b && p.x === ENTRANCE.x && p.y === ENTRANCE.y ? "Der Eingang bleibt erhalten" : null,
     };
   }
-  const painting = ["path", "queue", "water"].includes(tool);
+  const painting = ["path", "queue", "exit", "water"].includes(tool);
   const mayClear = clear && (painting || !decorative(tool as Kind));
   for (const t of points) {
     const b = occupant(s, t.x, t.y);
@@ -103,7 +104,7 @@ export function planPlacement(
       ? 0
       : tool === "path"
         ? 12
-        : tool === "queue"
+        : tool === "queue" || tool === "exit"
           ? 18
           : 35
     : track
@@ -140,7 +141,7 @@ export function place(
     s.buildings = s.buildings.filter((b) => !plan.clearIds.includes(b.id));
     spend(s, plan.clearIds.length * 10);
   }
-  if (["path", "queue", "water"].includes(tool)) {
+  if (["path", "queue", "exit", "water"].includes(tool)) {
     const error = paint(s, p.x, p.y, tool as Tile);
     return error ? { error } : { cost: plan.cost };
   }
@@ -172,7 +173,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
     if (!clear || !decorative(item.kind))
       for (const p of footprint(item)) blocked.add(`${p.x},${p.y}`);
   const passable = (p: Point) =>
-    inside(s, p) && !blocked.has(`${p.x},${p.y}`) && s.tiles[p.y][p.x] !== "water";
+    inside(s, p) && !blocked.has(`${p.x},${p.y}`) && !["water", "exit"].includes(s.tiles[p.y][p.x]);
   // Dijkstra prefers existing paths (free) and fills only missing cells. It never repaints infrastructure.
   type Search = { p: Point; path: Point[]; cost: number; newCells: number };
   const heap: Search[] = [],
@@ -243,7 +244,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
     return {
       ...empty,
       error:
-        "Kein freier Weg zur Station. Versetze die Station oder die Bahn; Wasser und Gebäude blockieren den Anschluss.",
+        "Kein freier Eingangsweg zur Station. Wasser, Gebäude und rote Ausgangswege blockieren den Anschluss. Versetze die Station oder baue einen Parkweg näher heran.",
     };
   const points = unique(route).filter((p) => s.tiles[p.y][p.x] === "grass"),
     clearIds = [
@@ -432,18 +433,17 @@ export function suggestStation(s: Park, b: Building, clear = true): Point | null
   return options[0]?.p ?? null;
 }
 export function releaseBuildingGuests(s: Park, b: Building) {
-  const exit = access(s, b) ?? ENTRANCE;
   for (const g of s.guests)
     if (g.target === b.id) {
       if (cancelTransitDestination(s, g)) continue;
       if (g.state === "ride" || g.state === "queue") {
-        g.x = exit.x;
-        g.y = exit.y;
+        leaveBuilding(s, b, g);
+      } else {
+        g.target = null;
+        g.route = [];
+        g.timer = 0;
+        g.state = "walk";
       }
-      g.target = null;
-      g.route = [];
-      g.timer = 0;
-      g.state = "walk";
     }
   b.queue = [];
   b.riders = [];

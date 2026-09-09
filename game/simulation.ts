@@ -1,3 +1,6 @@
+import { connected, exitNetwork, followExit, exitFromCells } from "./walkways";
+export { connected, exitNetwork } from "./walkways";
+import { PARK_ENTRANCE } from "./grid";
 import { validDrive, driveCost, type TrackDrive } from "./drive";
 import type { TrackEdit } from "./track-edit";
 import { guestName } from "./guest-identity";
@@ -75,7 +78,7 @@ export type Kind =
   | "pine"
   | "flowers"
   | "bench";
-export type Tile = "grass" | "path" | "queue" | "water";
+export type Tile = "grass" | "path" | "queue" | "exit" | "water";
 export type Building = {
   id: number;
   kind: Kind;
@@ -377,7 +380,7 @@ export function entryDemand(s: Park) {
   );
 }
 export const SIZE = 30,
-  ENTRANCE = { x: 15, y: 29 };
+  ENTRANCE = PARK_ENTRANCE;
 export const CATALOG: Record<
   Kind,
   {
@@ -667,28 +670,7 @@ export function footprint(b: Pick<Building, "x" | "y" | "kind" | "track">): Poin
 export function occupant(s: Park, x: number, y: number) {
   return s.buildings.find((b) => footprint(b).some((p) => p.x === x && p.y === y));
 }
-export function connected(s: Park) {
-  const seen = new Set<string>();
-  const q = [ENTRANCE];
-  if (!["path", "queue"].includes(s.tiles[ENTRANCE.y][ENTRANCE.x])) return seen;
-  seen.add(key(ENTRANCE));
-  for (let i = 0; i < q.length; i++) {
-    const p = q[i];
-    for (const [dx, dy] of dirs) {
-      const n = { x: p.x + dx, y: p.y + dy };
-      if (
-        inBounds(n.x, n.y, s) &&
-        ["path", "queue"].includes(s.tiles[n.y][n.x]) &&
-        !seen.has(key(n))
-      ) {
-        seen.add(key(n));
-        q.push(n);
-      }
-    }
-  }
-  return seen;
-}
-export function access(s: Park, b: Building, net = connected(s)) {
+export function accessNeighbors(b: Building): Point[] {
   const n = CATALOG[b.kind].size;
   const adjacent: Point[] = [];
   for (let i = 0; i < n; i++)
@@ -698,12 +680,35 @@ export function access(s: Park, b: Building, net = connected(s)) {
       { x: b.x + n, y: b.y + i },
       { x: b.x + i, y: b.y - 1 },
     );
-  const reachable = adjacent.filter((p) => inBounds(p.x, p.y, s) && net.has(key(p)));
+  return adjacent;
+}
+export function access(s: Park, b: Building, net = connected(s)) {
+  const reachable = accessNeighbors(b).filter((p) => inBounds(p.x, p.y, s) && net.has(key(p)));
   // Prefer a dedicated queue, but a station can also board directly from a park path.
   return (
     (isRide(b.kind) ? reachable.find((p) => s.tiles[p.y][p.x] === "queue") : undefined) ??
     reachable.find((p) => s.tiles[p.y][p.x] === "path")
   );
+}
+export function exitPath(s: Park, b: Building, net = connected(s), exits = exitNetwork(s, net)) {
+  return exitFromCells(accessNeighbors(b), exits);
+}
+/** Riders use the finished exit; waiting guests and legacy parks keep their existing entrance. */
+export function leaveBuilding(
+  s: Park,
+  b: Building,
+  g: Guest,
+  net = connected(s),
+  exits = exitNetwork(s, net),
+) {
+  const route = g.state === "ride" ? exitPath(s, b, net, exits) : [];
+  const p = route[0] ?? access(s, b, net) ?? ENTRANCE;
+  g.x = p.x;
+  g.y = p.y;
+  g.route = route.slice(1);
+  g.target = null;
+  g.state = "walk";
+  g.timer = 0;
 }
 export function queueCapacity(s: Park, b: Building) {
   const a = access(s, b);
@@ -722,6 +727,7 @@ export function queueCapacity(s: Park, b: Building) {
   return Math.min(40, q.length * 4);
 }
 export function findRoute(s: Park, start: Point, end: Point): Point[] {
+  const exits = exitNetwork(s);
   const a = { x: Math.round(start.x), y: Math.round(start.y) },
     target = key(end),
     q = [a],
@@ -741,7 +747,9 @@ export function findRoute(s: Park, start: Point, end: Point): Point[] {
       const n = { x: p.x + dx, y: p.y + dy };
       if (
         inBounds(n.x, n.y, s) &&
-        ["path", "queue"].includes(s.tiles[n.y][n.x]) &&
+        (s.tiles[p.y]?.[p.x] === "exit"
+          ? key(exits.get(key(p)) ?? { x: -1, y: -1 }) === key(n)
+          : ["path", "queue"].includes(s.tiles[n.y][n.x])) &&
         !prev.has(key(n))
       ) {
         prev.set(key(n), p);
@@ -980,7 +988,7 @@ export function paint(s: Park, x: number, y: number, type: Tile): string | null 
     return "Der Parkeingang muss ein normaler Weg bleiben.";
   if (occupant(s, x, y)) return "Dieses Feld ist bereits bebaut.";
   if (s.tiles[y][x] === type) return null;
-  const cost = type === "queue" ? 18 : type === "water" ? 35 : 12;
+  const cost = type === "queue" || type === "exit" ? 18 : type === "water" ? 35 : 12;
   if (!spend(s, cost)) return "Dafür reicht dein Parkbudget nicht.";
   s.tiles[y][x] = type;
   return null;
@@ -1006,12 +1014,7 @@ export function remove(s: Park, x: number, y: number) {
     for (const g of s.guests)
       if (g.target === b.id) {
         if (cancelTransitDestination(s, g)) continue;
-        g.state = "walk";
-        g.timer = 0;
-        g.route = [];
-        g.target = null;
-        g.x = ENTRANCE.x;
-        g.y = ENTRANCE.y;
+        leaveBuilding(s, b, g);
       }
   } else if (inBounds(x, y, s) && !(x === ENTRANCE.x && y === ENTRANCE.y)) {
     s.tiles[y][x] = "grass";
@@ -1244,7 +1247,8 @@ export function tick(s: Park, dt: number) {
   }
   const oldDay = Math.floor(s.time / 90);
   s.time += dt;
-  const net = connected(s);
+  const net = connected(s),
+    exits = exitNetwork(s, net);
   const active = s.buildings.filter((b) => b.open && !decorative(b.kind) && access(s, b, net));
   s.spawnClock += dt;
   const interval = Math.max(
@@ -1276,12 +1280,7 @@ export function tick(s: Park, dt: number) {
       for (const id of [...b.queue, ...b.riders]) {
         const g = s.guests.find((g) => g.id === id);
         if (g) {
-          g.state = "walk";
-          g.timer = 0;
-          g.target = null;
-          g.route = [];
-          g.x = 15;
-          g.y = 18;
+          leaveBuilding(s, b, g, net, exits);
         }
       }
       b.queue = [];
@@ -1294,8 +1293,7 @@ export function tick(s: Park, dt: number) {
       for (const id of b.riders) {
         const g = s.guests.find((g) => g.id === id);
         if (g) {
-          g.state = "walk";
-          g.target = null;
+          leaveBuilding(s, b, g, net, exits);
           g.timer = 2;
           if (isRide(b.kind)) {
             g.rides++;
@@ -1414,13 +1412,38 @@ export function tick(s: Park, dt: number) {
       g.timer -= dt;
       continue;
     }
+    const standing = { x: Math.round(g.x), y: Math.round(g.y) };
+    if (!g.route.length && s.tiles[standing.y]?.[standing.x] === "exit") {
+      // Also resume saved or newly rerouted guests before choosing another destination.
+      const onward = followExit(standing, exits).slice(1);
+      g.route = onward.length ? onward : [standing];
+    }
     if (g.route.length) {
       const p = g.route[0];
-      if (!inBounds(p.x, p.y, s) || !net.has(key(p))) {
-        g.route = [];
+      const from = { x: Math.round(g.x), y: Math.round(g.y) };
+      const outgoing = exits.get(key(from));
+      const validExitStep = outgoing && (key(from) === key(p) || key(outgoing) === key(p));
+      if (
+        !inBounds(p.x, p.y, s) ||
+        (s.tiles[from.y]?.[from.x] === "exit" ? !validExitStep : !net.has(key(p)))
+      ) {
+        // Construction can remove a tile under a walking guest. Rejoin nearby infrastructure.
+        const candidates = [...net, ...exits.keys()]
+          .map((k) => {
+            const [x, y] = k.split(",").map(Number);
+            return { x, y };
+          })
+          .sort((a, b) => Math.hypot(a.x - g.x, a.y - g.y) - Math.hypot(b.x - g.x, b.y - g.y));
+        const safe = candidates[0] ?? ENTRANCE;
+        g.x = safe.x;
+        g.y = safe.y;
+        g.route =
+          g.state === "leave"
+            ? findRoute(s, safe, ENTRANCE)
+            : exits.has(key(safe))
+              ? followExit(safe, exits).slice(1)
+              : [];
         g.target = null;
-        g.x = ENTRANCE.x;
-        g.y = ENTRANCE.y;
         continue;
       }
       const d = Math.hypot(p.x - g.x, p.y - g.y),
@@ -1600,7 +1623,7 @@ export function validSave(v: unknown): v is Park {
           r.length >= SIZE &&
           r.length <= MAX_SIZE &&
           r.length === s.tiles[0].length &&
-          r.every((t) => ["grass", "path", "queue", "water"].includes(t)),
+          r.every((t) => ["grass", "path", "queue", "exit", "water"].includes(t)),
       )
     )
       return false;

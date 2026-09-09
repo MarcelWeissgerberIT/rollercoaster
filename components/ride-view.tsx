@@ -104,13 +104,21 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
       mapHeight(park) * 5,
     );
     const tileGeometry = new THREE.BoxGeometry(4.96, 0.12, 4.96);
-    for (const type of ["path", "queue", "water"] as const) {
+    for (const type of ["path", "queue", "exit", "water"] as const) {
       const tiles = park.tiles.flatMap((row, y) =>
         row.flatMap((t, x) => (t === type ? [{ x, y }] : [])),
       );
       const instances = new THREE.InstancedMesh(
         tileGeometry,
-        mat(type === "water" ? "#47a6bf" : type === "queue" ? "#8eafc0" : "#dfc28d"),
+        mat(
+          type === "water"
+            ? "#47a6bf"
+            : type === "queue"
+              ? "#79aadd"
+              : type === "exit"
+                ? "#db8b81"
+                : "#dfc28d",
+        ),
         tiles.length,
       );
       const matrix = new THREE.Matrix4();

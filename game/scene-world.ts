@@ -46,13 +46,21 @@ export function createWorld(park: Park, exclude = -1) {
     1,
     mapHeight(park) * 5,
   );
-  for (const type of ["path", "queue", "water"] as const) {
+  for (const type of ["path", "queue", "exit", "water"] as const) {
     const cells = park.tiles.flatMap((row, y) =>
         row.flatMap((t, x) => (t === type ? [{ x, y }] : [])),
       ),
       m = new THREE.InstancedMesh(
         cube,
-        mat(type === "path" ? "#ddc18c" : type === "queue" ? "#8cacbe" : "#499fb7"),
+        mat(
+          type === "path"
+            ? "#ddc18c"
+            : type === "queue"
+              ? "#79aadd"
+              : type === "exit"
+                ? "#db8b81"
+                : "#499fb7",
+        ),
         cells.length,
       ),
       matrix = new THREE.Matrix4();
