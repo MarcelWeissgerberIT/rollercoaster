@@ -1,3 +1,5 @@
+import ZooView from "./zoo-view";
+import { isHabitat } from "../game/zoo";
 import { forceAt, analyzeForces } from "../game/gforce";
 import { prepareRoute } from "../game/motion";
 import { createCoasterCar } from "../game/coaster-car";
@@ -23,7 +25,9 @@ type Props = {
   onClose: () => void;
 };
 export default function RideView(props: Props) {
-  return props.building.kind === "coaster" ? (
+  return isHabitat(props.building.kind) ? (
+    <ZooView {...props} />
+  ) : props.building.kind === "coaster" ? (
     <CoasterRideView {...props} />
   ) : (
     <FlatRideView {...props} />

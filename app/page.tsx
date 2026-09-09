@@ -1,4 +1,22 @@
 "use client";
+import { ZooOverview, HabitatPanel } from "../components/zoo-panel";
+import {
+  isHabitat,
+  initZoo,
+  zooStats,
+  adoptAnimal,
+  careHabitat,
+  upgradeHabitat,
+} from "../game/zoo";
+import {
+  condition,
+  broken,
+  repairCost,
+  repairAttraction,
+  maintenanceScore,
+} from "../game/maintenance";
+import { cleanlinessScore } from "../game/cleanliness";
+import { PawPrint } from "lucide-react";
 import MarketingPanel from "../components/marketing-panel";
 import { startMarketing, cancelMarketing } from "../game/marketing";
 import { initCleanliness } from "../game/cleanliness";
@@ -98,6 +116,7 @@ import {
   occupant,
   trackStats,
   isRide,
+  isAttraction,
   decorative,
   validSave,
   type Park,
@@ -194,6 +213,7 @@ const categories = [
   { id: "coaster", label: "Achterbahn", Icon: RollerCoaster },
   { id: "paths", label: "Wege", Icon: Route },
   { id: "shops", label: "Versorgung", Icon: UtensilsCrossed },
+  { id: "zoo", label: "Zoo & Tiere", Icon: PawPrint },
   { id: "nature", label: "Natur", Icon: Trees },
   { id: "erase", label: "Abreißen", Icon: Eraser },
 ];
@@ -224,6 +244,7 @@ export default function Home() {
   const [snapshot, setSnapshot] = useState<Park | null>(null);
   const [showMoods, setShowMoods] = useState(true);
   const [menuOpen, setMenuOpen] = useState(true);
+  const [showGoals, setShowGoals] = useState(false);
   const [category, setCategory] = useState("");
   const [tool, setTool] = useState("select");
   const workshopReturn = useRef(false);
@@ -441,7 +462,12 @@ export default function Home() {
     finishStroke();
     const records = history.current.pop();
     if (!records || !park.current) return;
-    undoEdits(park.current, records);
+    const error = undoEdits(park.current, records);
+    if (error) {
+      history.current.push(records);
+      notify(error);
+      return;
+    }
     restoreDraft(park.current);
     setWorldRevision((v) => v + 1);
     setUndoCount(history.current.length);
@@ -959,7 +985,10 @@ export default function Home() {
         if (
           !insideMap(s, p.x, p.y) ||
           s.tiles[p.y][p.x] !== "grass" ||
-          (occupant(s, p.x, p.y) && (!autoClear || !decorative(occupant(s, p.x, p.y)!.kind)))
+          (occupant(s, p.x, p.y) &&
+            (!autoClear ||
+              !decorative(occupant(s, p.x, p.y)!.kind) ||
+              occupant(s, p.x, p.y)!.kind === "keeperhut"))
         ) {
           notify("Die Station braucht freie Wiese.");
           return;
@@ -1727,6 +1756,7 @@ export default function Home() {
                       paths: "Neue Verbindungen",
                       shops: "Für kleine Pausen",
                       nature: "Ein bisschen Grün",
+                      zoo: "Zoo & Tierpflege",
                       detail: b?.name,
                       guests: "Stimmen aus dem Park",
                       analysis: "Parkanalyse & Sauberkeit",
@@ -1749,6 +1779,30 @@ export default function Home() {
               </button>
             </div>
             <div className="panelbody">
+              {category === "zoo" && snapshot && (
+                <>
+                  {catalog(["zebra", "giraffe", "flamingo", "penguin", "keeperhut"])}
+                  <ZooOverview
+                    park={snapshot}
+                    onBuild={(k) => pickTool(k, "zoo")}
+                    onKeepers={(n) => {
+                      initZoo(park.current!);
+                      park.current!.zoo!.keepers = n;
+                      initZoo(park.current!);
+                      sync();
+                    }}
+                  />
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      setTab("research");
+                      setSettings(true);
+                    }}
+                  >
+                    Tierarten erforschen
+                  </button>
+                </>
+              )}
               {category === "rides" && (
                 <>
                   {catalog(["wheel", "carousel", "swing", "drop", "pirate", "teacups", "spinner"])}
@@ -2253,25 +2307,29 @@ export default function Home() {
                       <div
                         className={`statebadge ${(!reachable && !decorative(b.kind)) || !b.open ? "warn" : ""}`}
                       >
-                        {b.kind === "bin"
-                          ? `Mülleimer · ${b.binFill ?? 0} / 16 gefüllt · ${snapshot.staff} Reinigungskräfte`
-                          : decorative(b.kind)
-                            ? "Eine schöne Ecke für deine Besucher."
-                            : snapshot.trackEdit?.buildingId === b.id
-                              ? "Baustelle · Strecke unterbrochen"
-                              : !reachable
-                                ? isRide(b.kind)
-                                  ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
-                                  : "Ein erreichbarer Parkweg fehlt."
-                                : b.testing
-                                  ? "Testfahrt läuft …"
-                                  : !b.tested
-                                    ? "Bereit für die Testfahrt."
-                                    : b.open
-                                      ? "Geöffnet · Besucher sind willkommen."
-                                      : "Geschlossen · Bereit zur Eröffnung."}
+                        {broken(b)
+                          ? "Außer Betrieb · Reparatur nötig"
+                          : isHabitat(b.kind) && !b.habitat?.count
+                            ? "Leeres Gehege · Tiere aufnehmen"
+                            : b.kind === "bin"
+                              ? `Mülleimer · ${b.binFill ?? 0} / 16 gefüllt · ${snapshot.staff} Reinigungskräfte`
+                              : decorative(b.kind)
+                                ? "Eine schöne Ecke für deine Besucher."
+                                : snapshot.trackEdit?.buildingId === b.id
+                                  ? "Baustelle · Strecke unterbrochen"
+                                  : !reachable
+                                    ? isRide(b.kind)
+                                      ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
+                                      : "Ein erreichbarer Parkweg fehlt."
+                                    : b.testing
+                                      ? "Testfahrt läuft …"
+                                      : !b.tested
+                                        ? "Bereit für die Testfahrt."
+                                        : b.open
+                                          ? "Geöffnet · Besucher sind willkommen."
+                                          : "Geschlossen · Bereit zur Eröffnung."}
                       </div>
-                      {(isRide(b.kind) ||
+                      {(isAttraction(b.kind) ||
                         (isTransport(b.kind) &&
                           snapshot.transitLines?.some((l) => l.a === b.id || l.b === b.id))) && (
                         <button
@@ -2286,8 +2344,79 @@ export default function Home() {
                             });
                           }}
                         >
-                          <Play size={18} /> 3D-Mitfahren
+                          <Play size={18} />{" "}
+                          {isHabitat(b.kind) ? "Tiere in 3D beobachten" : "3D-Mitfahren"}
                         </button>
+                      )}
+                      {isHabitat(b.kind) && (
+                        <HabitatPanel
+                          park={snapshot}
+                          building={b}
+                          onAction={(action) => {
+                            const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                            let error: string | null = null;
+                            if (action === "adopt") error = adoptAnimal(park.current!, live);
+                            else if (action === "care")
+                              error = careHabitat(park.current!, live, (s, b) => access(s, b));
+                            else if (action === "rehome") {
+                              if (live.habitat && live.habitat.count > 0) live.habitat.count--;
+                              if (!live.habitat?.count) live.open = false;
+                            } else error = upgradeHabitat(park.current!, live, action);
+                            notify(
+                              error ??
+                                (action === "adopt"
+                                  ? "Ein neues Tier zieht ein. Prüfe Zugang und Tierpflege."
+                                  : action === "rehome"
+                                    ? "Ein Partnerzoo hat das Tier aufgenommen."
+                                    : "Gehegeversorgung aktualisiert."),
+                            );
+                            sync();
+                          }}
+                        />
+                      )}
+                      {b.kind === "keeperhut" && (
+                        <ZooOverview
+                          park={snapshot}
+                          onBuild={(k) => pickTool(k, "zoo")}
+                          onKeepers={(n) => {
+                            initZoo(park.current!);
+                            park.current!.zoo!.keepers = n;
+                            initZoo(park.current!);
+                            sync();
+                          }}
+                        />
+                      )}
+                      {isRide(b.kind) && (
+                        <div className="maintenance-card">
+                          <strong>Zustand · {Math.round(condition(b))}%</strong>
+                          <progress max="100" value={condition(b)} />
+                          {broken(b) && (
+                            <p>
+                              Außer Betrieb. Repariere die Attraktion, bevor sie wieder öffnen kann.
+                            </p>
+                          )}
+                          <button
+                            className="secondary"
+                            disabled={
+                              condition(b) >= 99.99 ||
+                              snapshot.cash < repairCost(b, CATALOG[b.kind].cost)
+                            }
+                            onClick={() => {
+                              const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                              const error = repairAttraction(
+                                park.current!,
+                                live,
+                                CATALOG[b.kind].cost,
+                              );
+                              notify(
+                                error ?? "Attraktion repariert. Du kannst sie wieder eröffnen.",
+                              );
+                              sync();
+                            }}
+                          >
+                            Reparieren · {EUR(repairCost(b, CATALOG[b.kind].cost))}
+                          </button>
+                        </div>
                       )}
                       {isTransport(b.kind) && (
                         <div className="transit-box">
@@ -2954,6 +3083,8 @@ export default function Home() {
                             className="primary"
                             disabled={
                               snapshot.trackEdit?.buildingId === b.id ||
+                              broken(b) ||
+                              (isHabitat(b.kind) && !b.habitat?.count) ||
                               !!connection.error ||
                               (!!b.autoOpen && !!reachable)
                             }
@@ -3042,7 +3173,7 @@ export default function Home() {
                               <span>Warteschlange</span>
                               <strong>
                                 {b.queue.length} /{" "}
-                                {isRide(b.kind)
+                                {isAttraction(b.kind)
                                   ? queueCapacity(snapshot, b)
                                   : isTransport(b.kind)
                                     ? 16
@@ -3079,7 +3210,11 @@ export default function Home() {
                                 <button
                                   className="secondary"
                                   style={{ width: "100%" }}
-                                  disabled={snapshot.trackEdit?.buildingId === b.id || !!b.testing}
+                                  disabled={
+                                    snapshot.trackEdit?.buildingId === b.id ||
+                                    !!b.testing ||
+                                    broken(b)
+                                  }
                                   onClick={() => {
                                     changeBuilding((b) => {
                                       b.testing = rideDuration(b);
@@ -3114,6 +3249,12 @@ export default function Home() {
                       )}
                       <button
                         className="secondary"
+                        disabled={isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0}
+                        title={
+                          isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0
+                            ? "Gib die Tiere vor dem Abriss an einen Partnerzoo ab."
+                            : undefined
+                        }
                         style={{ width: "100%", marginTop: 10 }}
                         onClick={() => {
                           edit("Abriss", () => {
@@ -3155,6 +3296,11 @@ export default function Home() {
                     setTab("park");
                     setSettings(true);
                   }}
+                  onInspect={(id) => {
+                    setSelected(id);
+                    setCategory("detail");
+                    setTool("select");
+                  }}
                   onRide={(id) => {
                     setSelected(id);
                     setCategory("detail");
@@ -3189,11 +3335,35 @@ export default function Home() {
             </div>
           </aside>
         )}
-        <aside className={`objective ${tool !== "select" ? "while-building" : ""}`}>
+        <aside
+          key={snapshot?.scenario}
+          className={`objective ${showGoals ? "show-goals" : ""} ${tool !== "select" ? "while-building" : ""}`}
+        >
           <div className="eyebrow">
             <Flag /> {snapshot?.mode === "sandbox" ? "Freies Spiel" : "Dein nächstes Ziel"}
+            {showGoals && (
+              <button
+                className="iconbtn"
+                aria-label="Kampagnenziele schließen"
+                onClick={() => setShowGoals(false)}
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
           <h3>{snapshot?.won ? "Ein Publikumsliebling!" : goal.subtitle}</h3>
+          {snapshot && !snapshot.open && (
+            <button
+              className="primary"
+              onClick={() => {
+                park.current!.open = true;
+                sync();
+                notify("Park geöffnet. Erreichbare, geöffnete Attraktionen ziehen neue Gäste an.");
+              }}
+            >
+              Park für Gäste öffnen
+            </button>
+          )}
           <div className="goalrow">
             <span>Besucher begrüßen</span>
             <b>
@@ -3207,21 +3377,60 @@ export default function Home() {
               }}
             />
           </div>
-          <div className="goalrow">
-            <span>Attraktionen eröffnen</span>
-            <b>
-              {Math.min(goal.rides, readyRides)} / {goal.rides}
-            </b>
-          </div>
-          <div className="progressrail">
-            <div style={{ width: Math.min(100, (readyRides / goal.rides) * 100) + "%" }} />
-          </div>
+          {goal.rides > 0 && (
+            <>
+              <div className="goalrow">
+                <span>Attraktionen eröffnen</span>
+                <b>
+                  {Math.min(goal.rides, readyRides)} / {goal.rides}
+                </b>
+              </div>
+              <div className="progressrail">
+                <div style={{ width: Math.min(100, (readyRides / goal.rides) * 100) + "%" }} />
+              </div>
+            </>
+          )}
           <div className="goalrow">
             <span>Zufriedenheit</span>
             <b>
               {snapshot?.rating ?? 80} / {goal.rating} %
             </b>
           </div>
+          {goal.cleanliness > 0 && (
+            <div className="goalrow">
+              <span>Sauberkeit</span>
+              <b>
+                {snapshot ? cleanlinessScore(snapshot) : 100} / {goal.cleanliness}%
+              </b>
+            </div>
+          )}
+          {goal.condition > 0 && (
+            <div className="goalrow">
+              <span>Zustand der Fahrgeschäfte</span>
+              <b>
+                {snapshot ? maintenanceScore(snapshot) : 100} / {goal.condition}%
+              </b>
+            </div>
+          )}
+          {goal.species > 0 && (
+            <>
+              <div className="goalrow">
+                <span>Gesunde Arten geöffnet</span>
+                <b>
+                  {snapshot ? zooStats(snapshot).healthyOpen : 0} / {goal.species}
+                </b>
+              </div>
+              <div className="goalrow">
+                <span>Tierwohl</span>
+                <b>
+                  {snapshot ? zooStats(snapshot).welfare : 100} / {goal.welfare}%
+                </b>
+              </div>
+              <button className="secondary" onClick={() => pickTool("select", "zoo")}>
+                <PawPrint size={16} /> Zoo & Tierpflege
+              </button>
+            </>
+          )}
           {goal.value > 0 && (
             <div className="goalrow">
               <span>Parkwert</span>
@@ -3260,6 +3469,9 @@ export default function Home() {
             {snapshot?.research?.active
               ? `Forschung · ${Math.ceil(snapshot.research.remaining)} s`
               : "Forschung & Freischaltungen"}
+          </button>
+          <button className="secondary" onClick={() => setNewDialog(true)}>
+            Kampagnen spielen
           </button>
           <div className="reward">
             <Trophy />{" "}
@@ -3396,21 +3608,23 @@ export default function Home() {
           open={menuOpen}
           setOpen={setMenuOpen}
           actions={[
-            ...categories.slice(0, 6).map(({ id, label, Icon }) => ({
-              id,
-              label,
-              Icon,
-              active: category === id,
-              run: () => {
-                if (id === "select") pickTool(id, id);
-                else if (id === "coaster") pickTool("coaster", "coaster");
-                else {
-                  setCategory(id);
-                  setSelected(null);
-                  setTool(id === "paths" ? "path" : "select");
-                }
-              },
-            })),
+            ...categories
+              .filter((c) => c.id !== "erase")
+              .map(({ id, label, Icon }) => ({
+                id,
+                label,
+                Icon,
+                active: category === id,
+                run: () => {
+                  if (id === "select") pickTool(id, id);
+                  else if (id === "coaster") pickTool("coaster", "coaster");
+                  else {
+                    setCategory(id);
+                    setSelected(null);
+                    setTool(id === "paths" ? "path" : "select");
+                  }
+                },
+              })),
             {
               id: "land",
               label: "Park erweitern",
@@ -3493,6 +3707,22 @@ export default function Home() {
               run: toggleSound,
             },
             { id: "save", label: "Park speichern", Icon: Save, run: save },
+            {
+              id: "goals",
+              label: "Kampagnenziele",
+              Icon: Trophy,
+              run: () => {
+                setCategory("");
+                setTool("select");
+                setShowGoals(true);
+              },
+            },
+            {
+              id: "campaigns",
+              label: "Kampagnen spielen",
+              Icon: Flag,
+              run: () => setNewDialog(true),
+            },
             { id: "help", label: "Spielanleitung", Icon: HelpCircle, run: () => setHelp(true) },
           ]}
         />
@@ -3618,13 +3848,17 @@ export default function Home() {
         }}
       >
         <DialogContent className="ride-modal" showCloseButton={false}>
-          <DialogTitle className="sr-only">3D-Mitfahrt</DialogTitle>
+          <DialogTitle className="sr-only">
+            {ride && isHabitat(ride.building.kind) ? "3D-Tierbeobachtung" : "3D-Mitfahrt"}
+          </DialogTitle>
           <DialogDescription className="sr-only">
-            Probefahrt in deiner gebauten Attraktion. Der Park pausiert.
+            {ride && isHabitat(ride.building.kind)
+              ? "Beobachte deine Tiere frei im Gehege. Der Park pausiert."
+              : "Probefahrt in deiner gebauten Attraktion. Der Park pausiert."}
           </DialogDescription>
           {ride && (
             <Suspense
-              fallback={<div className="ride-loading">Deine 3D-Strecke wird aufgebaut …</div>}
+              fallback={<div className="ride-loading">Deine 3D-Ansicht wird aufgebaut …</div>}
             >
               <RideView
                 {...ride}
@@ -4018,9 +4252,20 @@ export default function Home() {
                     setUndoCount(0);
                     setWorldRevision((v) => v + 1);
                     setNewDialog(false);
+                    setMenuOpen(false);
+                    setShowGoals(false);
                     setSelected(null);
-                    setCategory("rides");
+                    setCategory(
+                      id === "zoo"
+                        ? "zoo"
+                        : ["ruinenpark", "grosspark"].includes(id)
+                          ? "analysis"
+                          : "rides",
+                    );
                     setTool("select");
+                    const fitZoom = Math.min(1, 30 / park.current.tiles.length);
+                    view.current = { ...blankView, zoom: fitZoom };
+                    setZoom(Math.round(fitZoom * 100));
                     setDraft([]);
                     setCoasterType("steel");
                     announced.current = false;

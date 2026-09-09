@@ -104,17 +104,15 @@ export function driveSections(track: Point[]) {
   for (let i = 1; i < track.length - 1; i++)
     if (JSON.stringify(track[i - 1].drive) !== JSON.stringify(track[i].drive)) marks.add(i);
   const sorted = [...marks].sort((a, b) => a - b);
-  return sorted
-    .slice(0, -1)
-    .map((start, i) => ({
-      start,
-      end: sorted[i + 1],
-      label: track[start].drive
-        ? track[start].drive!.kind === "boost"
-          ? "Beschleuniger"
-          : "Bremse"
-        : (geometry.find((p) => p.start <= start && p.end > start)?.label ?? "Gleis"),
-    }));
+  return sorted.slice(0, -1).map((start, i) => ({
+    start,
+    end: sorted[i + 1],
+    label: track[start].drive
+      ? track[start].drive!.kind === "boost"
+        ? "Beschleuniger"
+        : "Bremse"
+      : (geometry.find((p) => p.start <= start && p.end > start)?.label ?? "Gleis"),
+  }));
 }
 export function trackDriveGroups(b: Building) {
   if (!b.track?.length) return [];
@@ -266,7 +264,12 @@ export function fittingTrackCut(s: Park, piece: Piece, clear = true) {
     ];
     if (
       !validateTrack(
-        { ...world, buildings: world.buildings.filter((b) => !clear || !decorative(b.kind)) },
+        {
+          ...world,
+          buildings: world.buildings.filter(
+            (b) => !clear || !decorative(b.kind) || b.kind === "keeperhut",
+          ),
+        },
         full,
       )
     )

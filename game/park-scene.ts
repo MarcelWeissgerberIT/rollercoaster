@@ -1,3 +1,6 @@
+import { createHabitatModel } from "./zoo-model";
+import { isHabitat, initZoo, tickZoo } from "./zoo";
+import { access } from "./simulation";
 import { tickCleanliness, initCleanliness } from "./cleanliness";
 import { createCoasterCar } from "./coaster-car";
 import { vehicleFor, carSeat } from "./vehicles";
@@ -143,6 +146,20 @@ export function populatePark(
       running
         ? ((rideDuration(b) - Math.max(0, b.cycle) + time) / Math.max(1, rideDuration(b))) % 1
         : 0;
+    if (isHabitat(b.kind)) {
+      const rig = createHabitatModel(b);
+      scene.add(rig.root);
+      animations.push((t) => rig.update(park.time + t));
+      continue;
+    }
+    if (b.kind === "keeperhut") {
+      const hut = groupAt(x, 0, z);
+      mesh(cube, "#e4c99f", 0, 1.8, 0, 7, 3.6, 7, hut);
+      mesh(cone, "#407a58", 0, 4.2, 0, 5.5, 2.1, 5.5, hut);
+      mesh(cube, "#5d4935", 0, 1.15, 3.55, 1.6, 2.3, 0.12, hut);
+      mesh(cube, "#90c8c8", 2, 2.1, 3.58, 1.3, 1, 0.1, hut);
+      continue;
+    }
     if (b.kind === "bin") {
       const g = groupAt(x, 0, z);
       mesh(cube, "#285e46", 0, 0.6, 0, 0.72, 1.2, 0.72, g);
@@ -366,8 +383,33 @@ export function populatePark(
     scene.add(rig.root);
     animations.push((t) => rig.update(line.enabled && !line.fault ? t : 0));
   }
+  const zooPark = structuredClone(park);
+  initZoo(zooPark);
+  let zooTime = 0;
+  const keeperModels = (zooPark.zoo?.workers ?? []).map((w) => {
+    const g = createGuestModel({ id: w.id + 12000, skin: 1 }, false);
+    scene.add(g);
+    mesh(cylinder, "#c6b075", 0, 1.85, 0, 0.23, 0.14, 0.23, g);
+    mesh(cylinder, "#546f46", 0.4, 0.4, 0, 0.15, 0.3, 0.15, g);
+    return { w, g };
+  });
+  animations.push((t) => {
+    const dt = Math.max(0, Math.min(0.1, t - zooTime));
+    zooTime = t;
+    tickZoo(zooPark, dt, (s, b) => access(s, b));
+    for (const { w, g } of keeperModels) {
+      g.position.set(w.x * 5, 0, w.y * 5);
+      const next = w.route[0];
+      if (next) g.rotation.y = Math.atan2(-(next.x - w.x), -(next.y - w.y));
+      g.rotation.z = w.mode === "care" ? Math.sin(t * 3) * 0.07 : 0;
+    }
+  });
   // Animated visitors follow their existing path segments, with no mutations to the paused park.
-  const guests = park.guests.filter((g) => g.state !== "ride"),
+  const guests = park.guests.filter(
+      (g) =>
+        g.state !== "ride" ||
+        park.buildings.some((b) => isHabitat(b.kind) && b.riders.includes(g.id)),
+    ),
     crowd = createCrowd(guests);
   scene.add(crowd.mesh);
   const routes = guests.map((g) => {

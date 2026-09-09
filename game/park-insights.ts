@@ -1,6 +1,9 @@
+import { isHabitat, welfare } from "./zoo";
+import { condition, broken } from "./maintenance";
 import {
   expectedWait,
   isRide,
+  isAttraction,
   rideCapacity,
   trackStats,
   type Park,
@@ -9,7 +12,7 @@ import {
 import { cleanlinessScore } from "./cleanliness";
 export type ParkIssue = {
   id: string;
-  kind: "dirt" | "wait" | "fun" | "mood";
+  kind: "dirt" | "wait" | "fun" | "mood" | "care" | "repair";
   point: Point;
   title: string;
   detail: string;
@@ -78,7 +81,27 @@ export function parkInsights(s: Park) {
         severity: 55,
         buildingId: b.id,
       });
-    if (!isRide(b.kind)) continue;
+    if (isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0 && welfare(b) < 70)
+      issues.push({
+        id: `care-${b.id}`,
+        kind: "care",
+        point: b,
+        title: `Tierpflege nötig · ${b.name}`,
+        detail: `Tierwohl ${Math.round(welfare(b))} %. Prüfe Futter, Wasser, Sauberkeit und die Verbindung zur Tierpflegerstation.`,
+        severity: 100 - welfare(b) + 20,
+        buildingId: b.id,
+      });
+    if (isRide(b.kind) && condition(b) < 70)
+      issues.push({
+        id: `repair-${b.id}`,
+        kind: "repair",
+        point: b,
+        title: `${broken(b) ? "Außer Betrieb" : "Reparaturbedarf"} · ${b.name}`,
+        detail: `Zustand ${Math.round(condition(b))} %. Repariere die Attraktion in ihrer Verwaltung.`,
+        severity: 100 - condition(b),
+        buildingId: b.id,
+      });
+    if (!isAttraction(b.kind)) continue;
     const wait = expectedWait(b);
     if (b.queue.length && wait > 30)
       issues.push({
@@ -105,7 +128,7 @@ export function parkInsights(s: Park) {
     }
   }
   issues.sort((a, b) => b.severity - a.severity);
-  const waits = s.buildings.filter((b) => isRide(b.kind) && b.queue.length);
+  const waits = s.buildings.filter((b) => isAttraction(b.kind) && b.queue.length);
   return {
     issues: issues.slice(0, 12),
     cleanliness: cleanlinessScore(s),

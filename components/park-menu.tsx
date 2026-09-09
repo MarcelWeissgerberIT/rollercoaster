@@ -24,10 +24,11 @@ export default function ParkMenu({
         <>
           <div className="fan-backdrop" />
           {actions.map((a, i) => {
-            const outer = i < 9,
-              index = outer ? i : i - 9,
-              count = outer ? 9 : actions.length - 9;
-            const angle = Math.PI - (index * Math.PI) / (count - 1),
+            const outerCount = Math.ceil(actions.length * 0.6),
+              outer = i < outerCount,
+              index = outer ? i : i - outerCount,
+              count = outer ? outerCount : actions.length - outerCount;
+            const angle = Math.PI - (index * Math.PI) / Math.max(1, count - 1),
               radius = outer ? 164 : 103;
             return (
               <button

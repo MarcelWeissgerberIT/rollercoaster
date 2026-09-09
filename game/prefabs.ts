@@ -160,8 +160,8 @@ export function pieceError(
       return `Wasser blockiert ${field}. Das Bauteil braucht auch seitlich freie Landfläche. Die Einpasshilfe sucht einen anderen Verlauf.`;
     if (tile !== "grass")
       return `${tile === "queue" ? "Ein blauer Eingangsweg" : tile === "exit" ? "Ein roter Ausgangsweg" : "Ein Parkweg"} blockiert ${field}. Die Einpasshilfe versucht, den Weg zu umgehen.`;
-    if (b && (!clear || !decorative(b.kind)))
-      return `${b.name || CATALOG[b.kind].name} blockiert ${field}.${decorative(b.kind) ? " Aktiviere „Deko freiräumen“." : " Die Einpasshilfe sucht einen freien Verlauf."}`;
+    if (b && (!clear || !(decorative(b.kind) && b.kind !== "keeperhut")))
+      return `${b.name || CATALOG[b.kind].name} blockiert ${field}.${decorative(b.kind) && b.kind !== "keeperhut" ? " Aktiviere „Deko freiräumen“." : " Die Einpasshilfe sucht einen freien Verlauf."}`;
   }
   return retainedTrackError(old, next, suffix);
 }
@@ -254,7 +254,10 @@ export function closeTrack(
   const same = (p: Point) =>
     Math.hypot(p.x - first.x, p.y - first.y, (p.z ?? 0) - (first.z ?? 0)) < 0.001 &&
     Math.cos((p.heading ?? 0) - targetHeading) > 0.999;
-  const virtual = { ...s, buildings: s.buildings.filter((b) => !clear || !decorative(b.kind)) };
+  const virtual = {
+    ...s,
+    buildings: s.buildings.filter((b) => !clear || !(decorative(b.kind) && b.kind !== "keeperhut")),
+  };
   const suffixDistances = [0];
   if (suffix)
     for (let i = 1; i < suffix.length; i++)

@@ -1,0 +1,1573 @@
+{
+  "provider": "OpenArt MCP",
+  "fileScale": 4,
+  "processing": "Technical extraction only: chroma key, atlas-cell crops with row cuts moved into actual empty gutters(savanna529,birds742,zoo-props688), transparent trim, one isotropic source scale per species or object group, foot-band ground anchors for animals/staff, nearest-neighbor normalization, exact4x copies. KeeperNW is a horizontal mirror of generated KeeperNE because the raw NW faces the wrong way; wrong-facing original retained. No features painted, filled or synthesized in code.",
+  "assets": [
+    {
+      "name": "zebra-se",
+      "atlas": "savanna",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 0,
+      "cellBounds": [
+        0,
+        0,
+        576,
+        529
+      ],
+      "trimBoundsInCell": [
+        163,
+        172,
+        440,
+        442
+      ],
+      "group": "zebra",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        277,
+        270
+      ],
+      "sourceAnchorInCrop": [
+        146.3878604485582,
+        270
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalBounds": [
+        11,
+        11,
+        29,
+        28
+      ],
+      "opaqueBounds": [
+        11,
+        11,
+        29,
+        28
+      ],
+      "sourceToLogicalScale": 0.064,
+      "fileScale": 4,
+      "canvas": [
+        160,
+        128
+      ],
+      "pivot": [
+        80,
+        112
+      ],
+      "asset": "assets/zebra-se.png",
+      "logical": "logical/zebra-se.png",
+      "sha256": "ea84f0f20ea266fdbacb0b1714474d924edd1403041e41f989091c03e290ab75"
+    },
+    {
+      "name": "zebra-sw",
+      "atlas": "savanna",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 1,
+      "cellBounds": [
+        576,
+        0,
+        1152,
+        529
+      ],
+      "trimBoundsInCell": [
+        165,
+        183,
+        442,
+        447
+      ],
+      "group": "zebra",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        277,
+        264
+      ],
+      "sourceAnchorInCrop": [
+        124.7829209896249,
+        264
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalBounds": [
+        12,
+        11,
+        30,
+        28
+      ],
+      "opaqueBounds": [
+        12,
+        11,
+        30,
+        28
+      ],
+      "sourceToLogicalScale": 0.064,
+      "fileScale": 4,
+      "canvas": [
+        160,
+        128
+      ],
+      "pivot": [
+        80,
+        112
+      ],
+      "asset": "assets/zebra-sw.png",
+      "logical": "logical/zebra-sw.png",
+      "sha256": "2b4c75107774df10fd7a77c9e29fd900e15f6c985cbebb24088a963a23e2bd09"
+    },
+    {
+      "name": "zebra-nw",
+      "atlas": "savanna",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 2,
+      "cellBounds": [
+        1152,
+        0,
+        1728,
+        529
+      ],
+      "trimBoundsInCell": [
+        168,
+        111,
+        415,
+        486
+      ],
+      "group": "zebra",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        247,
+        375
+      ],
+      "sourceAnchorInCrop": [
+        174.5,
+        375
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalBounds": [
+        9,
+        4,
+        25,
+        28
+      ],
+      "opaqueBounds": [
+        9,
+        4,
+        25,
+        28
+      ],
+      "sourceToLogicalScale": 0.064,
+      "fileScale": 4,
+      "canvas": [
+        160,
+        128
+      ],
+      "pivot": [
+        80,
+        112
+      ],
+      "asset": "assets/zebra-nw.png",
+      "logical": "logical/zebra-nw.png",
+      "sha256": "f410ba3e491af80fbc627b5f3e286f34a2a219c039c257b799be2f72b54d341d"
+    },
+    {
+      "name": "zebra-ne",
+      "atlas": "savanna",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 3,
+      "cellBounds": [
+        1728,
+        0,
+        2304,
+        529
+      ],
+      "trimBoundsInCell": [
+        124,
+        117,
+        367,
+        486
+      ],
+      "group": "zebra",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        243,
+        369
+      ],
+      "sourceAnchorInCrop": [
+        76.93381809218634,
+        369
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalBounds": [
+        15,
+        4,
+        31,
+        28
+      ],
+      "opaqueBounds": [
+        15,
+        4,
+        31,
+        28
+      ],
+      "sourceToLogicalScale": 0.064,
+      "fileScale": 4,
+      "canvas": [
+        160,
+        128
+      ],
+      "pivot": [
+        80,
+        112
+      ],
+      "asset": "assets/zebra-ne.png",
+      "logical": "logical/zebra-ne.png",
+      "sha256": "e27ca72a3bf04e49010e49ac09c6b2813222517466823c350c8ea9afe8f07b72"
+    },
+    {
+      "name": "giraffe-se",
+      "atlas": "savanna",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 4,
+      "cellBounds": [
+        0,
+        529,
+        576,
+        1296
+      ],
+      "trimBoundsInCell": [
+        151,
+        55,
+        446,
+        605
+      ],
+      "group": "giraffe",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        295,
+        550
+      ],
+      "sourceAnchorInCrop": [
+        121.42498608792432,
+        550
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        32,
+        48
+      ],
+      "logicalPivot": [
+        16,
+        44
+      ],
+      "logicalBounds": [
+        8,
+        8,
+        27,
+        44
+      ],
+      "opaqueBounds": [
+        8,
+        8,
+        27,
+        44
+      ],
+      "sourceToLogicalScale": 0.06568144499178982,
+      "fileScale": 4,
+      "canvas": [
+        128,
+        192
+      ],
+      "pivot": [
+        64,
+        176
+      ],
+      "asset": "assets/giraffe-se.png",
+      "logical": "logical/giraffe-se.png",
+      "sha256": "6f81cdc765a1cee651de008b52a3c327a0edd11e91a99a66020787f904e6bd84"
+    },
+    {
+      "name": "giraffe-sw",
+      "atlas": "savanna",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 5,
+      "cellBounds": [
+        576,
+        529,
+        1152,
+        1296
+      ],
+      "trimBoundsInCell": [
+        137,
+        67,
+        426,
+        615
+      ],
+      "group": "giraffe",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        289,
+        548
+      ],
+      "sourceAnchorInCrop": [
+        170.30784536668563,
+        548
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        32,
+        48
+      ],
+      "logicalPivot": [
+        16,
+        44
+      ],
+      "logicalBounds": [
+        5,
+        8,
+        24,
+        44
+      ],
+      "opaqueBounds": [
+        5,
+        8,
+        24,
+        44
+      ],
+      "sourceToLogicalScale": 0.06568144499178982,
+      "fileScale": 4,
+      "canvas": [
+        128,
+        192
+      ],
+      "pivot": [
+        64,
+        176
+      ],
+      "asset": "assets/giraffe-sw.png",
+      "logical": "logical/giraffe-sw.png",
+      "sha256": "2e21dc21605f1ab32267a2bcaa013e20d26713503bcf14363545d51c4b1a23c7"
+    },
+    {
+      "name": "giraffe-nw",
+      "atlas": "savanna",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 6,
+      "cellBounds": [
+        1152,
+        529,
+        1728,
+        1296
+      ],
+      "trimBoundsInCell": [
+        199,
+        43,
+        420,
+        652
+      ],
+      "group": "giraffe",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        221,
+        609
+      ],
+      "sourceAnchorInCrop": [
+        146.29900902045483,
+        609
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        32,
+        48
+      ],
+      "logicalPivot": [
+        16,
+        44
+      ],
+      "logicalBounds": [
+        6,
+        4,
+        21,
+        44
+      ],
+      "opaqueBounds": [
+        6,
+        4,
+        21,
+        44
+      ],
+      "sourceToLogicalScale": 0.06568144499178982,
+      "fileScale": 4,
+      "canvas": [
+        128,
+        192
+      ],
+      "pivot": [
+        64,
+        176
+      ],
+      "asset": "assets/giraffe-nw.png",
+      "logical": "logical/giraffe-nw.png",
+      "sha256": "bf951ce74783cef45d536d4ecc1523e3740f9582a65457d98752953e1631fc64"
+    },
+    {
+      "name": "giraffe-ne",
+      "atlas": "savanna",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 7,
+      "cellBounds": [
+        1728,
+        529,
+        2304,
+        1296
+      ],
+      "trimBoundsInCell": [
+        124,
+        55,
+        353,
+        646
+      ],
+      "group": "giraffe",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        229,
+        591
+      ],
+      "sourceAnchorInCrop": [
+        77.04692154915591,
+        591
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        32,
+        48
+      ],
+      "logicalPivot": [
+        16,
+        44
+      ],
+      "logicalBounds": [
+        11,
+        5,
+        26,
+        44
+      ],
+      "opaqueBounds": [
+        11,
+        5,
+        26,
+        44
+      ],
+      "sourceToLogicalScale": 0.06568144499178982,
+      "fileScale": 4,
+      "canvas": [
+        128,
+        192
+      ],
+      "pivot": [
+        64,
+        176
+      ],
+      "asset": "assets/giraffe-ne.png",
+      "logical": "logical/giraffe-ne.png",
+      "sha256": "d3e73b1d2b2a4c6518dee6722696b96e7b1b96fb3b2ae792863beaa59ff768d7"
+    },
+    {
+      "name": "flamingo-se",
+      "atlas": "birds",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 0,
+      "cellBounds": [
+        0,
+        0,
+        576,
+        742
+      ],
+      "trimBoundsInCell": [
+        169,
+        182,
+        421,
+        613
+      ],
+      "group": "flamingo",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        252,
+        431
+      ],
+      "sourceAnchorInCrop": [
+        114.71835677276091,
+        431
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        19,
+        28
+      ],
+      "opaqueBounds": [
+        6,
+        5,
+        19,
+        28
+      ],
+      "sourceToLogicalScale": 0.05263157894736842,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/flamingo-se.png",
+      "logical": "logical/flamingo-se.png",
+      "sha256": "1d6850363b8ce78f9c268da89bdeba02bbd2ef9ea6e8367723f980a2313f2409"
+    },
+    {
+      "name": "flamingo-sw",
+      "atlas": "birds",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 1,
+      "cellBounds": [
+        576,
+        0,
+        1152,
+        742
+      ],
+      "trimBoundsInCell": [
+        185,
+        182,
+        428,
+        606
+      ],
+      "group": "flamingo",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        243,
+        424
+      ],
+      "sourceAnchorInCrop": [
+        133.14513143280266,
+        424
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        5,
+        6,
+        18,
+        28
+      ],
+      "opaqueBounds": [
+        5,
+        6,
+        18,
+        28
+      ],
+      "sourceToLogicalScale": 0.05263157894736842,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/flamingo-sw.png",
+      "logical": "logical/flamingo-sw.png",
+      "sha256": "c0de906c8aee1b47c13591b5bdde64ff6aca3940ad4a04de2f087ca834d6a345"
+    },
+    {
+      "name": "flamingo-nw",
+      "atlas": "birds",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 2,
+      "cellBounds": [
+        1152,
+        0,
+        1728,
+        742
+      ],
+      "trimBoundsInCell": [
+        189,
+        152,
+        374,
+        627
+      ],
+      "group": "flamingo",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        185,
+        475
+      ],
+      "sourceAnchorInCrop": [
+        97.98126419379258,
+        475
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        3,
+        17,
+        28
+      ],
+      "opaqueBounds": [
+        7,
+        3,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.05263157894736842,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/flamingo-nw.png",
+      "logical": "logical/flamingo-nw.png",
+      "sha256": "5c697e6bd5506d3f29f9c376a33c1326dffd2b6d2ada49b82643dea55a3a80fe"
+    },
+    {
+      "name": "flamingo-ne",
+      "atlas": "birds",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 3,
+      "cellBounds": [
+        1728,
+        0,
+        2304,
+        742
+      ],
+      "trimBoundsInCell": [
+        142,
+        152,
+        319,
+        627
+      ],
+      "group": "flamingo",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        177,
+        475
+      ],
+      "sourceAnchorInCrop": [
+        88.4279207920792,
+        475
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        3,
+        16,
+        28
+      ],
+      "opaqueBounds": [
+        7,
+        3,
+        16,
+        28
+      ],
+      "sourceToLogicalScale": 0.05263157894736842,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/flamingo-ne.png",
+      "logical": "logical/flamingo-ne.png",
+      "sha256": "0b3d75b1e2c05d8de988d3f480fd3d3d80300883eae22196bbb03a33298f7944"
+    },
+    {
+      "name": "penguin-se",
+      "atlas": "birds",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 4,
+      "cellBounds": [
+        0,
+        742,
+        576,
+        1296
+      ],
+      "trimBoundsInCell": [
+        205,
+        116,
+        376,
+        341
+      ],
+      "group": "penguin",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        171,
+        225
+      ],
+      "sourceAnchorInCrop": [
+        85.89673219300485,
+        225
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        24
+      ],
+      "logicalPivot": [
+        12,
+        20
+      ],
+      "logicalBounds": [
+        5,
+        3,
+        18,
+        20
+      ],
+      "opaqueBounds": [
+        5,
+        3,
+        18,
+        20
+      ],
+      "sourceToLogicalScale": 0.07725321888412018,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        96
+      ],
+      "pivot": [
+        48,
+        80
+      ],
+      "asset": "assets/penguin-se.png",
+      "logical": "logical/penguin-se.png",
+      "sha256": "f945e92caab4c177f9bb06f21d2d3dc09bfbc7b39689f8734ee79147640af481"
+    },
+    {
+      "name": "penguin-sw",
+      "atlas": "birds",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 5,
+      "cellBounds": [
+        576,
+        742,
+        1152,
+        1296
+      ],
+      "trimBoundsInCell": [
+        203,
+        116,
+        367,
+        349
+      ],
+      "group": "penguin",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        164,
+        233
+      ],
+      "sourceAnchorInCrop": [
+        86.01235547494899,
+        233
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        24
+      ],
+      "logicalPivot": [
+        12,
+        20
+      ],
+      "logicalBounds": [
+        5,
+        2,
+        18,
+        20
+      ],
+      "opaqueBounds": [
+        5,
+        2,
+        18,
+        20
+      ],
+      "sourceToLogicalScale": 0.07725321888412018,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        96
+      ],
+      "pivot": [
+        48,
+        80
+      ],
+      "asset": "assets/penguin-sw.png",
+      "logical": "logical/penguin-sw.png",
+      "sha256": "c07db1e5467df74d558b2e3c07602c9343acf9f2275b25f43ca6c425b172def0"
+    },
+    {
+      "name": "penguin-nw",
+      "atlas": "birds",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 6,
+      "cellBounds": [
+        1152,
+        742,
+        1728,
+        1296
+      ],
+      "trimBoundsInCell": [
+        180,
+        120,
+        356,
+        350
+      ],
+      "group": "penguin",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        176,
+        230
+      ],
+      "sourceAnchorInCrop": [
+        88.00839018993177,
+        230
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        24
+      ],
+      "logicalPivot": [
+        12,
+        20
+      ],
+      "logicalBounds": [
+        5,
+        2,
+        19,
+        20
+      ],
+      "opaqueBounds": [
+        5,
+        2,
+        19,
+        20
+      ],
+      "sourceToLogicalScale": 0.07725321888412018,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        96
+      ],
+      "pivot": [
+        48,
+        80
+      ],
+      "asset": "assets/penguin-nw.png",
+      "logical": "logical/penguin-nw.png",
+      "sha256": "f5cc51098ff0a1dc22b23d2ca7772303142d6c812b2d06b96864ddce230ef90a"
+    },
+    {
+      "name": "penguin-ne",
+      "atlas": "birds",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 7,
+      "cellBounds": [
+        1728,
+        742,
+        2304,
+        1296
+      ],
+      "trimBoundsInCell": [
+        161,
+        120,
+        343,
+        353
+      ],
+      "group": "penguin",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        182,
+        233
+      ],
+      "sourceAnchorInCrop": [
+        97.96090534979425,
+        233
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        24
+      ],
+      "logicalPivot": [
+        12,
+        20
+      ],
+      "logicalBounds": [
+        4,
+        2,
+        18,
+        20
+      ],
+      "opaqueBounds": [
+        4,
+        2,
+        18,
+        20
+      ],
+      "sourceToLogicalScale": 0.07725321888412018,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        96
+      ],
+      "pivot": [
+        48,
+        80
+      ],
+      "asset": "assets/penguin-ne.png",
+      "logical": "logical/penguin-ne.png",
+      "sha256": "e8f75cf2f794b57ce631b2fa1e751c5d4fdd425abf3f0920ce8fae517dcb32a9"
+    },
+    {
+      "name": "zoo-keeper-hut",
+      "atlas": "zoo-props",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 0,
+      "cellBounds": [
+        0,
+        0,
+        576,
+        688
+      ],
+      "trimBoundsInCell": [
+        108,
+        138,
+        549,
+        595
+      ],
+      "group": "zoo-keeper-hut",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        441,
+        457
+      ],
+      "sourceAnchorInCrop": [
+        220.5,
+        457
+      ],
+      "anchorMethod": "horizontal center of complete object, lowest base contact",
+      "logicalCanvas": [
+        72,
+        80
+      ],
+      "logicalPivot": [
+        36,
+        72
+      ],
+      "logicalBounds": [
+        4,
+        6,
+        68,
+        72
+      ],
+      "opaqueBounds": [
+        4,
+        6,
+        68,
+        72
+      ],
+      "sourceToLogicalScale": 0.14512471655328799,
+      "fileScale": 4,
+      "canvas": [
+        288,
+        320
+      ],
+      "pivot": [
+        144,
+        288
+      ],
+      "asset": "assets/zoo-keeper-hut.png",
+      "logical": "logical/zoo-keeper-hut.png",
+      "sha256": "0b6356da7835d8a743fc90dba345d244e259678a80bbee5f59c4ba832a94fb18"
+    },
+    {
+      "name": "zoo-feeder",
+      "atlas": "zoo-props",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 1,
+      "cellBounds": [
+        576,
+        0,
+        1152,
+        688
+      ],
+      "trimBoundsInCell": [
+        176,
+        279,
+        463,
+        572
+      ],
+      "group": "zoo-feeder",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        287,
+        293
+      ],
+      "sourceAnchorInCrop": [
+        143.5,
+        293
+      ],
+      "anchorMethod": "horizontal center of complete object, lowest base contact",
+      "logicalCanvas": [
+        32,
+        32
+      ],
+      "logicalPivot": [
+        16,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        8,
+        26,
+        28
+      ],
+      "opaqueBounds": [
+        6,
+        8,
+        26,
+        28
+      ],
+      "sourceToLogicalScale": 0.06825938566552901,
+      "fileScale": 4,
+      "canvas": [
+        128,
+        128
+      ],
+      "pivot": [
+        64,
+        112
+      ],
+      "asset": "assets/zoo-feeder.png",
+      "logical": "logical/zoo-feeder.png",
+      "sha256": "f34f8c553782730524c2136fbc169fc30ae7dc7d7961a518f7d2be6ace416cb1"
+    },
+    {
+      "name": "zoo-trough",
+      "atlas": "zoo-props",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 2,
+      "cellBounds": [
+        1152,
+        0,
+        1728,
+        688
+      ],
+      "trimBoundsInCell": [
+        71,
+        312,
+        421,
+        553
+      ],
+      "group": "zoo-trough",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        350,
+        241
+      ],
+      "sourceAnchorInCrop": [
+        175.0,
+        241
+      ],
+      "anchorMethod": "horizontal center of complete object, lowest base contact",
+      "logicalCanvas": [
+        32,
+        24
+      ],
+      "logicalPivot": [
+        16,
+        20
+      ],
+      "logicalBounds": [
+        5,
+        5,
+        27,
+        20
+      ],
+      "opaqueBounds": [
+        5,
+        5,
+        27,
+        20
+      ],
+      "sourceToLogicalScale": 0.06224066390041494,
+      "fileScale": 4,
+      "canvas": [
+        128,
+        96
+      ],
+      "pivot": [
+        64,
+        80
+      ],
+      "asset": "assets/zoo-trough.png",
+      "logical": "logical/zoo-trough.png",
+      "sha256": "a7ddf840316cccf813a6355f0cff9ed3d1e64d67e3038f91606081b4700ad8ba"
+    },
+    {
+      "name": "zoo-shelter",
+      "atlas": "zoo-props",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 3,
+      "cellBounds": [
+        1728,
+        0,
+        2304,
+        688
+      ],
+      "trimBoundsInCell": [
+        26,
+        196,
+        476,
+        602
+      ],
+      "group": "zoo-shelter",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        450,
+        406
+      ],
+      "sourceAnchorInCrop": [
+        225.0,
+        406
+      ],
+      "anchorMethod": "horizontal center of complete object, lowest base contact",
+      "logicalCanvas": [
+        64,
+        56
+      ],
+      "logicalPivot": [
+        32,
+        48
+      ],
+      "logicalBounds": [
+        8,
+        4,
+        57,
+        48
+      ],
+      "opaqueBounds": [
+        8,
+        4,
+        57,
+        48
+      ],
+      "sourceToLogicalScale": 0.10837438423645321,
+      "fileScale": 4,
+      "canvas": [
+        256,
+        224
+      ],
+      "pivot": [
+        128,
+        192
+      ],
+      "asset": "assets/zoo-shelter.png",
+      "logical": "logical/zoo-shelter.png",
+      "sha256": "485299ae6ad14dd1b4bf2d026f8c2efdada60819b584d4de20b853c829df50a1"
+    },
+    {
+      "name": "keeper-se",
+      "atlas": "zoo-props",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 4,
+      "cellBounds": [
+        0,
+        688,
+        576,
+        1296
+      ],
+      "trimBoundsInCell": [
+        212,
+        87,
+        381,
+        404
+      ],
+      "group": "keeper",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        169,
+        317
+      ],
+      "sourceAnchorInCrop": [
+        96.45132622368061,
+        317
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        4,
+        3,
+        17,
+        28
+      ],
+      "opaqueBounds": [
+        4,
+        3,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.07861635220125786,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/keeper-se.png",
+      "logical": "logical/keeper-se.png",
+      "sha256": "d18d3d19f0f3b8ba01f4e3279e7afbb2ef1c8a2a0123fcef11b7a9246a5be7ce"
+    },
+    {
+      "name": "keeper-sw",
+      "atlas": "zoo-props",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 5,
+      "cellBounds": [
+        576,
+        688,
+        1152,
+        1296
+      ],
+      "trimBoundsInCell": [
+        205,
+        86,
+        372,
+        404
+      ],
+      "group": "keeper",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        167,
+        318
+      ],
+      "sourceAnchorInCrop": [
+        61.02405446293495,
+        318
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        3,
+        20,
+        28
+      ],
+      "opaqueBounds": [
+        7,
+        3,
+        20,
+        28
+      ],
+      "sourceToLogicalScale": 0.07861635220125786,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/keeper-sw.png",
+      "logical": "logical/keeper-sw.png",
+      "sha256": "690d307927ed17dd42d3f23fd5907adccc96af10a8351571a8f5f2db441a58ae"
+    },
+    {
+      "name": "keeper-nw",
+      "atlas": "zoo-props",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 6,
+      "cellBounds": [
+        1152,
+        688,
+        1728,
+        1296
+      ],
+      "trimBoundsInCell": [
+        181,
+        92,
+        351,
+        405
+      ],
+      "group": "keeper",
+      "sourceTransform": "horizontal mirror of keeper-ne",
+      "derivedFrom": "keeper-ne",
+      "preservedOriginalCrop": "crops/keeper-nw-original-wrong-facing.png",
+      "sourceCropDimensions": [
+        168,
+        318
+      ],
+      "sourceAnchorInCrop": [
+        113.01950254381006,
+        318
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        3,
+        3,
+        16,
+        28
+      ],
+      "opaqueBounds": [
+        3,
+        3,
+        16,
+        28
+      ],
+      "sourceToLogicalScale": 0.07861635220125786,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/keeper-nw.png",
+      "logical": "logical/keeper-nw.png",
+      "sha256": "be8414895e9e13bec48523cb19dc48789cc49277ca2e49e899b6f2065e57eae1"
+    },
+    {
+      "name": "keeper-ne",
+      "atlas": "zoo-props",
+      "sourceAtlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 7,
+      "cellBounds": [
+        1728,
+        688,
+        2304,
+        1296
+      ],
+      "trimBoundsInCell": [
+        163,
+        87,
+        331,
+        405
+      ],
+      "group": "keeper",
+      "sourceTransform": "identity",
+      "sourceCropDimensions": [
+        168,
+        318
+      ],
+      "sourceAnchorInCrop": [
+        54.98049745618994,
+        318
+      ],
+      "anchorMethod": "mean foreground x in bottom22% foot band; keeper uses warm brown boot pixels",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        3,
+        21,
+        28
+      ],
+      "opaqueBounds": [
+        8,
+        3,
+        21,
+        28
+      ],
+      "sourceToLogicalScale": 0.07861635220125786,
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/keeper-ne.png",
+      "logical": "logical/keeper-ne.png",
+      "sha256": "964caab97c0565eda479c044f372225b326159bf31bc6993575b06eeeaaf621a"
+    }
+  ],
+  "limits": [
+    "One pose per direction, not a complete walking or head-motion frame cycle. Runtime movement may add translation/rotation/bob.",
+    "KeeperNW uses technical horizontal mirroring of KeeperNE; it is not an independently generated NW pose."
+  ]
+}

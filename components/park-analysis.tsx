@@ -6,6 +6,7 @@ export default function ParkAnalysis({
   onBin,
   onStaff,
   onRide,
+  onInspect,
   moods,
   onMoods,
 }: {
@@ -14,6 +15,7 @@ export default function ParkAnalysis({
   onBin: () => void;
   onStaff: () => void;
   onRide: (id: number) => void;
+  onInspect: (id: number) => void;
   moods: boolean;
   onMoods: (v: boolean) => void;
 }) {
@@ -82,6 +84,11 @@ export default function ParkAnalysis({
             <span>Im Park zeigen ↗</span>
           </button>
           <p>{issue.detail}</p>
+          {(issue.kind === "care" || issue.kind === "repair") && issue.buildingId && (
+            <button className="secondary" onClick={() => onInspect(issue.buildingId!)}>
+              Verwalten & verbessern
+            </button>
+          )}
           {issue.kind === "fun" && issue.buildingId && (
             <button className="secondary" onClick={() => onRide(issue.buildingId!)}>
               Fahrassistent öffnen

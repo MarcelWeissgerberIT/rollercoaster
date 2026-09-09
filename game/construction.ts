@@ -1,3 +1,5 @@
+import { broken } from "./maintenance";
+import { isHabitat } from "./zoo";
 import { initCleanliness, type Litter } from "./cleanliness";
 import { insideMap } from "./grid";
 import {
@@ -37,6 +39,7 @@ import {
   occupant,
   decorative,
   isRide,
+  isAttraction,
   connected,
   validateTrack,
   type Park,
@@ -94,7 +97,12 @@ export function planPlacement(
     return {
       ...plan,
       cost: b ? -Math.round(buildingBaseCost(b) * 0.4) : 0,
-      error: !b && p.x === ENTRANCE.x && p.y === ENTRANCE.y ? "Der Eingang bleibt erhalten" : null,
+      error:
+        b && isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0
+          ? "Gib die Tiere vor dem Abriss an einen Partnerzoo ab."
+          : !b && p.x === ENTRANCE.x && p.y === ENTRANCE.y
+            ? "Der Eingang bleibt erhalten"
+            : null,
     };
   }
   const painting = ["path", "queue", "exit", "water"].includes(tool);
@@ -102,14 +110,15 @@ export function planPlacement(
   for (const t of points) {
     const b = occupant(s, t.x, t.y);
     if (b) {
-      if (mayClear && decorative(b.kind)) {
+      if (mayClear && decorative(b.kind) && b.kind !== "keeperhut") {
         if (!plan.clearIds.includes(b.id)) plan.clearIds.push(b.id);
       } else
         return {
           ...plan,
-          error: decorative(b.kind)
-            ? "Deko im Weg – Freiräumen aktivieren"
-            : "Hier steht bereits ein Gebäude",
+          error:
+            decorative(b.kind) && b.kind !== "keeperhut"
+              ? "Deko im Weg – Freiräumen aktivieren"
+              : "Hier steht bereits ein Gebäude",
         };
     }
     if (!painting && s.tiles[t.y][t.x] !== "grass")
@@ -177,7 +186,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   if (access(s, b)) return empty;
   const n = CATALOG[b.kind].size,
     net = connected(s),
-    ride = isRide(b.kind),
+    ride = isAttraction(b.kind),
     starts: Point[] = [];
   for (let i = 0; i < n; i++)
     starts.push(
@@ -189,7 +198,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   if (b.pods && usesPods(b.kind)) starts.splice(0, starts.length, podPort(b, n, b.pods.entry));
   const blocked = new Set<string>();
   for (const item of s.buildings)
-    if (!clear || !decorative(item.kind))
+    if (!clear || !(decorative(item.kind) && item.kind !== "keeperhut"))
       for (const p of footprint(item)) blocked.add(`${p.x},${p.y}`);
   const passable = (p: Point) =>
     inside(s, p) && !blocked.has(`${p.x},${p.y}`) && !["water", "exit"].includes(s.tiles[p.y][p.x]);
@@ -285,12 +294,14 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   };
 }
 export function connectBuilding(s: Park, b: Building, clear = true): string | null {
+  if (broken(b)) return "Repariere die Attraktion vor dem Eröffnen.";
+  if (isHabitat(b.kind) && !b.habitat?.count) return "Nimm zuerst Tiere in das Gehege auf.";
   if (s.trackEdit?.buildingId === b.id) return "Beende zuerst den Streckenumbau.";
   const plan = planConnection(s, b, clear);
   if (plan.error) return plan.error;
   s.buildings = s.buildings.filter((item) => !plan.clearIds.includes(item.id));
   if (plan.clearIds.length) spend(s, plan.clearIds.length * 10);
-  for (const p of plan.points) paint(s, p.x, p.y, isRide(b.kind) ? "queue" : "path");
+  for (const p of plan.points) paint(s, p.x, p.y, isAttraction(b.kind) ? "queue" : "path");
   if (b.kind === "coaster" && !b.tested) {
     if (!b.testing) {
       b.testing = rideDuration(b);
@@ -441,12 +452,13 @@ export function planRelocation(
       };
     const obstacle = occupant(virtual, q.x, q.y);
     if (obstacle) {
-      if (!clear || !decorative(obstacle.kind))
+      if (!clear || !(decorative(obstacle.kind) && obstacle.kind !== "keeperhut"))
         return {
           ...plan,
-          error: decorative(obstacle.kind)
-            ? "Deko im Weg – Freiräumen aktivieren."
-            : "Hier steht ein anderes Gebäude.",
+          error:
+            decorative(obstacle.kind) && obstacle.kind !== "keeperhut"
+              ? "Deko im Weg – Freiräumen aktivieren."
+              : "Hier steht ein anderes Gebäude.",
         };
       if (!plan.clearIds.includes(obstacle.id)) plan.clearIds.push(obstacle.id);
     }
@@ -518,7 +530,7 @@ export function planPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = t
     return { ...plan, error: "Eingang und Ausgang brauchen unterschiedliche Plätze." };
   const item = occupant(s, p.x, p.y);
   if (item) {
-    if (!clear || !decorative(item.kind))
+    if (!clear || !(decorative(item.kind) && item.kind !== "keeperhut"))
       return {
         ...plan,
         error:
@@ -659,6 +671,9 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     : null;
 }
 export function undoEdits(s: Park, records: EditRecord[]) {
+  const added = new Set(records.flatMap((record) => record.added));
+  if (s.buildings.some((b) => added.has(b.id) && isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0))
+    return "Gib zuerst die Tiere an einen Partnerzoo ab. Das bewohnte Gehege bleibt erhalten.";
   for (const record of [...records].reverse()) {
     const editing = s.trackEdit?.buildingId;
     if (
@@ -762,4 +777,5 @@ export function undoEdits(s: Park, records: EditRecord[]) {
     s.dayExpenses -= record.expenses;
   }
   if (s.cleanliness) initCleanliness(s);
+  return null;
 }

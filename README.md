@@ -6,7 +6,7 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 
 ## Im Spiel
 
-- 30 × 30 Felder mit Wegen, Warteschlangen, Wasser und Dekoration; Gelände nach Osten und Süden bis 54 × 54 zukaufen.
+- Je nach Kampagne 30 × 30, 36 × 36 oder 42 × 42 Felder mit Wegen, Warteschlangen, Wasser und Dekoration; Gelände nach Osten und Süden bis 54 × 54 zukaufen.
 - Drei Achterbahntypen mit eigenen Wagen, Stationen, Preisen und Kapazitäten: Stahlfalke, Holzexpress und Blitzstart. Drehbare Rundkurs-Vorlagen sowie automatisch andockende Geraden, Steigungen, Abfahrten, Links-/Rechtskurven und echte räumliche Loopings.
 - Kompakter Baukasten mit festen Aktionen, Vorschau des nächsten Bauteils und sofortiger Kollisionsprüfung. Entwürfe samt Bauteil-Undo bleiben beim Werkzeugwechsel und Laden erhalten. Gültige/ungültige Bauvorschau mit Gesamtkosten, optionales Deko-Freiräumen, automatischer Anschluss und Rückgängig für die letzten 30 Bauaktionen.
 - Bestehende Stationen auf ebene, gerade Gleisfelder versetzen; ganze Bahnen verschieben und um ihre Station drehen. Der Umbau behält ID, Fahrpreise, Testresultat und Statistik und ist rückgängig machbar.
@@ -16,12 +16,30 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 - 3D-Probefahrt auf der tatsächlich gebauten Strecke: Frontkamera, Verfolger, dreh-/zoombarer Parkblick, Zeitregler, Pause und Neustart. Eine gemeinsame Geometrie-/Geschwindigkeitstabelle treibt 2D, 3D und Testfahrten an. Die Szene zeigt alle Bahnen, animierte Gäste, eigenständige Attraktionen und unterschiedliche Baumarten. Der Park pausiert währenddessen. WebGL 2 ist erforderlich; die 3D-Umgebung ist eine vereinfachte räumliche Darstellung des Parks.
 - Originale, prozedurale Parkmusik mit vier Phrasen, Harmoniewechseln und Ruhepassagen, Bau-/Kassentöne sowie Kettenlift, Launch, Rollen, Bremsen und geschwindigkeitsabhängiger Fahrtwind. Sound startet nach Aktivierung; Gesamt-, Musik- und Effektlautstärke werden getrennt gespeichert.
 - Eintritts- und Fahrpreise, Personal, Einnahmen, Baukosten, Parkwert und tägliche Betriebskosten. Geschäfte arbeiten mit realer Kapazität, Wartezeit und Wareneinsatz; bezahlt wird nach dem Service. Betriebsgewinn wird getrennt von Bau, Verkauf und Forschung ausgewiesen.
-- Sieben Forschungsprojekte schalten zusätzliche Bahnen, Fahrgeschäfte, Souvenirs, Transport und die eigene Attraktionswerkstatt frei. Alte Spielstände behalten bisherige Freischaltungen; neue Inhalte werden zusätzlich erforscht.
+- Zehn Forschungsprojekte schalten zusätzliche Bahnen, Fahrgeschäfte, Souvenirs, Transport und die eigene Attraktionswerkstatt frei. Alte Spielstände behalten bisherige Freischaltungen; neue Inhalte werden zusätzlich erforscht.
 - Waldhain-Szenario mit 16.000 € und einem bereits geöffneten Park. Ziel: 150 Gäste begrüßen, vier Attraktionen betreiben und mindestens 75 % Zufriedenheit erreichen.
 - Seeblick-Szenario: 12.000 €, zusätzlicher See, fünf Attraktionen, 250 Ankünfte und Ziele für Parkwert, Betriebsgewinn und Zufriedenheit.
 - Gipfelrausch-Szenario: 20.000 €, zunächst nur eine Bahn; entwickle einen rentablen Park mit drei Achterbahnen.
 - Freies Spiel mit 100.000 € Startkapital und allen Freischaltungen.
 - Automatisches lokales Speichern alle 20 Sekunden; manuell speichern und laden in der Parkverwaltung.
+
+## Fertige Kampagnen und Zoo
+
+**Parkmenü → Kampagnen spielen** öffnet die Auswahl. **Kampagnenziele** im Parkmenü zeigt den Fortschritt auch auf kleinen Bildschirmen. Ein neuer Start ersetzt den bisherigen lokalen Park; die Auswahl weist darauf hin. Die drei bisherigen Szenarien und das freie Spiel bleiben vorhanden.
+
+| Neue Kampagne | Ausgangslage | Aufgabe |
+| --- | --- | --- |
+| Rosenhain erwacht | 8.000 €, geschlossener maroder Park, verschlissene Attraktionen und Müll | Reparieren, wieder öffnen, 150 Gäste begrüßen, drei Fahrgeschäfte betreiben; Zustand 80 %, Sauberkeit 85 %, Zufriedenheit 75 % |
+| Festival nach dem Sturm | 12.000 €, 42 × 42 Felder, 120 Gäste, acht Attraktionen und viel Müll | Reinigung organisieren, 350 Gäste begrüßen, Sauberkeit 90 %, Zufriedenheit 80 % und 400 € Betriebsgewinn pro Tag erreichen |
+| Wildhain Tierpark | 22.000 €, 36 × 36 Felder, Zebras, Flamingos und ein Tierpfleger | Giraffen und Pinguine erforschen; vier verschiedene gesunde Arten zugänglich machen, 200 Gäste begrüßen, Tierwohl/Zufriedenheit 80 % und Sauberkeit 85 % erreichen |
+
+Im Menü **Zoo & Tiere** stehen vier Gehegetypen und die **Tierpflegerstation**. Forschung schaltet zunächst Zebras, Flamingos und Pflegestationen, danach Savannentiere und die Pinguin-Küste frei. Gehege werden leer gebaut. Tiere einzeln aufnehmen, den blauen Eingang und roten Ausgang an Wege anschließen und öffnen. Besucher bezahlen einmal pro Gehegebesuch und bleiben außerhalb des Zauns. Leere Gehege zählen nicht als Attraktion oder Kampagnenfortschritt.
+
+Tiere besitzen Namen, Futter-, Wasser-, Sauberkeits- und Gesundheitswerte. **Beschäftigung** kostet 350 €, ein **Rückzugsort** 500 €. Tierpfleger kosten 90 € pro Tag, laufen von einer erreichbaren Pflegestation über die Wege zum Gehege und versorgen dort die Tiere für 8 € je Tier. Ohne erreichbare Station oder ausreichendes Budget bleibt Pflege aus. Eine bezahlte Sofortversorgung ist am angeschlossenen Gehege möglich. Tierhaltungskosten fallen auch bei geschlossenem, bewohntem Gehege an. Schlechtes Tierwohl mindert die Besucherzufriedenheit und erscheint in der Parkanalyse. Tiere lassen sich ohne Erstattung an einen Partnerzoo abgeben; bewohnte Gehege sind vor Abriss und Bau-Undo geschützt.
+
+**Tiere in 3D beobachten** öffnet eine frei drehbare, verschiebbare und zoombare Ansicht des tatsächlichen Geheges mit allen aufgenommenen Tieren und Verbesserungen. Die Tiere bewegen sich in 2D und 3D entlang derselben Wege innerhalb des Zauns. Die Beobachtung ist pausierbar; währenddessen pausiert der Park. Es gibt derzeit feste Gehegegrößen, keine Tierzucht oder frei gezeichneten Zäune.
+
+Fahrgeschäfte besitzen jetzt einen **Zustand**: Nutzung verursacht Verschleiß, stark beschädigte Attraktionen schließen. **Reparieren** in der Attraktionsverwaltung bezahlt die Instandsetzung; anschließend wieder öffnen. Die Parkanalyse weist auf reparaturbedürftige Attraktionen und unzureichend versorgte Tiere hin.
 
 ## Neue Parkwerkzeuge
 

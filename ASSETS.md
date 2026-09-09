@@ -45,3 +45,11 @@ Zwei neue **OpenArt-MCP**-Generierungen mit GPT Image 2.5 Flare liefern zehn Lau
 Die Sportrakete nutzt 48 × 40 logische Pixel mit Anker (24, 30). OpenArt lieferte Tandemsitze; diese Anordnung ist in 2D und 3D übernommen. Eine Materialmaske färbt Karosserie, Akzente und Sitze um und erhält Schattierung, Transparenz und dunkle Mechanik. Die drei 3D-Wagenmodelle sind eigenständige Spielgeometrie mit passenden Sitzankern, Radgruppen, Haltebügeln und Modellmerkmalen.
 
 Mülleimer und Personal nutzen 24 × 32 logische Pixel mit Fußpunkt (12, 28), jeweils exakt vierfach vergrößert. Reinigungskräfte besitzen eine Pose pro Richtung mit leichter Lauf-/Kehrbewegung zur Laufzeit; dies ist kein vollständiger Gehzyklus. Müllteile, Smileys und Analysemarkierungen zeichnet die Engine. Schreie und Jubel werden ausschließlich prozedural über Web Audio erzeugt; es werden keine aufgenommenen Stimmen verwendet.
+
+## Zoo-Erweiterung v7
+
+24 neue transparente Spielsprites stammen aus drei OpenArt-MCP-Generierungen mit **GPT Image 2.5 Flare**, Image-to-image mit dem bisherigen Pixelstil als Referenz: Zebras und Giraffen, Flamingos und Pinguine sowie Pflegestation, Futterstelle, Tränke, Rückzugsort und Tierpfleger. Die Tiere und Pfleger besitzen jeweils vier Richtungsansichten. Runtime-Dateien liegen in `public/assets/zoo-v7/`, Anker und Größen in `game/zoo-sprites.json`.
+
+Aufträge: `grLzBikwrBU4tTX1dGYu`, `hZhfnYYZZcroE5cQrY8o`, `jiT1fnfKOgYRmMRv1mhu`. Quellen (je 2304 × 1296), vollständige Prompts, Kennungen und Hashes stehen unter [`art/zoo-v7/`](art/zoo-v7/). `python3 art/zoo-v7/extract.py` erzeugt die Zuschnitte und lokalen Ausgabedateien erneut; `python3 art/zoo-v7/validate.py` prüft danach Transparenz, Skalierung, Anker, Hashes und zusammenhängende Tiersilhouetten. Pillow wird benötigt.
+
+Pro Tierart gibt es eine Pose je Richtung. Laufwege, sanfte Körperbewegung und Ruhepausen entstehen im Spiel. Der Pfleger mit Blick nach Nordwesten ist eine dokumentierte Spiegelung der Nordostansicht, da der ursprüngliche Ausschnitt in die falsche Richtung blickte. Zäune, Gehegeboden und Schatten zeichnet die Engine; die eigenständigen 3D-Tiermodelle bestehen aus Codegeometrie und verwenden dieselbe Bewegungsberechnung.

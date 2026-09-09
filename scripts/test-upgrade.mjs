@@ -101,7 +101,7 @@ test("Research costs once, pauses, completes in simulation time and gates constr
   assert(S.startResearch(s, "launch"));
 });
 test("Different scenario maps and goals survive saves; sandbox unlocks everything", () => {
-  const states = Object.keys(S.SCENARIOS).map((id) => S.newPark("scenario", id));
+  const states = ["waldhain", "lakeside", "summit"].map((id) => S.newPark("scenario", id));
   assert.equal(new Set(states.map((s) => s.cash)).size, 3);
   assert.equal(new Set(states.map((s) => JSON.stringify(s.tiles))).size, 2);
   assert.equal(

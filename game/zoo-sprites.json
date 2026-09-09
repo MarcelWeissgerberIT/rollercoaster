@@ -1,0 +1,146 @@
+{
+  "zebra-se": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "zebra-sw": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "zebra-nw": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "zebra-ne": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "giraffe-se": {
+    "width": 32,
+    "height": 48,
+    "anchorX": 16,
+    "anchorY": 44
+  },
+  "giraffe-sw": {
+    "width": 32,
+    "height": 48,
+    "anchorX": 16,
+    "anchorY": 44
+  },
+  "giraffe-nw": {
+    "width": 32,
+    "height": 48,
+    "anchorX": 16,
+    "anchorY": 44
+  },
+  "giraffe-ne": {
+    "width": 32,
+    "height": 48,
+    "anchorX": 16,
+    "anchorY": 44
+  },
+  "flamingo-se": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "flamingo-sw": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "flamingo-nw": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "flamingo-ne": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "penguin-se": {
+    "width": 24,
+    "height": 24,
+    "anchorX": 12,
+    "anchorY": 20
+  },
+  "penguin-sw": {
+    "width": 24,
+    "height": 24,
+    "anchorX": 12,
+    "anchorY": 20
+  },
+  "penguin-nw": {
+    "width": 24,
+    "height": 24,
+    "anchorX": 12,
+    "anchorY": 20
+  },
+  "penguin-ne": {
+    "width": 24,
+    "height": 24,
+    "anchorX": 12,
+    "anchorY": 20
+  },
+  "zoo-keeper-hut": {
+    "width": 72,
+    "height": 80,
+    "anchorX": 36,
+    "anchorY": 72
+  },
+  "zoo-feeder": {
+    "width": 32,
+    "height": 32,
+    "anchorX": 16,
+    "anchorY": 28
+  },
+  "zoo-trough": {
+    "width": 32,
+    "height": 24,
+    "anchorX": 16,
+    "anchorY": 20
+  },
+  "zoo-shelter": {
+    "width": 64,
+    "height": 56,
+    "anchorX": 32,
+    "anchorY": 48
+  },
+  "keeper-se": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "keeper-sw": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "keeper-nw": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  },
+  "keeper-ne": {
+    "width": 24,
+    "height": 32,
+    "anchorX": 12,
+    "anchorY": 28
+  }
+}

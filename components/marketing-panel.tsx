@@ -7,7 +7,7 @@ import {
   marketingTotals,
   type MarketingKind,
 } from "../game/marketing";
-import { access, isRide, type Park } from "../game/simulation";
+import { access, isAttraction, type Park } from "../game/simulation";
 const euro = (n: number) =>
   new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -27,7 +27,12 @@ export default function MarketingPanel({
     [days, setDays] = useState(1),
     [target, setTarget] = useState<number | undefined>();
   const rides = park.buildings.filter(
-    (b) => isRide(b.kind) && b.open && b.tested && access(park, b),
+    (b) =>
+      isAttraction(b.kind) &&
+      (!b.habitat || b.habitat.count > 0) &&
+      b.open &&
+      b.tested &&
+      access(park, b),
   );
   const selected = target ?? rides[0]?.id,
     quote = quoteMarketing(

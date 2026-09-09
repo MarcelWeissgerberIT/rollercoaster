@@ -349,6 +349,10 @@ button:hover:not(:disabled) {
   top: 26px;
   width: 224px;
   padding: 18px 20px;
+  max-height: calc(100% - 176px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #b6c5aa transparent;
   background: #fffef5f2;
   border: 1px solid #fff9;
   border-radius: 13px;
@@ -3084,5 +3088,154 @@ button:hover:not(:disabled) {
   }
   .campaign-card > div {
     display: grid;
+  }
+}
+.zoo-overview,
+.habitat-panel {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+.zoo-overview > label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+.zoo-overview input[type="range"] {
+  width: 100%;
+  accent-color: #2e684e;
+}
+.habitat-title {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.animal-names {
+  padding: 10px;
+  background: #eff2e5;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.habitat-meters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.habitat-meters label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.habitat-meters span {
+  display: flex;
+  justify-content: space-between;
+}
+.habitat-meters progress,
+.maintenance-card progress {
+  width: 100%;
+  height: 8px;
+  accent-color: #699456;
+}
+.habitat-upgrades {
+  display: grid;
+  gap: 7px;
+}
+.maintenance-card {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  margin: 12px 0;
+  background: #f4eedb;
+  border: 1px solid #ddcc9d;
+  border-radius: 10px;
+}
+.maintenance-card p {
+  font-size: 12px;
+  margin: 0;
+}
+.zoo-view {
+  height: calc(100dvh - 32px);
+  min-height: 300px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  background: #f9f8eb;
+  color: #284d3c;
+}
+.zoo-view header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  background: #234d3c;
+  color: #f8f7e8;
+}
+.zoo-view header small {
+  letter-spacing: 0.18em;
+  font-size: 10px;
+}
+.zoo-view h2 {
+  margin: 3px 0;
+}
+.zoo-view-canvas {
+  min-height: 0;
+  overflow: hidden;
+}
+.zoo-view-canvas canvas {
+  display: block;
+}
+.zoo-view footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px;
+}
+.zoo-view footer small {
+  flex-basis: 100%;
+  text-align: center;
+}
+.zoo-view-error {
+  position: absolute;
+  top: 100px;
+  left: 25px;
+  right: 25px;
+  padding: 20px;
+  background: #fff3d7;
+  border-radius: 10px;
+}
+@media (max-width: 640px) {
+  .zoo-view header {
+    padding: 12px;
+  }
+  .zoo-view footer {
+    font-size: 12px;
+  }
+  .habitat-meters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zoo-view header .secondary {
+  color: #284d3c;
+}
+.objective.show-goals {
+  display: block;
+  z-index: 16;
+}
+.objective .eyebrow .iconbtn {
+  margin-left: auto;
+  padding: 3px;
+  width: 24px;
+  height: 24px;
+}
+@media (max-width: 850px) {
+  .objective.show-goals {
+    top: 80px;
+    right: 18px;
+    width: min(280px, calc(100% - 36px));
+    max-height: calc(100% - 200px);
   }
 }

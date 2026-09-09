@@ -1,0 +1,254 @@
+{
+  "provider": "OpenArt MCP",
+  "createdAt": "2026-09-09",
+  "purpose": "Coaster Grove zoo expansion",
+  "generationBudget": 3,
+  "generationsSubmitted": 3,
+  "entries": [
+    {
+      "atlas": "savanna",
+      "names": [
+        "zebra-se",
+        "zebra-sw",
+        "zebra-nw",
+        "zebra-ne",
+        "giraffe-se",
+        "giraffe-sw",
+        "giraffe-nw",
+        "giraffe-ne"
+      ],
+      "background": "#FF00FF",
+      "prompt": "PRODUCTION GAME SPRITE ATLAS for Coaster Grove, original new assets in the supplied exact pixel-art game style. Authentic miniature late1990s PC theme-park/zoo management game pixel art: chunky square pixels and clean stair-step outlines, simple large readable color clusters, two or three palette shades per material. The output must look like tiny low-resolution game sprites enlarged nearest-neighbor, not smooth vector art or detailed illustrations. No blur, no gradients, no antialiasing, no glow, no photorealism. Orthographic2:1 isometric projection, camera azimuth45degrees and elevation26.565degrees; ground directions run2screenpixels horizontally for1vertically. Do not use perspective convergence. No text, labels, cell borders, grid, scene, enclosure, fence, landscape, grass, ground tile, floor shadow, cast shadow, pedestal, or attached decorative base. Every subject entirely separate, complete and contained in its cell with at least12percent clear margins. The supplied people/buildings are style references only and must not appear in the animal atlas.\nEXACT arrangement FOUR equal columns by TWO equal rows, eight isolated subjects. For a row with four directions, column1 faces screen LOWER RIGHT(SE), column2 screen LOWER LEFT(SW), column3 screen UPPER LEFT(NW), column4 screen UPPER RIGHT(NE). Direction means where the animal's head/nose or person's face points, never which side the camera is on. NW/NE must be genuine back three-quarter views with back/hindquarters visible, not repeated front views. SAME individual, physical scale, camera elevation, colors and anatomy within each row. A relaxed one-step walking stance is enough; no animation duplicates required.\nWhole background exactly uniform vivid MAGENTA #FF00FF, including all holes and between legs. No magenta on animals.\nROW1: one recognizable adult ZEBRA in the four required directions. Natural four-legged quadruped, compact horse-like horizontal body, unmistakable bold black-and-ivory stripes across body and legs, short upright black mane, long narrow head with dark muzzle and pointed ears, thin black-tufted tail. Exactly four anatomically plausible legs with dark hoof tips (some overlap in foreshortening). No horns. Stripes must be broad clear pixel bands, not random speckles. Calm natural animal, not anthropomorphic or clothed. Zebra target logical canvas40x32, body+legs visible about30pixelswide by23pixelshigh; common ground anchor(20,28). Do not enlarge faces or give huge cartoon eyes.\nROW2: one recognizable adult GIRAFFE in the four required directions. MUCH TALLER than the zebra, very long slender upright neck leaning slightly forward, small head with two short ossicones and ears, gently sloped back, four long slender legs and small hooves, short dark mane along neck, slim tail. Golden ochre/tan coat with large distinct irregular chocolate-brown patches, never black-and-white stripes. Long neck and tiny ossicones must survive at game scale. Natural giraffe proportions, no anthropomorphic posture. Giraffe target logical canvas32x48, visible height40pixels and maximum width24pixels, common ground anchor(16,44). Neck abouthalf the total height and at least2logicalpixels thick; legs readable as1-2pixel lines, no floating detached pieces.\nRelative animal scale matters: giraffes noticeably taller than zebras in the atlas, keep empty space above zebras rather than scaling every cell subject equally. All hoof tips meet the same imaginary ground plane for each creature, no drawn ground. Exactly4zebras and4giraffes. Preserve large clear gutters and do not clip any ossicone, hoof or tail.",
+      "model": "gpt-image-2-5-flare",
+      "mode": "image2image",
+      "params": {
+        "prompt": "PRODUCTION GAME SPRITE ATLAS for Coaster Grove, original new assets in the supplied exact pixel-art game style. Authentic miniature late1990s PC theme-park/zoo management game pixel art: chunky square pixels and clean stair-step outlines, simple large readable color clusters, two or three palette shades per material. The output must look like tiny low-resolution game sprites enlarged nearest-neighbor, not smooth vector art or detailed illustrations. No blur, no gradients, no antialiasing, no glow, no photorealism. Orthographic2:1 isometric projection, camera azimuth45degrees and elevation26.565degrees; ground directions run2screenpixels horizontally for1vertically. Do not use perspective convergence. No text, labels, cell borders, grid, scene, enclosure, fence, landscape, grass, ground tile, floor shadow, cast shadow, pedestal, or attached decorative base. Every subject entirely separate, complete and contained in its cell with at least12percent clear margins. The supplied people/buildings are style references only and must not appear in the animal atlas.\nEXACT arrangement FOUR equal columns by TWO equal rows, eight isolated subjects. For a row with four directions, column1 faces screen LOWER RIGHT(SE), column2 screen LOWER LEFT(SW), column3 screen UPPER LEFT(NW), column4 screen UPPER RIGHT(NE). Direction means where the animal's head/nose or person's face points, never which side the camera is on. NW/NE must be genuine back three-quarter views with back/hindquarters visible, not repeated front views. SAME individual, physical scale, camera elevation, colors and anatomy within each row. A relaxed one-step walking stance is enough; no animation duplicates required.\nWhole background exactly uniform vivid MAGENTA #FF00FF, including all holes and between legs. No magenta on animals.\nROW1: one recognizable adult ZEBRA in the four required directions. Natural four-legged quadruped, compact horse-like horizontal body, unmistakable bold black-and-ivory stripes across body and legs, short upright black mane, long narrow head with dark muzzle and pointed ears, thin black-tufted tail. Exactly four anatomically plausible legs with dark hoof tips (some overlap in foreshortening). No horns. Stripes must be broad clear pixel bands, not random speckles. Calm natural animal, not anthropomorphic or clothed. Zebra target logical canvas40x32, body+legs visible about30pixelswide by23pixelshigh; common ground anchor(20,28). Do not enlarge faces or give huge cartoon eyes.\nROW2: one recognizable adult GIRAFFE in the four required directions. MUCH TALLER than the zebra, very long slender upright neck leaning slightly forward, small head with two short ossicones and ears, gently sloped back, four long slender legs and small hooves, short dark mane along neck, slim tail. Golden ochre/tan coat with large distinct irregular chocolate-brown patches, never black-and-white stripes. Long neck and tiny ossicones must survive at game scale. Natural giraffe proportions, no anthropomorphic posture. Giraffe target logical canvas32x48, visible height40pixels and maximum width24pixels, common ground anchor(16,44). Neck abouthalf the total height and at least2logicalpixels thick; legs readable as1-2pixel lines, no floating detached pieces.\nRelative animal scale matters: giraffes noticeably taller than zebras in the atlas, keep empty space above zebras rather than scaling every cell subject equally. All hoof tips meet the same imaginary ground plane for each creature, no drawn ground. Exactly4zebras and4giraffes. Preserve large clear gutters and do not clip any ossicone, hoof or tail.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "rrLVzoTniQsZsBAZEcYj",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788939649376_64509bbe.png",
+            "label": "Existing game people: exact miniature pixel density and shading style, not subject"
+          }
+        ],
+        "aspectRatio": "16:9",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "initialResponse": {
+        "status": "PENDING",
+        "historyId": "grLzBikwrBU4tTX1dGYu",
+        "pollAfterSeconds": 5
+      },
+      "result": {
+        "status": "COMPLETED",
+        "historyId": "grLzBikwrBU4tTX1dGYu",
+        "capabilityId": "gpt-image-2-5-flare:image2image",
+        "modelDisplayName": "GPT Image 2.5 Flare",
+        "aspectRatio": "16:9",
+        "resources": [
+          {
+            "id": "j3iMc3OORjWQVl6PT6Yp",
+            "mediaType": "image",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788971970794_e16e275f.png",
+            "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788971970944_ed5430a2.webp",
+            "metadata": {
+              "width": 2304,
+              "height": 1296,
+              "format": "png"
+            }
+          }
+        ]
+      },
+      "sourceFile": "raw/savanna.png",
+      "sourceSha256": "dc3e6e09b1462e399896b059e74665052561d5afad877f17d0b83eb3f86ce81a"
+    },
+    {
+      "atlas": "birds",
+      "names": [
+        "flamingo-se",
+        "flamingo-sw",
+        "flamingo-nw",
+        "flamingo-ne",
+        "penguin-se",
+        "penguin-sw",
+        "penguin-nw",
+        "penguin-ne"
+      ],
+      "background": "#00FF00",
+      "prompt": "PRODUCTION GAME SPRITE ATLAS for Coaster Grove, original new assets in the supplied exact pixel-art game style. Authentic miniature late1990s PC theme-park/zoo management game pixel art: chunky square pixels and clean stair-step outlines, simple large readable color clusters, two or three palette shades per material. The output must look like tiny low-resolution game sprites enlarged nearest-neighbor, not smooth vector art or detailed illustrations. No blur, no gradients, no antialiasing, no glow, no photorealism. Orthographic2:1 isometric projection, camera azimuth45degrees and elevation26.565degrees; ground directions run2screenpixels horizontally for1vertically. Do not use perspective convergence. No text, labels, cell borders, grid, scene, enclosure, fence, landscape, grass, ground tile, floor shadow, cast shadow, pedestal, or attached decorative base. Every subject entirely separate, complete and contained in its cell with at least12percent clear margins. The supplied people/buildings are style references only and must not appear in the animal atlas.\nEXACT arrangement FOUR equal columns by TWO equal rows, eight isolated subjects. For a row with four directions, column1 faces screen LOWER RIGHT(SE), column2 screen LOWER LEFT(SW), column3 screen UPPER LEFT(NW), column4 screen UPPER RIGHT(NE). Direction means where the animal's head/nose or person's face points, never which side the camera is on. NW/NE must be genuine back three-quarter views with back/hindquarters visible, not repeated front views. SAME individual, physical scale, camera elevation, colors and anatomy within each row. A relaxed one-step walking stance is enough; no animation duplicates required.\nWhole background exactly uniform bright GREEN #00FF00, including holes and between legs. Absolutely no green on birds.\nROW1: one recognizable FLAMINGO in four required directions. Coral-pink and soft salmon-pink plumage, compact oval wing/body, very long thin pink legs with clear foot tips, gracefully curved S-shaped slender neck, small head and unmistakable pale downward-bent beak with BLACK tip. Both legs visible in a gentle walking step, one slightly bent, stable complete posture. Natural bird silhouette, no clothes, no wing-flapping, no flying. Flamingo canvas24x32 logicalpixels, visible height25pixels, maximum width17pixels, ground anchor(12,28). Neck and legs must form continuous1-2pixel lines, not disappear; larger readable pink clusters on body. Four views of same bird with same neck/head proportions. Rear views show back and folded wings while head still follows requested travel direction.\nROW2: one recognizable PENGUIN in four required directions. Compact upright pear-shaped little black-and-white penguin, charcoal-black back and head, clear ivory-white belly/front chest, tiny dark eye, short orange beak, two small orange webbed feet and little outward flipper wings. A small dark tail behind body, no long neck, no long legs. Friendly natural penguin, no clothing and no exaggerated giant eyes. Penguin canvas24x24 logicalpixels, visible height17pixels, maximum width14pixels, ground anchor(12,20). NW/NE show mostly dark back and flippers, not a full white front belly; head and beak point toward upperleft/upperright respectively.\nPenguins are MUCH SHORTER than flamingos. Preserve consistent pixel density and relative size; leave empty space above penguins, do not inflate them to flamingo height. Exactly4flamingos and4penguins. No water, snow, rock, grass, fish, scenery or ground shadow. All bird feet complete and inside cells.",
+      "model": "gpt-image-2-5-flare",
+      "mode": "image2image",
+      "params": {
+        "prompt": "PRODUCTION GAME SPRITE ATLAS for Coaster Grove, original new assets in the supplied exact pixel-art game style. Authentic miniature late1990s PC theme-park/zoo management game pixel art: chunky square pixels and clean stair-step outlines, simple large readable color clusters, two or three palette shades per material. The output must look like tiny low-resolution game sprites enlarged nearest-neighbor, not smooth vector art or detailed illustrations. No blur, no gradients, no antialiasing, no glow, no photorealism. Orthographic2:1 isometric projection, camera azimuth45degrees and elevation26.565degrees; ground directions run2screenpixels horizontally for1vertically. Do not use perspective convergence. No text, labels, cell borders, grid, scene, enclosure, fence, landscape, grass, ground tile, floor shadow, cast shadow, pedestal, or attached decorative base. Every subject entirely separate, complete and contained in its cell with at least12percent clear margins. The supplied people/buildings are style references only and must not appear in the animal atlas.\nEXACT arrangement FOUR equal columns by TWO equal rows, eight isolated subjects. For a row with four directions, column1 faces screen LOWER RIGHT(SE), column2 screen LOWER LEFT(SW), column3 screen UPPER LEFT(NW), column4 screen UPPER RIGHT(NE). Direction means where the animal's head/nose or person's face points, never which side the camera is on. NW/NE must be genuine back three-quarter views with back/hindquarters visible, not repeated front views. SAME individual, physical scale, camera elevation, colors and anatomy within each row. A relaxed one-step walking stance is enough; no animation duplicates required.\nWhole background exactly uniform bright GREEN #00FF00, including holes and between legs. Absolutely no green on birds.\nROW1: one recognizable FLAMINGO in four required directions. Coral-pink and soft salmon-pink plumage, compact oval wing/body, very long thin pink legs with clear foot tips, gracefully curved S-shaped slender neck, small head and unmistakable pale downward-bent beak with BLACK tip. Both legs visible in a gentle walking step, one slightly bent, stable complete posture. Natural bird silhouette, no clothes, no wing-flapping, no flying. Flamingo canvas24x32 logicalpixels, visible height25pixels, maximum width17pixels, ground anchor(12,28). Neck and legs must form continuous1-2pixel lines, not disappear; larger readable pink clusters on body. Four views of same bird with same neck/head proportions. Rear views show back and folded wings while head still follows requested travel direction.\nROW2: one recognizable PENGUIN in four required directions. Compact upright pear-shaped little black-and-white penguin, charcoal-black back and head, clear ivory-white belly/front chest, tiny dark eye, short orange beak, two small orange webbed feet and little outward flipper wings. A small dark tail behind body, no long neck, no long legs. Friendly natural penguin, no clothing and no exaggerated giant eyes. Penguin canvas24x24 logicalpixels, visible height17pixels, maximum width14pixels, ground anchor(12,20). NW/NE show mostly dark back and flippers, not a full white front belly; head and beak point toward upperleft/upperright respectively.\nPenguins are MUCH SHORTER than flamingos. Preserve consistent pixel density and relative size; leave empty space above penguins, do not inflate them to flamingo height. Exactly4flamingos and4penguins. No water, snow, rock, grass, fish, scenery or ground shadow. All bird feet complete and inside cells.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "rrLVzoTniQsZsBAZEcYj",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788939649376_64509bbe.png",
+            "label": "Existing game people: exact miniature pixel density and shading style, not subject"
+          }
+        ],
+        "aspectRatio": "16:9",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "initialResponse": {
+        "status": "PENDING",
+        "historyId": "hZhfnYYZZcroE5cQrY8o",
+        "pollAfterSeconds": 5
+      },
+      "result": {
+        "status": "COMPLETED",
+        "historyId": "hZhfnYYZZcroE5cQrY8o",
+        "capabilityId": "gpt-image-2-5-flare:image2image",
+        "modelDisplayName": "GPT Image 2.5 Flare",
+        "aspectRatio": "16:9",
+        "resources": [
+          {
+            "id": "L1Kb6sAuKbEbS3mzpMB9",
+            "mediaType": "image",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788971970736_b78675b1.png",
+            "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788971970870_5c08a3d1.webp",
+            "metadata": {
+              "width": 2304,
+              "height": 1296,
+              "format": "png"
+            }
+          }
+        ]
+      },
+      "sourceFile": "raw/birds.png",
+      "sourceSha256": "cfdb3dead2760ff44a915d4a8adc16c4050ce83a7e5961f3b819e0f01ba4a014"
+    },
+    {
+      "atlas": "zoo-props",
+      "names": [
+        "zoo-keeper-hut",
+        "zoo-feeder",
+        "zoo-trough",
+        "zoo-shelter",
+        "keeper-se",
+        "keeper-sw",
+        "keeper-nw",
+        "keeper-ne"
+      ],
+      "background": "#FF00FF",
+      "prompt": "PRODUCTION GAME SPRITE ATLAS for Coaster Grove, original new assets in the supplied exact pixel-art game style. Authentic miniature late1990s PC theme-park/zoo management game pixel art: chunky square pixels and clean stair-step outlines, simple large readable color clusters, two or three palette shades per material. The output must look like tiny low-resolution game sprites enlarged nearest-neighbor, not smooth vector art or detailed illustrations. No blur, no gradients, no antialiasing, no glow, no photorealism. Orthographic2:1 isometric projection, camera azimuth45degrees and elevation26.565degrees; ground directions run2screenpixels horizontally for1vertically. Do not use perspective convergence. No text, labels, cell borders, grid, scene, enclosure, fence, landscape, grass, ground tile, floor shadow, cast shadow, pedestal, or attached decorative base. Every subject entirely separate, complete and contained in its cell with at least12percent clear margins. The supplied people/buildings are style references only and must not appear in the animal atlas.\nEXACT layout FOUR equal columns by TWO equal rows, eight isolated subjects. Whole background exactly flat bright MAGENTA #FF00FF, including holes and spaces under roofs. No magenta on subjects. Different object sizes MUST remain different: firstrow building larger than small feeding equipment, secondrow people tiny. Match the supplied existing game style and palette.\nROW1 column1: compact ZOO KEEPER HUT for a2x2tile footprint, complete small low timber service building. Warm tan/brown plank walls, simple dark sage-green gabled roof with cream trim, one modest cream door and tiny square window facing screenlower-right, small cream animal-footprint emblem without any letters, little roof vent. No fence, no garden, no ground plane, no signs with text. Actual low sill/base may remain, no platform extension. Logical canvas72x80, visible roughly64x64pixels, ground anchor(36,72). Crisp readable miniature structure with roof and wall volumes.\nROW1 column2: small standalone ANIMAL HAY FEEDER, a waist-high timber V-shaped feeding rack on four short legs, warm golden hay held in wooden slats, angled2:1isometric, no animal. Logical canvas32x32, about24x18visiblepixels, ground anchor(16,28). No ground pile, fence, landscape or tools beside it.\nROW1 column3: small standalone WATER TROUGH, elongated low gray-green/wooden rectangular trough with clearly visible turquoise water surface inside, two short actual support feet, isometric2:1, no animal or pump. Logical canvas32x24, about27x13visiblepixels, ground anchor(16,20). No decorative ground base or water puddle.\nROW1 column4: small open ANIMAL SHELTER, a simple low lean-to straw/timber roof on four sturdy brown wooden posts, back wooden half-wall, open front with empty magenta interior, no animal or hay bales underneath. Logical canvas64x56, about56x40visiblepixels, ground anchor(32,48). A visibly open shelter, not a second enclosed hut. No fence or ground plane.\nROW2: the SAME human ZOO KEEPER in four directions: column1 face screenLOWERRIGHT(SE), column2 face screenLOWERLEFT(SW), column3 back three-quarter traveling screenUPPERLEFT(NW), column4 back three-quarter traveling screenUPPERRIGHT(NE). Adult person matching reference guest proportions, khaki short-sleeved work shirt, khaki cap with short visor, dark forest-green trousers, brown work boots, warm skin and brown hair mostly under cap. Carries exactly one small dull-gray metal feed bucket by its handle in one hand down beside their thigh, other arm relaxed. A small walking stride pose. Exactly two arms, two legs, one bucket; no broom. Human height25logicalpixels, canvas24x32, ground anchor(12,28), maximum width18pixels including bucket. Back views show back of cap/shirt, not a frontal face. All four keep same scale and outfit, bucket is attached to hand, complete foot/boot tips.\nExactly8 sprites, no labels or cell borders. Never enlarge the tiny keeper or feeding equipment to building size. Preserve generous separation and no clipping.",
+      "model": "gpt-image-2-5-flare",
+      "mode": "image2image",
+      "params": {
+        "prompt": "PRODUCTION GAME SPRITE ATLAS for Coaster Grove, original new assets in the supplied exact pixel-art game style. Authentic miniature late1990s PC theme-park/zoo management game pixel art: chunky square pixels and clean stair-step outlines, simple large readable color clusters, two or three palette shades per material. The output must look like tiny low-resolution game sprites enlarged nearest-neighbor, not smooth vector art or detailed illustrations. No blur, no gradients, no antialiasing, no glow, no photorealism. Orthographic2:1 isometric projection, camera azimuth45degrees and elevation26.565degrees; ground directions run2screenpixels horizontally for1vertically. Do not use perspective convergence. No text, labels, cell borders, grid, scene, enclosure, fence, landscape, grass, ground tile, floor shadow, cast shadow, pedestal, or attached decorative base. Every subject entirely separate, complete and contained in its cell with at least12percent clear margins. The supplied people/buildings are style references only and must not appear in the animal atlas.\nEXACT layout FOUR equal columns by TWO equal rows, eight isolated subjects. Whole background exactly flat bright MAGENTA #FF00FF, including holes and spaces under roofs. No magenta on subjects. Different object sizes MUST remain different: firstrow building larger than small feeding equipment, secondrow people tiny. Match the supplied existing game style and palette.\nROW1 column1: compact ZOO KEEPER HUT for a2x2tile footprint, complete small low timber service building. Warm tan/brown plank walls, simple dark sage-green gabled roof with cream trim, one modest cream door and tiny square window facing screenlower-right, small cream animal-footprint emblem without any letters, little roof vent. No fence, no garden, no ground plane, no signs with text. Actual low sill/base may remain, no platform extension. Logical canvas72x80, visible roughly64x64pixels, ground anchor(36,72). Crisp readable miniature structure with roof and wall volumes.\nROW1 column2: small standalone ANIMAL HAY FEEDER, a waist-high timber V-shaped feeding rack on four short legs, warm golden hay held in wooden slats, angled2:1isometric, no animal. Logical canvas32x32, about24x18visiblepixels, ground anchor(16,28). No ground pile, fence, landscape or tools beside it.\nROW1 column3: small standalone WATER TROUGH, elongated low gray-green/wooden rectangular trough with clearly visible turquoise water surface inside, two short actual support feet, isometric2:1, no animal or pump. Logical canvas32x24, about27x13visiblepixels, ground anchor(16,20). No decorative ground base or water puddle.\nROW1 column4: small open ANIMAL SHELTER, a simple low lean-to straw/timber roof on four sturdy brown wooden posts, back wooden half-wall, open front with empty magenta interior, no animal or hay bales underneath. Logical canvas64x56, about56x40visiblepixels, ground anchor(32,48). A visibly open shelter, not a second enclosed hut. No fence or ground plane.\nROW2: the SAME human ZOO KEEPER in four directions: column1 face screenLOWERRIGHT(SE), column2 face screenLOWERLEFT(SW), column3 back three-quarter traveling screenUPPERLEFT(NW), column4 back three-quarter traveling screenUPPERRIGHT(NE). Adult person matching reference guest proportions, khaki short-sleeved work shirt, khaki cap with short visor, dark forest-green trousers, brown work boots, warm skin and brown hair mostly under cap. Carries exactly one small dull-gray metal feed bucket by its handle in one hand down beside their thigh, other arm relaxed. A small walking stride pose. Exactly two arms, two legs, one bucket; no broom. Human height25logicalpixels, canvas24x32, ground anchor(12,28), maximum width18pixels including bucket. Back views show back of cap/shirt, not a frontal face. All four keep same scale and outfit, bucket is attached to hand, complete foot/boot tips.\nExactly8 sprites, no labels or cell borders. Never enlarge the tiny keeper or feeding equipment to building size. Preserve generous separation and no clipping.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "rrLVzoTniQsZsBAZEcYj",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788939649376_64509bbe.png",
+            "label": "Existing game people: exact miniature pixel density and shading style, not subject"
+          },
+          {
+            "type": "image",
+            "id": "fIUXDJnpSyuQj5WHsC18",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938052837_fba95327.png",
+            "label": "Existing buildings: exact isometric miniature pixel-art style"
+          }
+        ],
+        "aspectRatio": "16:9",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "initialResponse": {
+        "status": "PENDING",
+        "historyId": "jiT1fnfKOgYRmMRv1mhu",
+        "pollAfterSeconds": 5
+      },
+      "result": {
+        "status": "COMPLETED",
+        "historyId": "jiT1fnfKOgYRmMRv1mhu",
+        "capabilityId": "gpt-image-2-5-flare:image2image",
+        "modelDisplayName": "GPT Image 2.5 Flare",
+        "aspectRatio": "16:9",
+        "resources": [
+          {
+            "id": "sPS8jN7aT97n3dZsTLgl",
+            "mediaType": "image",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788971985724_09ebf231.png",
+            "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-flare-edit-1_1788971985862_03261176.webp",
+            "metadata": {
+              "width": 2304,
+              "height": 1296,
+              "format": "png"
+            }
+          }
+        ]
+      },
+      "sourceFile": "raw/zoo-props.png",
+      "sourceSha256": "95e06bd56d4e856bce51710f6f856d45d6c060b57063e454be30969df8eed962"
+    }
+  ],
+  "limits": [
+    "One pose per direction, not a complete walking or head-motion frame cycle. Runtime movement may add translation/rotation/bob.",
+    "KeeperNW uses technical horizontal mirroring of KeeperNE; it is not an independently generated NW pose."
+  ],
+  "coordinateContract": {
+    "directions": [
+      "se",
+      "sw",
+      "nw",
+      "ne"
+    ],
+    "fileScale": 4,
+    "animals": {
+      "zebra": {
+        "width": 40,
+        "height": 32,
+        "anchorX": 20,
+        "anchorY": 28
+      },
+      "giraffe": {
+        "width": 32,
+        "height": 48,
+        "anchorX": 16,
+        "anchorY": 44
+      },
+      "flamingo": {
+        "width": 24,
+        "height": 32,
+        "anchorX": 12,
+        "anchorY": 28
+      },
+      "penguin": {
+        "width": 24,
+        "height": 24,
+        "anchorX": 12,
+        "anchorY": 20
+      }
+    }
+  },
+  "processing": "Technical extraction only: chroma key, atlas-cell crops with row cuts moved into actual empty gutters(savanna529,birds742,zoo-props688), transparent trim, one isotropic source scale per species or object group, foot-band ground anchors for animals/staff, nearest-neighbor normalization, exact4x copies. KeeperNW is a horizontal mirror of generated KeeperNE because the raw NW faces the wrong way; wrong-facing original retained. No features painted, filled or synthesized in code.",
+  "manifest": "manifest.json",
+  "spriteSpecs": "zoo-sprites.json",
+  "visualReview": {
+    "reviewedSources": [
+      "raw/savanna.png",
+      "raw/birds.png",
+      "raw/zoo-props.png"
+    ],
+    "reviewedNormalized": [
+      "contact/savanna-4x.png",
+      "contact/birds-4x.png",
+      "contact/zoo-props-4x.png"
+    ],
+    "result": "All24 normalized sprites reviewed. All four species remain recognizable at game size, with front/rear directions. No attached fences, terrain, cast shadows or decorative bases. Giraffe heads and ossicones preserved by adjusted row crop. Raw KeeperNW faces NE; a documented horizontal mirror of KeeperNE supplies NW."
+  },
+  "validation": "validation.json"
+}

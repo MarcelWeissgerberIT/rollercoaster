@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 const manifest = JSON.parse(
   readFileSync(new URL("../art/pixel-v2/manifest.json", import.meta.url), "utf8"),
 );
@@ -81,3 +82,22 @@ for (const [name, spec] of Object.entries(experience)) {
 console.log(
   `PASS: ${Object.keys(experience).length} OpenArt sport cars, cleaning staff and litter bins`,
 );
+
+const zoo = JSON.parse(readFileSync(new URL("../game/zoo-sprites.json", import.meta.url), "utf8"));
+const zooManifest = JSON.parse(
+  readFileSync(new URL("../art/zoo-v7/manifest.json", import.meta.url), "utf8"),
+);
+assert.equal(Object.keys(zoo).length, 24);
+for (const [name, spec] of Object.entries(zoo)) {
+  const bytes = readFileSync(new URL(`../public/assets/zoo-v7/${name}.png`, import.meta.url));
+  const source = zooManifest.assets.find((a) => a.name === name);
+  assert(source, `${name}: provenance required`);
+  assert.equal(bytes.subarray(1, 4).toString(), "PNG");
+  assert.deepEqual(
+    [bytes.readUInt32BE(16), bytes.readUInt32BE(20)],
+    [spec.width * 4, spec.height * 4],
+  );
+  assert.deepEqual(source.logicalPivot, [spec.anchorX, spec.anchorY]);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), source.sha256);
+}
+console.log("PASS: 24 OpenArt zoo sprites, dimensions, anchors and source hashes");

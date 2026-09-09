@@ -36,6 +36,10 @@ export type MarketingGuest = Guest & { campaignId?: number | null };
 /** Use the simulation's access() here at integration. No runtime simulation import / dependency cycle. */
 export type RideAvailable = (s: MarketingPark, b: Building) => boolean;
 const rideKinds = new Set([
+  "zebra",
+  "giraffe",
+  "flamingo",
+  "penguin",
   "coaster",
   "wheel",
   "carousel",
@@ -46,7 +50,8 @@ const rideKinds = new Set([
   "spinner",
   "custom",
 ]);
-const defaultRideAvailable: RideAvailable = (_s, b) => rideKinds.has(b.kind) && b.open && b.tested;
+const defaultRideAvailable: RideAvailable = (_s, b) =>
+  rideKinds.has(b.kind) && b.open && b.tested && (!b.habitat || b.habitat.count > 0);
 const zeroRevenue = (): MarketingRevenue => ({ ticket: 0, ride: 0, shop: 0 });
 const zeroTotals = (): MarketingTotals => ({ cost: 0, visitors: 0, revenue: zeroRevenue() });
 const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
