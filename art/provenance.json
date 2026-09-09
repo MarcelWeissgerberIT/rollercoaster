@@ -1,0 +1,58 @@
+{
+  "projectId": "ZUPnQYt5rmIl9G729LjL",
+  "projectUrl": "https://openart.ai/suite/create-image?projectId=ZUPnQYt5rmIl9G729LjL",
+  "entries": [
+    {
+      "id": "9NKowW2HJwhLbWHLQ8IU",
+      "historyId": "nxAAeZwIlkEkkAnjAfAt",
+      "mediaType": "image",
+      "sourceType": "generation",
+      "status": "completed",
+      "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2-1_1788937548644_a497a79a.png",
+      "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2-1_1788937548975_d4a3d2f3.webp",
+      "model": "gpt-image-2",
+      "mode": "text2image",
+      "tool": "text-to-image",
+      "prompt": "Production-ready character sprite atlas for the original cozy theme park game COASTER GROVE. Exactly THREE COLUMNS and TWO ROWS, six separate full-body human figures centered in six equal square cells, generous empty gutters and 15 percent padding on every side. Flat uniform bright magenta #FF00FF background everywhere, no floor, no ground plane, no drop shadows, no labels, no text, no grid lines. Consistent orthographic isometric camera looking down 30 degrees, all figures walking toward lower right, full body head to shoes always visible. Detailed miniature 3D game art with natural stylized materials, gentle upper-left warm daylight, miniature architectural visualization quality, slightly simplified proportions and very readable silhouettes. THREE DISTINCT VISITORS repeated consistently across two walk poses. ROW ONE from left: 1 young adult woman with brown ponytail, coral orange short-sleeve top, dark navy trousers and cream sneakers; 2 adult man with dark skin, teal short-sleeve T-shirt, pale cream shorts, dark sneakers; 3 older woman with neatly cropped white hair, warm yellow top, dark forest-green trousers, cream shoes. Row one figures have their left foot forward and right arm forward in a natural walking pose. ROW TWO from left: the exact same three characters, clothing, hair, face and orientation in the exact same respective columns, but with right foot forward and left arm forward for the second walking pose. Relaxed cheerful theme park visitors, arms held away from torso enough for a legible silhouette, empty hands, no bags or accessories, no shared scenes. Six complete isolated game character sprites, all drawn at the same scale and viewed at the same isometric angle, portrait bodies centered within each square cell; 3 by 2 atlas.",
+      "createdAt": 1788937450086,
+      "metadata": {
+        "width": 2016,
+        "height": 1344,
+        "format": "png"
+      }
+    },
+    {
+      "id": "VemFKipVwzm9NYRte9t1",
+      "historyId": "rX5vuZ9bGgJSL23ymkUl",
+      "mediaType": "image",
+      "sourceType": "generation",
+      "status": "completed",
+      "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2-1_1788877408601_1356f27c.png",
+      "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2-1_1788877408797_c23424e2.webp",
+      "model": "gpt-image-2",
+      "mode": "text2image",
+      "tool": "text-to-image",
+      "prompt": "COASTER GROVE theme park game sprite atlas. Exactly 3 columns and 2 rows of six fully isolated objects on flat uniform bright magenta #FF00FF. No text, no gridlines, no ground plane, no external shadows. Large empty gutters and 12 percent padding in each equal cell. Beautiful detailed miniature 3D render, isometric orthographic camera 30 degrees from above, warm light upper left, natural materials, rich green cream teal coral palette. Row 1: broadleaf oak tree with round green crown and visible trunk; tall green pine tree; circular stone-edged flowerbed with yellow and coral flowers. Row 2: golden wooden park bench with dark teal metal frame; coral red roller coaster car with two cream seats, dark teal chassis, small wheels, facing lower right; rounded green ornamental shrub with cream flowers. Complete objects, no clipping.",
+      "createdAt": 1788877282552,
+      "metadata": {
+        "width": 2016,
+        "height": 1344,
+        "format": "png"
+      }
+    }
+  ],
+  "processing": "Only technical extraction using original supplied scripts/extract-assets.py: split equal 3x2 atlas cells, magenta color key to alpha, trim transparent borders, PNG output. Pine crop additionally removed 17 pixels belonging to neighboring flower cell. Existing completed nature atlas reused. Visitor atlas newly generated through OpenArt MCP on 2026-09-09; GPT Image 2; 3:2; 2k; high quality; one image. Both full source atlases preserved.",
+  "assets": [
+    "public/assets/tree.png",
+    "public/assets/pine.png",
+    "public/assets/flowers.png",
+    "public/assets/bench.png",
+    "public/assets/car.png",
+    "public/assets/guest1.png",
+    "public/assets/guest2.png",
+    "public/assets/guest3.png",
+    "public/assets/guest1-step.png",
+    "public/assets/guest2-step.png",
+    "public/assets/guest3-step.png"
+  ]
+}
