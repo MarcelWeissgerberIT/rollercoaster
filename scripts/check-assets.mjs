@@ -50,3 +50,17 @@ for (const a of expansion.assets) {
   assert.deepEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], a.canvas);
 }
 console.log("PASS: 24 OpenArt expansion sprites, including 12 directional coaster cars");
+
+const park = JSON.parse(
+  readFileSync(new URL("../game/park-sprites.json", import.meta.url), "utf8"),
+);
+assert.equal(Object.keys(park).length, 34);
+for (const [name, spec] of Object.entries(park)) {
+  const bytes = readFileSync(new URL(`../public/assets/park-v5/${name}.png`, import.meta.url));
+  assert.equal(bytes.subarray(1, 4).toString(), "PNG");
+  assert.deepEqual(
+    [bytes.readUInt32BE(16), bytes.readUInt32BE(20)],
+    [spec.width * 4, spec.height * 4],
+  );
+}
+console.log("PASS: 34 OpenArt park, transport, souvenir and seated guest sprites");

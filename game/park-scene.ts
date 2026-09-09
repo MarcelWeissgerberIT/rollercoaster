@@ -1,3 +1,8 @@
+import { addDriveHardware } from "./track-hardware";
+import { createTransportRig } from "./transport-rig";
+import { createGuestModel, createCrowd } from "./guest-model";
+import { createAttractionRig } from "./attraction-rig";
+import { isTransport, transportPose, transportClock } from "./transit";
 import * as THREE from "three";
 import {
   type Park,
@@ -6,6 +11,7 @@ import {
   COASTER_TYPES,
   rideCapacity,
   rideDuration,
+  isRide,
 } from "./simulation";
 import { makeRidePath } from "./ride-path";
 type MeshFactory = (
@@ -67,7 +73,12 @@ export function populatePark(
     return g;
   };
   for (const b of park.buildings) {
-    if (["tree", "pine"].includes(b.kind) || b.id === exclude) continue;
+    if (
+      ["tree", "pine"].includes(b.kind) ||
+      (b.id === exclude && !isTransport(b.kind)) ||
+      b.id === park.trackEdit?.buildingId
+    )
+      continue;
     const n = CATALOG[b.kind].size,
       x = (b.x + (n - 1) / 2) * 5,
       z = (b.y + (n - 1) / 2) * 5;
@@ -76,9 +87,16 @@ export function populatePark(
       running
         ? ((rideDuration(b) - Math.max(0, b.cycle) + time) / Math.max(1, rideDuration(b))) % 1
         : 0;
+    if (isRide(b.kind) && b.kind !== "coaster") {
+      const rig = createAttractionRig(b, park);
+      scene.add(rig.root);
+      animations.push((t) => rig.update(running ? Math.max(0, rideDuration(b) - b.cycle) + t : 0));
+      continue;
+    }
     if (b.kind === "coaster" && b.track) {
       const path = makeRidePath(b.track),
         color = COASTER_TYPES[b.track[0].style ?? "steel"].color;
+      addDriveHardware(scene, path);
       for (const side of [-0.58, 0.58])
         scene.add(
           new THREE.Mesh(
@@ -132,9 +150,12 @@ export function populatePark(
         mesh(cube, color, 0, 0.4, -0.3, 1.55, 0.65, 2.25, g);
         for (const side of [-0.4, 0.4]) {
           mesh(cube, "#f1dba6", side, 1, 0.35, 0.6, 0.9, 0.2, g);
-          if (running) {
-            mesh(sphere, "#e8b77c", side, 1.65, 0.3, 0.2, 0.24, 0.2, g);
-            mesh(cube, i % 2 ? "#eb6046" : "#2498aa", side, 1.25, 0.3, 0.4, 0.45, 0.3, g);
+          if (i * 2 + (side > 0 ? 1 : 0) < b.riders.length) {
+            const person = createGuestModel(
+              park.guests.find((g) => g.id === b.riders[i * 2 + (side > 0 ? 1 : 0)]),
+            );
+            person.position.set(side, 0.75, 0.15);
+            g.add(person);
           }
         }
         return g;
@@ -149,7 +170,37 @@ export function populatePark(
           g.quaternion.copy(p.quaternion);
         });
       });
-    } else if (["burger", "drink", "toilet"].includes(b.kind)) {
+    } else if (isTransport(b.kind)) {
+      const station = groupAt(x, 0, z),
+        line = park.transitLines?.find((l) => l.a === b.id || l.b === b.id);
+      if (line) {
+        const a = line.route[0],
+          c = line.route[1];
+        station.rotation.y = Math.atan2(c.x - a.x, c.y - a.y);
+      }
+      const length = b.kind === "train" ? 14 : 5;
+      mesh(cube, "#e3d4ad", 0, 0.2, 0, 3, 0.4, length, station);
+      mesh(cube, "#277f80", 0, 3.6, 0, 3.8, 0.23, length, station);
+      for (const side of [-1, 1])
+        for (const end of [-1, 1])
+          mesh(
+            cylinder,
+            "#f0d29c",
+            side * 1.25,
+            1.8,
+            end * (length / 2 - 0.4),
+            0.09,
+            3.6,
+            0.09,
+            station,
+          );
+      mesh(cube, "#244e40", 0, 3.1, 1, 2.3, 0.55, 0.13, station);
+      const clock = mesh(cylinder, "#faf0c9", 0, 4.25, 0, 0.5, 0.13, 0.5, station);
+      clock.rotation.x = Math.PI / 2;
+      mesh(cube, "#31564c", 0, 4.39, 0.08, 0.05, 0.25, 0.04, station);
+      mesh(cube, "#31564c", 0.12, 4.25, 0.08, 0.25, 0.05, 0.04, station);
+      if (b.kind === "shuttle") mesh(cube, "#417f9e", 1.6, 1.6, 1.5, 0.65, 1.2, 0.15, station);
+    } else if (["burger", "drink", "toilet", "balloon", "plush"].includes(b.kind)) {
       const color = b.kind === "burger" ? "#dc5c37" : b.kind === "drink" ? "#e7b62c" : "#43878a";
       mesh(cube, "#fff0c6", x, 1.7, z, 3.8, 3.4, 3.8);
       mesh(cone, color, x, 4.3, z, 3.5, 2, 3.5).rotation.y = Math.PI / 4;
@@ -159,6 +210,30 @@ export function populatePark(
       if (b.kind === "burger") {
         mesh(sphere, "#e5b545", x, 5.3, z, 1.1, 0.5, 1.1);
         mesh(cylinder, "#815329", x, 5.1, z, 1.05, 0.15, 1.05);
+      } else if (b.kind === "balloon") {
+        for (let i = 0; i < 5; i++) {
+          const px = x + (i - 2) * 0.45,
+            py = 5.3 + Math.sin(i) * 0.5;
+          mesh(
+            sphere,
+            ["#ef765d", "#f2d65c", "#50aeae", "#bf7cbb", "#7baed4"][i],
+            px,
+            py,
+            z,
+            0.34,
+            0.47,
+            0.34,
+          );
+          mesh(cylinder, "#f8efcf", px, py - 1, z, 0.016, 1.8, 0.016);
+        }
+      } else if (b.kind === "plush") {
+        mesh(sphere, "#ba8645", x, 5, z, 0.65, 0.8, 0.5);
+        mesh(sphere, "#d7a357", x, 5.9, z, 0.6, 0.55, 0.46);
+        for (const side of [-1, 1]) {
+          mesh(sphere, "#b98340", x + side * 0.48, 6.2, z, 0.23, 0.24, 0.17);
+          mesh(sphere, "#352d25", x + side * 0.2, 5.98, z + 0.43, 0.065, 0.065, 0.04);
+        }
+        mesh(sphere, "#e9c286", x, 5.72, z + 0.44, 0.27, 0.2, 0.13);
       } else if (b.kind === "drink") {
         mesh(cylinder, "#faf0cc", x, 5.4, z, 0.65, 1.4, 0.65);
         mesh(cylinder, "#e85f39", x + 0.2, 6.3, z, 0.045, 1, 0.045).rotation.z = -0.25;
@@ -182,133 +257,52 @@ export function populatePark(
       mesh(cube, "#b38038", x, 0.8, z, 2.5, 0.18, 0.8);
       mesh(cube, "#b38038", x, 1.35, z - 0.35, 2.5, 0.9, 0.13);
       for (const side of [-0.9, 0.9]) mesh(cube, "#275e53", x + side, 0.4, z, 0.15, 0.8, 0.7);
-    } else if (b.kind === "wheel") {
-      const rotor = groupAt(x, 10, z),
-        rim = new THREE.Mesh(new THREE.TorusGeometry(8, 0.2, 6, 48), mat("#da5938"));
-      rotor.add(rim);
-      const cabins: THREE.Group[] = [];
-      for (let i = 0; i < 10; i++) {
-        const a = (i * Math.PI) / 5;
-        mesh(
-          cube,
-          "#f2d886",
-          Math.sin(a) * 4,
-          Math.cos(a) * 4,
-          0,
-          0.12,
-          8,
-          0.12,
-          rotor,
-        ).rotation.z = -a;
-        const cabin = new THREE.Group();
-        cabin.position.set(Math.sin(a) * 8, Math.cos(a) * 8, 0);
-        rotor.add(cabin);
-        cabins.push(cabin);
-        mesh(cube, "#d95b39", 0, 0, 0, 1.4, 1.5, 1.4, cabin);
-        mesh(cone, "#f2d886", 0, 1, 0, 1, 1, 1, cabin);
-      }
-      for (const side of [-1, 1])
-        mesh(cube, "#177779", x + side * 3, 4.5, z + 1.3, 1, 11, 1).rotation.z = side * 0.25;
-      animations.push((t) => {
-        rotor.rotation.z = phase(t) * Math.PI * 2;
-        cabins.forEach((c) => (c.rotation.z = -rotor.rotation.z));
-      });
-    } else if (b.kind === "drop") {
-      mesh(cube, "#248b93", x, 11, z, 1.4, 22, 1.4);
-      mesh(cone, "#f2c34c", x, 23, z, 1.3, 2, 1.3);
-      const gondola = groupAt(x, 2, z);
-      mesh(cylinder, "#df6444", 0, 0, 0, 3, 1, 3, gondola);
-      for (let i = 0; i < 8; i++) {
-        const a = (i * Math.PI) / 4;
-        mesh(cube, "#f5d386", Math.sin(a) * 2.6, 0.6, Math.cos(a) * 2.6, 0.8, 1, 0.8, gondola);
-      }
-      animations.push((t) => {
-        const p = phase(t);
-        gondola.position.y =
-          2 + (p < 0.55 ? p / 0.55 : p < 0.68 ? 1 : Math.max(0, 1 - ((p - 0.68) / 0.17) ** 2)) * 18;
-      });
-    } else if (b.kind === "pirate") {
-      for (const dz of [-2.5, 2.5])
-        for (const side of [-1, 1])
-          mesh(cylinder, "#248483", x + side * 3.5, 5, z + dz, 0.22, 11, 0.22).rotation.z =
-            side * 0.6;
-      const pivot = groupAt(x, 9, z),
-        hull = mesh(cube, "#b87836", 0, -6, 0, 8, 1.4, 3, pivot);
-      for (const side of [-1, 1])
-        mesh(cone, "#dfb060", side * 4, -5.6, 0, 1.5, 2, 1.5, pivot).rotation.z =
-          (side * Math.PI) / 2;
-      for (const side of [-1, 1])
-        mesh(cylinder, "#e1c888", side * 2, -3, 0, 0.09, 6, 0.09, pivot).rotation.z = side * 0.3;
-      for (let i = -2; i <= 2; i++) mesh(cube, "#f0d39d", i * 1.3, -5, 0, 0.7, 0.5, 2.5, pivot);
-      animations.push(
-        (t) => (pivot.rotation.z = running ? Math.sin(phase(t) * Math.PI * 4) * 0.9 : 0),
-      );
-    } else if (b.kind === "carousel" || b.kind === "swing") {
-      const swing = b.kind === "swing",
-        radius = swing ? 5 : 3.2,
-        height = swing ? 8 : 5;
-      mesh(cylinder, "#e1ad43", x, 0.45, z, radius, 0.8, radius);
-      mesh(cylinder, "#247c7a", x, height / 2, z, 0.28, height, 0.28);
-      const rotor = groupAt(x, height, z);
-      mesh(cone, "#df6243", 0, 0, 0, radius + 1, 2, radius + 1, rotor);
-      for (let i = 0; i < 8; i++) {
-        const a = (i * Math.PI) / 4;
-        const rib = mesh(
-          cube,
-          "#fff0ba",
-          Math.sin(a) * radius * 0.5,
-          0.15,
-          Math.cos(a) * radius * 0.5,
-          0.16,
-          0.13,
-          radius,
-          rotor,
-        );
-        rib.rotation.y = a;
-        const seat = new THREE.Group();
-        seat.position.set(Math.sin(a) * radius, 0, Math.cos(a) * radius);
-        rotor.add(seat);
-        mesh(cylinder, "#e7d69a", 0, -height * 0.4, 0, 0.045, height * 0.8, 0.045, seat);
-        mesh(
-          cube,
-          swing ? "#e6b551" : "#f7e4b5",
-          0,
-          -height * 0.75,
-          0,
-          swing ? 0.8 : 1.3,
-          swing ? 0.35 : 0.7,
-          0.6,
-          seat,
-        );
-        if (!swing) {
-          mesh(cube, "#f7e4b5", 0.65, -height * 0.69, 0, 0.4, 0.7, 0.5, seat);
-          mesh(cube, "#d75d3b", 0, -height * 0.68, 0, 0.6, 0.2, 0.65, seat);
-        }
-        animations.push((t) => {
-          if (swing) seat.rotation.z = running ? Math.sin(a) * 0.3 : 0;
-          else seat.position.y = Math.sin(phase(t) * Math.PI * 4 + a) * 0.25;
-        });
-      }
-      animations.push((t) => (rotor.rotation.y = phase(t) * Math.PI * (swing ? 8 : 4)));
     }
+  }
+  for (const line of park.transitLines ?? []) {
+    if (line.kind === "train") {
+      for (let i = 1; i < line.route.length; i++) {
+        const a = line.route[i - 1],
+          b = line.route[i],
+          dx = b.x - a.x,
+          dz = b.y - a.y;
+        for (const side of [-0.48, 0.48]) {
+          const rail = mesh(
+            cube,
+            "#758080",
+            (a.x + b.x) * 2.5 + dz * side,
+            0.18,
+            (a.y + b.y) * 2.5 - dx * side,
+            0.065,
+            0.1,
+            5,
+          );
+          rail.rotation.y = Math.atan2(dx, dz);
+        }
+        for (let t = 0; t < 1; t += 0.2) {
+          const tie = mesh(
+            cube,
+            "#867153",
+            (a.x + dx * t) * 5,
+            0.09,
+            (a.y + dz * t) * 5,
+            1.3,
+            0.14,
+            0.18,
+          );
+          tie.rotation.y = Math.atan2(dx, dz);
+        }
+      }
+    }
+    if (line.a === exclude || line.b === exclude) continue;
+    const rig = createTransportRig(line, park);
+    scene.add(rig.root);
+    animations.push((t) => rig.update(line.enabled && !line.fault ? t : 0));
   }
   // Animated visitors follow their existing path segments, with no mutations to the paused park.
   const guests = park.guests.filter((g) => g.state !== "ride"),
-    heads = new THREE.InstancedMesh(sphere, mat("#e2b584"), guests.length),
-    bodies = new THREE.InstancedMesh(cube, mat("#ffffff"), guests.length),
-    legs = new THREE.InstancedMesh(cube, mat("#354e67"), guests.length * 2),
-    matrix = new THREE.Matrix4(),
-    q = new THREE.Quaternion();
-  guests.forEach((g, i) =>
-    bodies.setColorAt(
-      i,
-      new THREE.Color(
-        g.profile === "family" ? "#e76849" : g.profile === "thrill" ? "#269baa" : "#e9bb45",
-      ),
-    ),
-  );
-  heads.frustumCulled = bodies.frustumCulled = legs.frustumCulled = false;
-  scene.add(heads, bodies, legs);
+    crowd = createCrowd(guests);
+  scene.add(crowd.mesh);
   const routes = guests.map((g) => {
     const points = [{ x: g.x, y: g.y }, ...g.route],
       dist = [0];
@@ -323,9 +317,11 @@ export function populatePark(
       const route = routes[i];
       let x = g.x,
         z = g.y,
-        walking = false;
+        walking = false,
+        yaw = 0;
       if (route.length > 0 && (g.state === "walk" || g.state === "leave")) {
-        let d = (time * (1 + (g.id % 7) * 0.065)) % (route.length * 2);
+        let d = (time * 0.28 * (1 + (g.id % 7) * 0.065)) % (route.length * 2);
+        const reverse = d > route.length;
         d = d <= route.length ? d : route.length * 2 - d;
         let j = 1;
         while (j < route.dist.length - 1 && route.dist[j] < d) j++;
@@ -335,37 +331,12 @@ export function populatePark(
         x = a.x + (b.x - a.x) * f;
         z = a.y + (b.y - a.y) * f;
         walking = true;
+        yaw = Math.atan2(-(b.x - a.x), -(b.y - a.y)) + (reverse ? Math.PI : 0);
       }
-      const bob = walking ? Math.sin(time * 12 + g.id) * 0.045 : 0;
-      matrix.compose(
-        new THREE.Vector3(x * 5, 1.65 + bob, z * 5),
-        q,
-        new THREE.Vector3(0.22, 0.25, 0.22),
-      );
-      heads.setMatrixAt(i, matrix);
-      matrix.compose(
-        new THREE.Vector3(x * 5, 1.02 + bob, z * 5),
-        q,
-        new THREE.Vector3(0.55, 0.7, 0.35),
-      );
-      bodies.setMatrixAt(i, matrix);
-      for (let side = 0; side < 2; side++) {
-        matrix.compose(
-          new THREE.Vector3(
-            x * 5 + (side ? 1 : -1) * 0.15,
-            0.37,
-            z * 5 + (walking ? Math.sin(time * 12 + g.id + side * Math.PI) * 0.15 : 0),
-          ),
-          q,
-          new THREE.Vector3(0.19, 0.72, 0.2),
-        );
-        legs.setMatrixAt(i * 2 + side, matrix);
-      }
+      crowd.pose(i, x * 5, z * 5, yaw, time * 7 + g.id, walking);
     });
-    heads.instanceMatrix.needsUpdate =
-      bodies.instanceMatrix.needsUpdate =
-      legs.instanceMatrix.needsUpdate =
-        true;
+    crowd.finish();
   });
+
   return (time: number) => animations.forEach((fn) => fn(time));
 }

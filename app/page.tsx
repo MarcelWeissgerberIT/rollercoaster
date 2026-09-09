@@ -1,5 +1,6 @@
 "use client";
 /* oxlint-disable next/no-img-element, react/react-compiler -- Native transparent sprite images and a mutable external simulation are intentional. */
+import ParkMenu from "@/components/park-menu";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Volume2,
@@ -35,6 +36,8 @@ import {
   Move,
   RotateCw,
   MapPin,
+  Zap,
+  OctagonPause,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
@@ -71,7 +74,7 @@ import {
   type Point,
   type Building,
 } from "@/game/simulation";
-import { draw, loadSprites, projection, type View } from "@/game/render";
+import { hitBuildingAt, draw, loadSprites, projection, type View } from "@/game/render";
 import {
   planPlacement,
   place,
@@ -88,6 +91,7 @@ import {
   type EditRecord,
 } from "@/game/construction";
 import {
+  suggestPieces,
   isClosedTrack,
   startTrack,
   appendPiece,
@@ -98,9 +102,34 @@ import {
   type Piece,
 } from "@/game/prefabs";
 import { ParkAudio, DEFAULT_AUDIO, AUDIO_KEY, parseAudio, type AudioSettings } from "@/game/audio";
+import {
+  trackDrivePlan,
+  installTrackDrive,
+  editableTrack,
+  trackSections,
+  beginTrackEdit,
+  cancelTrackEdit,
+  trackEditWorld,
+  trackEditPlan,
+  commitTrackEdit,
+} from "@/game/track-edit";
+import type { TrackDrive } from "@/game/drive";
+import { guestName } from "@/game/guest-identity";
+import { assetUrl } from "@/game/assets";
+import { insideMap, mapWidth, mapHeight, expansionPlan, expandPark } from "@/game/grid";
+import {
+  isTransport,
+  transitPlan,
+  createTransitLine,
+  repairTransitPlan,
+  repairTransit,
+  tickTransit,
+  transportCapacity,
+} from "@/game/transit";
+import { designStats, type AttractionDesign } from "@/game/designs";
 const RideView = lazy(() => import("@/components/ride-view"));
-const assetUrl = (name: string) =>
-  `${import.meta.env.BASE_URL}assets/${/^(car-(steel|wood|launch)|station-(steel|wood|launch)|ride-)/.test(name) ? "expansion-v4" : "pixel-v2"}/${name}.png`;
+const BuildView = lazy(() => import("@/components/build-view"));
+const Workshop = lazy(() => import("@/components/workshop"));
 const EUR = (n: number) =>
   new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -141,9 +170,21 @@ export default function Home() {
     tile: Point;
   } | null>(null);
   const [snapshot, setSnapshot] = useState<Park | null>(null);
+  const [menuOpen, setMenuOpen] = useState(true);
   const [category, setCategory] = useState("");
   const [tool, setTool] = useState("select");
+  const workshopReturn = useRef(false);
+  const [workshop, setWorkshop] = useState(false);
+  const [customDesign, setCustomDesign] = useState<AttractionDesign | undefined>();
+  const [buildWorld, setBuildWorld] = useState<Park | null>(null);
+  const [autoFocus, setAutoFocus] = useState(true);
+  const cameraTarget = useRef<{ panX: number; panY: number; zoom: number } | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  useEffect(() => {
+    panelRef.current?.scrollTo(0, 0);
+    panelRef.current?.querySelector(".panelbody")?.scrollTo(0, 0);
+  }, [category, selected]);
   const [help, setHelp] = useState(false);
   const [settings, setSettings] = useState(false);
   const [newDialog, setNewDialog] = useState(false);
@@ -151,6 +192,13 @@ export default function Home() {
     "Willkommen im Waldhain. Dein erster Park wartet auf neue Ideen.",
   );
   const [coasterType, setCoasterType] = useState<CoasterType>("steel");
+  const [sectionMode, setSectionMode] = useState<"remove" | "drive">("remove");
+  const [drive, setDrive] = useState<TrackDrive>({ kind: "boost", speed: 60, strength: 4 });
+  const [cut, setCut] = useState<{ id: number; from: number; to: number } | null>(null);
+  useEffect(() => {
+    panelRef.current?.scrollTo(0, 0);
+    panelRef.current?.querySelector(".panelbody")?.scrollTo(0, 0);
+  }, [!!cut]);
   const [piece, setPiece] = useState<Piece>("straight");
   const draftHistory = useRef<Point[][]>([]);
   const [ride, setRide] = useState<{ park: Park; building: Building } | null>(null);
@@ -231,6 +279,7 @@ export default function Home() {
     point: Point;
     rotation: number;
   } | null>(null);
+  const [hoverInfo, setHoverInfo] = useState<{ id: number; x: number; y: number } | null>(null);
   const [hoverTile, setHoverTile] = useState<Point | null>(null);
   const history = useRef<EditRecord[][]>([]);
   const stroke = useRef<EditRecord[] | null>(null);
@@ -275,13 +324,14 @@ export default function Home() {
   };
   const undo = useCallback(() => {
     if (tool === "coaster" && draft.length && !blueprintMode) {
-      setDraft(draftHistory.current.pop() ?? []);
+      setDraft(draftHistory.current.pop() ?? park.current?.trackEdit?.prefix ?? []);
       return;
     }
     finishStroke();
     const records = history.current.pop();
     if (!records || !park.current) return;
     undoEdits(park.current, records);
+    restoreDraft(park.current);
     setWorldRevision((v) => v + 1);
     setUndoCount(history.current.length);
     if (adjust) {
@@ -316,13 +366,40 @@ export default function Home() {
     [tool, blueprintMode, draft, piece],
   );
   const candidateError = useMemo(
-    () => (snapshot && candidate.length ? pieceError(snapshot, draft, candidate, autoClear) : null),
+    () =>
+      snapshot && candidate.length
+        ? pieceError(
+            trackEditWorld(snapshot),
+            draft,
+            candidate,
+            autoClear,
+            snapshot.trackEdit?.suffix,
+          )
+        : null,
     [worldRevision, draft, candidate, autoClear],
   );
+  const conflictOptions = useMemo(
+    () =>
+      snapshot && candidateError && !isClosedTrack(draft)
+        ? suggestPieces(
+            trackEditWorld(snapshot),
+            draft,
+            piece,
+            autoClear,
+            snapshot.trackEdit?.suffix,
+          )
+        : [],
+    [worldRevision, candidateError, draft, piece, autoClear],
+  );
+  useEffect(() => {
+    if (tool !== "coaster") setBuildWorld(null);
+  }, [tool]);
   const draftPlan = useMemo(
     () =>
       snapshot && draft.length > 1
-        ? planPlacement(snapshot, "coaster", draft[0], draft, autoClear)
+        ? snapshot.trackEdit
+          ? trackEditPlan(snapshot, draft, autoClear)
+          : planPlacement(snapshot, "coaster", draft[0], draft, autoClear)
         : null,
     [worldRevision, draft, autoClear, snapshot?.cash],
   );
@@ -351,9 +428,19 @@ export default function Home() {
             hoverTile,
             tool === "coaster" ? previewTrack : undefined,
             autoClear,
+            tool === "custom" ? customDesign : undefined,
           )
         : null),
-    [snapshot, tool, hoverTile, blueprintMode, previewTrack, autoClear, adjustmentPlan],
+    [
+      snapshot,
+      tool,
+      hoverTile,
+      blueprintMode,
+      previewTrack,
+      autoClear,
+      adjustmentPlan,
+      customDesign,
+    ],
   );
   const save = useCallback(() => {
     if (!park.current) return;
@@ -419,6 +506,7 @@ export default function Home() {
     const ctx = el.getContext("2d");
     if (!ctx) return;
     const resize = () => {
+      cameraTarget.current = null;
       const rect = el.getBoundingClientRect(),
         dpr = Math.min(devicePixelRatio, 2);
       el.width = rect.width * dpr;
@@ -443,7 +531,21 @@ export default function Home() {
         }
         audio.current?.park(rideActive.current || park.current.speed > 0);
         if (!rideActive.current)
-          draw(ctx, el.clientWidth, el.clientHeight, park.current, view.current, time);
+          if (cameraTarget.current) {
+            const goal = cameraTarget.current,
+              v = view.current;
+            v.panX += (goal.panX - v.panX) * 0.16;
+            v.panY += (goal.panY - v.panY) * 0.16;
+            v.zoom += (goal.zoom - v.zoom) * 0.16;
+            if (
+              Math.abs(goal.panX - v.panX) + Math.abs(goal.panY - v.panY) < 0.5 &&
+              Math.abs(goal.zoom - v.zoom) < 0.005
+            ) {
+              Object.assign(v, goal);
+              cameraTarget.current = null;
+            }
+          }
+        draw(ctx, el.clientWidth, el.clientHeight, park.current, view.current, time);
       }
       frame = requestAnimationFrame(loop);
     };
@@ -563,12 +665,26 @@ export default function Home() {
         e.preventDefault();
         setRotation((r) => (r + 1) % 4);
       }
+      if (e.key.toLowerCase() === "f" && tool === "coaster" && !buildWorld) focus2D(draft);
       if (e.key === "+" || e.key === "=") changeZoom(1.15);
       if (e.key === "-") changeZoom(1 / 1.15);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [save, sync, pickTool, changeZoom, undo, tool, blueprintMode, adjust, adjustingBuilding]);
+  }, [
+    save,
+    sync,
+    pickTool,
+    changeZoom,
+    undo,
+    tool,
+    blueprintMode,
+    adjust,
+    adjustingBuilding,
+    draft,
+    piece,
+    buildWorld,
+  ]);
 
   const tileAt = (e: { clientX: number; clientY: number }) => {
     const el = canvas.current!;
@@ -616,7 +732,7 @@ export default function Home() {
     setTool("select");
     view.current.connection = undefined;
   };
-  const act = (p: Point, repeat = false) => {
+  const act = (p: Point, repeat = false, hitId?: number | null) => {
     const s = park.current;
     if (!s) return;
     if (adjust && (tool === "station" || tool === "move")) {
@@ -639,18 +755,18 @@ export default function Home() {
       return;
     }
     if (tool === "select") {
-      const b = occupant(s, p.x, p.y);
+      const b = s.buildings.find((b) => b.id === hitId) ?? occupant(s, p.x, p.y);
       setSelected(b?.id ?? null);
-      if (b) setCategory("detail");
+      if (b) {
+        setCategory("detail");
+        setMenuOpen(false);
+      }
       return;
     }
     if (tool === "coaster" && !blueprintMode) {
       if (!draft.length) {
         if (
-          p.x < 0 ||
-          p.y < 0 ||
-          p.x >= 30 ||
-          p.y >= 30 ||
+          !insideMap(s, p.x, p.y) ||
           s.tiles[p.y][p.x] !== "grass" ||
           (occupant(s, p.x, p.y) && (!autoClear || !decorative(occupant(s, p.x, p.y)!.kind)))
         ) {
@@ -678,6 +794,7 @@ export default function Home() {
           p,
           tool === "coaster" ? prefabBlueprint(p, rotation, coasterType) : undefined,
           autoClear,
+          tool === "custom" ? customDesign : undefined,
         );
         if (result.error) {
           notify(result.error);
@@ -687,24 +804,27 @@ export default function Home() {
       },
     );
   };
+  const focus2D = (next: Point[]) => {
+    const el = canvas.current;
+    if (!el || !next.length) return;
+    const continuation = appendPiece(next, piece),
+      a = next.at(-1)!,
+      b = continuation.at(-1) ?? a,
+      target = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, z: ((a.z ?? 0) + (b.z ?? 0)) / 2 };
+    const zoom = Math.max(1.45, Math.min(1.9, view.current.zoom)),
+      v = { ...view.current, zoom },
+      p = projection(el.clientWidth, el.clientHeight, v).project(target.x, target.y, target.z);
+    cameraTarget.current = {
+      zoom,
+      panX: v.panX + (Math.min(340, el.clientWidth * 0.35) + el.clientWidth) / 2 - p.x,
+      panY: v.panY + el.clientHeight * 0.48 - p.y,
+    };
+    setZoom(Math.round(zoom * 100));
+  };
   const rememberDraft = (next: Point[]) => {
     draftHistory.current.push(draft);
     setDraft(next);
-    const el = canvas.current,
-      end = next.at(-1);
-    if (el && end) {
-      const p = projection(el.clientWidth, el.clientHeight, view.current).project(
-          end.x,
-          end.y,
-          end.z,
-        ),
-        left = 370,
-        right = el.clientWidth - 80,
-        top = 80,
-        bottom = el.clientHeight - 135;
-      view.current.panX += p.x < left ? left - p.x : p.x > right ? right - p.x : 0;
-      view.current.panY += p.y < top ? top - p.y : p.y > bottom ? bottom - p.y : 0;
-    }
+    if (autoFocus) focus2D(next);
   };
   const addPiece = (part: Piece) => {
     if (!park.current || !draft.length) return;
@@ -713,13 +833,24 @@ export default function Home() {
       return;
     }
     const next = appendPiece(draft, part),
-      error = pieceError(park.current, draft, next, autoClear);
+      error = pieceError(
+        trackEditWorld(park.current),
+        draft,
+        next,
+        autoClear,
+        park.current.trackEdit?.suffix,
+      );
     if (error) notify(error);
     else rememberDraft(next);
   };
   const autoClose = () => {
     if (!park.current) return;
-    const result = closeTrack(park.current, draft, autoClear);
+    const result = closeTrack(
+      trackEditWorld(park.current),
+      draft,
+      autoClear,
+      park.current.trackEdit?.suffix,
+    );
     if (result.error) notify(result.error);
     else if (result.track) rememberDraft(result.track);
   };
@@ -727,6 +858,22 @@ export default function Home() {
     const s = park.current;
     if (!s || !draft.length) return;
     edit("Achterbahn", () => {
+      if (s.trackEdit) {
+        const id = s.trackEdit.buildingId,
+          error = commitTrackEdit(s, draft, autoClear);
+        if (error) {
+          notify(error);
+          return;
+        }
+        setDraft([]);
+        draftHistory.current = [];
+        setBuildWorld(null);
+        setTool("select");
+        setCategory("detail");
+        setSelected(id);
+        notify("Strecke umgebaut. Starte eine Testfahrt und öffne die Bahn wieder.");
+        return;
+      }
       const result = place(s, "coaster", draft[0], draft, autoClear);
       if (result.error) {
         notify(result.error);
@@ -736,6 +883,68 @@ export default function Home() {
     });
   };
   const b = snapshot?.buildings.find((b) => b.id === selected);
+  const cutTrack = useMemo(() => (b?.kind === "coaster" ? editableTrack(b) : []), [b?.track]);
+  const sections = useMemo(() => trackSections(cutTrack), [cutTrack]);
+  useEffect(() => {
+    view.current.cutColor = sectionMode === "drive" ? "#43d9d2" : "#ff634d";
+    view.current.trackCut =
+      cut && cut.id === b?.id
+        ? cutTrack.slice(sections[cut.from]?.start ?? 0, (sections[cut.to]?.end ?? 0) + 1)
+        : undefined;
+  }, [cut, cutTrack, sections, b?.id, sectionMode]);
+  const resumeEdit = () => {
+    const s = park.current;
+    if (!s?.trackEdit) return;
+    restoreDraft(s);
+    setSelected(s.trackEdit.buildingId);
+    setTool("coaster");
+    setCategory("coaster");
+    setBlueprintMode(false);
+  };
+  useEffect(() => {
+    if (sectionMode === "drive" && cut) {
+      const existing = cutTrack[sections[cut.from]?.start]?.drive;
+      if (existing) setDrive({ ...existing });
+    }
+  }, [cut?.id, cut?.from, cut?.to, sectionMode]);
+  const modulePlan = b && cut ? trackDrivePlan(b, cut.from, cut.to, drive) : null;
+  const removeModulePlan = b && cut ? trackDrivePlan(b, cut.from, cut.to, null) : null;
+  const mountDrive = (value: TrackDrive | null) => {
+    const s = park.current,
+      live = s?.buildings.find((b) => b.id === cut?.id);
+    if (!s || !live || !cut) return;
+    edit(value ? "Streckenmodul" : "Modul entfernen", () => {
+      const error = installTrackDrive(s, live, cut.from, cut.to, value);
+      notify(
+        error ??
+          (value
+            ? "Modul montiert. Teste das neue Fahrprofil und öffne die Bahn wieder."
+            : "Modul entfernt. Teste die Bahn erneut."),
+      );
+      if (!error) setCut(null);
+    });
+  };
+  const removeSections = () => {
+    const s = park.current,
+      live = s?.buildings.find((b) => b.id === cut?.id);
+    if (!s || !live || !cut) return;
+    const error = beginTrackEdit(s, live, cut.from, cut.to);
+    if (error) {
+      notify(error);
+      return;
+    }
+    setCut(null);
+    setWorldRevision((v) => v + 1);
+    restoreDraft(s);
+    setBlueprintMode(false);
+    setCategory("coaster");
+    setTool("coaster");
+    sync();
+    notify(
+      "Abschnitt entfernt. Die Baustelle wird gespeichert. Füge Bauteile an und verbinde zum offenen Ende.",
+    );
+    focus2D(s.trackEdit!.prefix);
+  };
   const connection =
     b && snapshot && !decorative(b.kind) ? planConnection(snapshot, b, autoClear) : null;
   const reachable = b && snapshot ? access(snapshot, b) : null;
@@ -825,32 +1034,26 @@ export default function Home() {
           </div>
         </div>
         <div className="topactions">
-          <button
-            className="iconbtn"
-            aria-label={audioSettings.enabled ? "Sound ausschalten" : "Sound einschalten"}
-            title="Sound · Lautstärke in der Parkverwaltung"
-            onClick={toggleSound}
-          >
-            {audioSettings.enabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
-          </button>
           <span className="save-label">{saved}</span>
-          <button
-            className="iconbtn"
-            aria-label="Park speichern"
-            title="Speichern (⌘/Strg S)"
-            onClick={save}
-          >
-            <Save size={17} />
-          </button>
-          <button className="iconbtn" aria-label="Parkverwaltung" onClick={() => setSettings(true)}>
-            <Settings2 size={17} />
-          </button>
-          <button className="iconbtn" aria-label="Spielanleitung" onClick={() => setHelp(true)}>
-            <HelpCircle size={17} />
-          </button>
         </div>
       </header>
-      <section className="surface" aria-label="Parkbau und Simulation">
+      <section
+        className={`surface ${menuOpen ? "menu-expanded" : ""}`}
+        aria-label="Parkbau und Simulation"
+      >
+        {buildWorld && tool === "coaster" && (
+          <Suspense fallback={<div className="build3d-shell">Bauansicht wird geladen …</div>}>
+            <BuildView
+              park={buildWorld}
+              draft={draft}
+              candidate={candidate}
+              error={candidateError}
+              follow={autoFocus}
+              onPlace={(p) => act(p)}
+              onClose={() => setBuildWorld(null)}
+            />
+          </Suspense>
+        )}
         <canvas
           ref={canvas}
           className={`world ${tool !== "select" ? "building" : ""}`}
@@ -858,6 +1061,7 @@ export default function Home() {
           onContextMenu={(e) => e.preventDefault()}
           onWheel={(e) => changeZoom(e.deltaY < 0 ? 1.07 : 1 / 1.07, e.clientX, e.clientY)}
           onPointerDown={(e) => {
+            setHoverInfo(null);
             e.currentTarget.setPointerCapture(e.pointerId);
             drag.current = {
               x: e.clientX,
@@ -875,6 +1079,22 @@ export default function Home() {
           }}
           onPointerMove={(e) => {
             const p = tileAt(e);
+            const rect = e.currentTarget.getBoundingClientRect(),
+              px = e.clientX - rect.left,
+              py = e.clientY - rect.top;
+            const hit =
+              hitBuildingAt(view.current, px, py) ??
+              (park.current ? occupant(park.current, p.x, p.y)?.id : null);
+            view.current.hoveredId = hit ?? null;
+            setHoverInfo(
+              !drag.current && tool === "select" && hit != null
+                ? {
+                    id: hit,
+                    x: Math.min(rect.width - 224, px + 18),
+                    y: Math.min(rect.height - 80, py + 18),
+                  }
+                : null,
+            );
             view.current.hover = p;
             setHoverTile((old) => (old?.x === p.x && old?.y === p.y ? old : p));
             if (adjust)
@@ -887,6 +1107,7 @@ export default function Home() {
                 dy = e.clientY - d.y;
               if (Math.hypot(dx, dy) > 5) d.moved = true;
               if (d.moved && d.pan) {
+                cameraTarget.current = null;
                 view.current.panX = d.px + dx;
                 view.current.panY = d.py + dy;
               } else if (d.moved && ["path", "queue", "water", "erase"].includes(tool)) {
@@ -909,8 +1130,39 @@ export default function Home() {
               !d.moved &&
               e.button === 0 &&
               !["path", "queue", "water", "erase"].includes(tool)
-            )
-              act(tileAt(e), e.shiftKey);
+            ) {
+              if (cut && b && cut.id === b.id && sections.length) {
+                const rect = e.currentTarget.getBoundingClientRect(),
+                  { project } = projection(rect.width, rect.height, view.current),
+                  x = e.clientX - rect.left,
+                  y = e.clientY - rect.top;
+                let index = 0,
+                  best = 35;
+                sections.forEach((part, i) => {
+                  for (const point of cutTrack.slice(part.start, part.end + 1)) {
+                    const p = project(point.x, point.y, point.z);
+                    const d = Math.hypot(x - p.x, y - p.y);
+                    if (d < best) {
+                      best = d;
+                      index = i;
+                    }
+                  }
+                });
+                if (best < 35)
+                  setCut({
+                    id: b.id,
+                    from: e.shiftKey ? Math.min(cut.from, index) : index,
+                    to: e.shiftKey ? Math.max(cut.to, index) : index,
+                  });
+              } else {
+                const rect = e.currentTarget.getBoundingClientRect();
+                act(
+                  tileAt(e),
+                  e.shiftKey,
+                  hitBuildingAt(view.current, e.clientX - rect.left, e.clientY - rect.top),
+                );
+              }
+            }
             if (d && !d.moved && e.button === 2) {
               pickTool("select");
               setCategory("");
@@ -929,9 +1181,63 @@ export default function Home() {
             if (!drag.current) {
               view.current.hover = null;
               setHoverTile(null);
+              setHoverInfo(null);
+              view.current.hoveredId = null;
             }
           }}
         />
+        {hoverInfo &&
+          (() => {
+            const object = snapshot?.buildings.find((b) => b.id === hoverInfo.id);
+            return object ? (
+              <div
+                className="world-tooltip"
+                style={{ left: hoverInfo.x, top: hoverInfo.y }}
+                role="tooltip"
+              >
+                <strong>{object.name}</strong>
+                <span>
+                  {CATALOG[object.kind].name}
+                  {object.kind === "coaster"
+                    ? ` · ${COASTER_TYPES[object.track?.[0]?.style ?? "steel"].name}`
+                    : ""}
+                </span>
+                {!decorative(object.kind) && (
+                  <small>
+                    {snapshot?.trackEdit?.buildingId === object.id
+                      ? "Im Umbau"
+                      : object.open
+                        ? "Geöffnet"
+                        : "Geschlossen"}{" "}
+                    · {object.queue.length} warten
+                  </small>
+                )}
+              </div>
+            ) : null;
+          })()}
+        {tool === "coaster" && !blueprintMode && candidateError && !isClosedTrack(draft) && (
+          <div className="conflict-options builder-help-card">
+            <strong>So kannst du weiterbauen</strong>
+            {conflictOptions.map((option, i) => (
+              <button key={i} onClick={() => rememberDraft(option.track)}>
+                {option.label} anfügen · {EUR(trackCost(option.track) - trackCost(draft))}
+              </button>
+            ))}
+            {!conflictOptions.length && (
+              <span>Entferne das letzte Teil und wähle davor eine andere Richtung.</span>
+            )}
+            <button
+              onClick={() =>
+                setDraft(draftHistory.current.pop() ?? park.current?.trackEdit?.prefix ?? [])
+              }
+            >
+              Letztes Bauteil entfernen
+            </button>
+            <button onClick={() => setBuildWorld(structuredClone(park.current!))}>
+              Konflikt in 3D ansehen
+            </button>
+          </div>
+        )}
         {draft.length > 0 && category !== "coaster" && (
           <button
             className="resume-draft secondary"
@@ -959,7 +1265,8 @@ export default function Home() {
         </div>
         {category && category !== "erase" && category !== "select" && (
           <aside
-            className={`panel ${category === "coaster" ? "builder-panel" : ""}`}
+            ref={panelRef}
+            className={`panel ${category === "coaster" ? "builder-panel" : ""} ${cut?.id === selected ? "editing-section" : ""}`}
             aria-label="Bauauswahl"
           >
             <div className="panelhead">
@@ -992,7 +1299,32 @@ export default function Home() {
             <div className="panelbody">
               {category === "rides" && (
                 <>
-                  {catalog(["wheel", "carousel", "swing", "drop", "pirate"])}
+                  {catalog(["wheel", "carousel", "swing", "drop", "pirate", "teacups", "spinner"])}
+                  <button
+                    className="secondary"
+                    style={{ marginTop: 12, width: "100%" }}
+                    onClick={() => {
+                      if (snapshot && isUnlocked(snapshot, "custom")) setWorkshop(true);
+                      else {
+                        setTab("research");
+                        setSettings(true);
+                      }
+                    }}
+                  >
+                    <Sparkles size={18} />{" "}
+                    {snapshot && isUnlocked(snapshot, "custom")
+                      ? "Eigene Attraktion entwickeln"
+                      : "Werkstatt erforschen"}
+                  </button>
+                  {customDesign && (
+                    <button
+                      className="primary"
+                      style={{ marginTop: 8 }}
+                      onClick={() => pickTool("custom", "rides")}
+                    >
+                      {customDesign.name} platzieren · {EUR(designStats(customDesign).cost)}
+                    </button>
+                  )}
                   <button
                     className="primary"
                     style={{ marginTop: 12 }}
@@ -1011,7 +1343,7 @@ export default function Home() {
               )}
               {category === "shops" && (
                 <>
-                  {catalog(["burger", "drink", "toilet"])}
+                  {catalog(["burger", "drink", "toilet", "balloon", "plush"])}
                   <div className="hintbox">
                     <Info />
                     <span>Geschäfte stehen direkt an normalen Parkwegen.</span>
@@ -1021,6 +1353,16 @@ export default function Home() {
               {category === "nature" && (
                 <>
                   {catalog(["tree", "pine", "flowers", "bench"])}
+                  <button
+                    className="secondary"
+                    style={{ marginTop: 12 }}
+                    onClick={() => {
+                      setTab("land");
+                      setSettings(true);
+                    }}
+                  >
+                    Parkgelände erweitern
+                  </button>
                   <button
                     className={`secondary ${tool === "water" ? "active" : ""}`}
                     style={{ width: "100%", marginTop: 12 }}
@@ -1036,6 +1378,11 @@ export default function Home() {
               )}
               {category === "paths" && (
                 <div className="stack">
+                  {catalog(["train", "shuttle"])}
+                  <p className="small">
+                    Zwei Halte desselben Typs an Parkwege setzen. Am Halt verbindest du sie zu einer
+                    Linie mit echten Fahrgästen.
+                  </p>
                   <button
                     className={tool === "path" ? "primary" : "secondary"}
                     onClick={() => pickTool("path")}
@@ -1059,6 +1406,31 @@ export default function Home() {
               )}
               {category === "coaster" && (
                 <>
+                  <div className="builder-view-options">
+                    <button
+                      className="secondary"
+                      onClick={() => {
+                        if (buildWorld) setBuildWorld(null);
+                        else {
+                          setBlueprintMode(false);
+                          setBuildWorld(structuredClone(park.current!));
+                        }
+                      }}
+                    >
+                      {buildWorld ? "2D-Parkansicht" : "3D-Bauinspektor"}
+                    </button>
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={autoFocus}
+                        onChange={(e) => {
+                          setAutoFocus(e.target.checked);
+                          if (!e.target.checked) cameraTarget.current = null;
+                        }}
+                      />{" "}
+                      Anschluss folgen
+                    </label>
+                  </div>
                   <div className="coaster-types" role="group" aria-label="Achterbahntyp">
                     {(Object.keys(COASTER_TYPES) as CoasterType[]).map((type) => (
                       <button
@@ -1083,6 +1455,7 @@ export default function Home() {
                     <button
                       className={blueprintMode ? "active" : ""}
                       aria-pressed={blueprintMode}
+                      disabled={!!snapshot?.trackEdit}
                       onClick={() => {
                         setBlueprintMode(true);
                       }}
@@ -1152,8 +1525,20 @@ export default function Home() {
                           {draft.length ? trackStats(draft).length : 0} m ·{" "}
                           {Math.round((draft.at(-1)?.z ?? 0) * 5)} m Höhe
                         </span>
-                        <b>{EUR(trackCost(draft))}</b>
+                        <b>
+                          {snapshot?.trackEdit
+                            ? draftPlan?.error
+                              ? "Umbauentwurf"
+                              : EUR(draftPlan?.cost ?? 0)
+                            : EUR(trackCost(draft))}
+                        </b>
                       </div>
+                      {snapshot?.trackEdit && (
+                        <p className="track-edit-notice">
+                          Bahn geschlossen · Du bearbeitest eine Lücke. Gelb: dein neuer Abschnitt.
+                          Türkis: erhaltene Strecke bis zur Station.
+                        </p>
+                      )}
                       <div className="prefab-grid">
                         {(Object.entries(PIECES) as [Piece, (typeof PIECES)[Piece]][]).map(
                           ([id, item]) => (
@@ -1203,7 +1588,11 @@ export default function Home() {
                             aria-label="Letztes Bauteil entfernen"
                             title="Letztes Bauteil entfernen · Strg/⌘ Z"
                             disabled={!draft.length}
-                            onClick={() => setDraft(draftHistory.current.pop() ?? [])}
+                            onClick={() =>
+                              setDraft(
+                                draftHistory.current.pop() ?? park.current?.trackEdit?.prefix ?? [],
+                              )
+                            }
                           >
                             <Undo2 size={16} />
                           </button>
@@ -1213,7 +1602,8 @@ export default function Home() {
                           disabled={draft.length < 2}
                           onClick={autoClose}
                         >
-                          <Route size={16} /> Zur Station verbinden
+                          <Route size={16} />{" "}
+                          {snapshot?.trackEdit ? "Offene Enden verbinden" : "Zur Station verbinden"}
                         </button>
                         <button
                           className="primary"
@@ -1221,7 +1611,8 @@ export default function Home() {
                           title={draftPlan?.error ?? "Strecke bauen"}
                           onClick={coasterBuild}
                         >
-                          <Check size={16} /> Strecke bauen ·{" "}
+                          <Check size={16} />{" "}
+                          {snapshot?.trackEdit ? "Umbau übernehmen" : "Strecke bauen"} ·{" "}
                           {EUR(draftPlan?.cost ?? trackCost(draft))}
                         </button>
                         <div className="builder-options">
@@ -1238,16 +1629,21 @@ export default function Home() {
                             disabled={!draft.length}
                             onClick={() => {
                               draftHistory.current = [];
+                              if (park.current?.trackEdit) {
+                                cancelTrackEdit(park.current);
+                                setWorldRevision((v) => v + 1);
+                                sync();
+                              }
                               setDraft([]);
                             }}
                           >
-                            Verwerfen
+                            {snapshot?.trackEdit ? "Umbau abbrechen" : "Verwerfen"}
                           </button>
                         </div>
                       </div>
                       <p className="buildnote">
                         {draftPlan?.error ??
-                          "Entwurf gespeichert · Werkzeugwechsel jederzeit möglich."}
+                          "Baustand gespeichert · Werkzeugwechsel jederzeit möglich."}
                       </p>
                     </>
                   )}
@@ -1337,21 +1733,26 @@ export default function Home() {
                       >
                         {decorative(b.kind)
                           ? "Eine schöne Ecke für deine Besucher."
-                          : !reachable
-                            ? isRide(b.kind)
-                              ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
-                              : "Ein erreichbarer Parkweg fehlt."
-                            : b.testing
-                              ? "Testfahrt läuft …"
-                              : !b.tested
-                                ? "Bereit für die Testfahrt."
-                                : b.open
-                                  ? "Geöffnet · Besucher sind willkommen."
-                                  : "Geschlossen · Bereit zur Eröffnung."}
+                          : snapshot.trackEdit?.buildingId === b.id
+                            ? "Baustelle · Strecke unterbrochen"
+                            : !reachable
+                              ? isRide(b.kind)
+                                ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
+                                : "Ein erreichbarer Parkweg fehlt."
+                              : b.testing
+                                ? "Testfahrt läuft …"
+                                : !b.tested
+                                  ? "Bereit für die Testfahrt."
+                                  : b.open
+                                    ? "Geöffnet · Besucher sind willkommen."
+                                    : "Geschlossen · Bereit zur Eröffnung."}
                       </div>
-                      {b.kind === "coaster" && b.track && (
+                      {(isRide(b.kind) ||
+                        (isTransport(b.kind) &&
+                          snapshot.transitLines?.some((l) => l.a === b.id || l.b === b.id))) && (
                         <button
                           className="primary ride-launch"
+                          disabled={snapshot.trackEdit?.buildingId === b.id}
                           onClick={() => {
                             const copy = structuredClone(park.current!);
                             rideActive.current = true;
@@ -1364,13 +1765,318 @@ export default function Home() {
                           <Play size={18} /> 3D-Mitfahren
                         </button>
                       )}
+                      {isTransport(b.kind) && (
+                        <div className="transit-box">
+                          <strong>
+                            {b.kind === "train" ? "Parkbahnlinie" : "Shuttle-Verbindung"}
+                          </strong>
+                          {(() => {
+                            const line = snapshot.transitLines?.find(
+                              (l) => l.a === b.id || l.b === b.id,
+                            );
+                            if (line)
+                              return (
+                                <>
+                                  <span>
+                                    {snapshot.buildings.find((x) => x.id === line.a)?.name} ↔{" "}
+                                    {snapshot.buildings.find((x) => x.id === line.b)?.name}
+                                  </span>
+                                  <span>
+                                    {Math.round((line.route.length - 1) * 5)} m ·{" "}
+                                    {line.passengers.length}/{transportCapacity(line.kind)} an Bord
+                                    · {line.served} Fahrgäste
+                                  </span>
+                                  <span>
+                                    {line.fault ??
+                                      (line.wait > 0
+                                        ? "Halt · Ein- und Aussteigen"
+                                        : "Fahrzeug unterwegs")}
+                                  </span>
+                                  <button
+                                    className="secondary"
+                                    onClick={() =>
+                                      edit("Linienbetrieb", () => {
+                                        const live = park.current!.transitLines!.find(
+                                          (l) => l.id === line.id,
+                                        )!;
+                                        live.enabled = !live.enabled;
+                                        tickTransit(park.current!, 0);
+                                      })
+                                    }
+                                  >
+                                    {line.enabled ? "Linie pausieren" : "Linie fortsetzen"}
+                                  </button>
+                                  <button
+                                    className="secondary"
+                                    disabled={!!repairTransitPlan(snapshot, line).error}
+                                    onClick={() =>
+                                      edit("Linie neu verbinden", () => {
+                                        const live = park.current!.transitLines!.find(
+                                          (l) => l.id === line.id,
+                                        )!;
+                                        notify(
+                                          repairTransit(park.current!, live) ??
+                                            "Verbindung neu berechnet. Die Fahrt beginnt am ersten Halt.",
+                                        );
+                                      })
+                                    }
+                                  >
+                                    Route neu verbinden ·{" "}
+                                    {EUR(repairTransitPlan(snapshot, line).cost)}
+                                  </button>
+                                  {repairTransitPlan(snapshot, line).error && (
+                                    <span>{repairTransitPlan(snapshot, line).error}</span>
+                                  )}
+                                </>
+                              );
+                            const stops = snapshot.buildings.filter(
+                              (x) =>
+                                x.id !== b.id &&
+                                x.kind === b.kind &&
+                                !snapshot.transitLines?.some((l) => l.a === x.id || l.b === x.id),
+                            );
+                            return (
+                              <>
+                                <p className="small">
+                                  {stops.length
+                                    ? "Wähle den zweiten Halt. Fahrzeuge benutzen die eingezeichneten Parkwege und halten an beiden Enden."
+                                    : "Setze einen zweiten Halt dieses Typs mindestens fünf Wegfelder entfernt."}
+                                </p>
+                                {stops.map((stop) => {
+                                  const plan = transitPlan(snapshot, b, stop);
+                                  return (
+                                    <div key={stop.id}>
+                                      <button
+                                        className="secondary"
+                                        disabled={!!plan.error}
+                                        onMouseEnter={() => (view.current.connection = plan.route)}
+                                        onMouseLeave={() => (view.current.connection = undefined)}
+                                        onClick={() =>
+                                          edit("Transportlinie", () => {
+                                            const error = createTransitLine(
+                                              park.current!,
+                                              park.current!.buildings.find((x) => x.id === b.id)!,
+                                              park.current!.buildings.find(
+                                                (x) => x.id === stop.id,
+                                              )!,
+                                            );
+                                            notify(
+                                              error ??
+                                                "Linie eröffnet. Gäste nutzen sie, wenn sie schneller als der Fußweg ist.",
+                                            );
+                                          })
+                                        }
+                                      >
+                                        Mit {stop.name} ({stop.x}, {stop.y}) verbinden ·{" "}
+                                        {EUR(plan.cost)}
+                                      </button>
+                                      {plan.error && <p className="small">{plan.error}</p>}
+                                    </div>
+                                  );
+                                })}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      )}
+                      {b.kind === "coaster" && (
+                        <div className="track-edit-controls">
+                          {snapshot.trackEdit ? (
+                            <>
+                              <p className="track-edit-notice">
+                                Eine Bahn ist im Umbau. Offene Gleise bleiben geschlossen.
+                              </p>
+                              <button className="primary" onClick={resumeEdit}>
+                                Baustelle fortsetzen
+                              </button>
+                            </>
+                          ) : cut?.id === b.id ? (
+                            <>
+                              <h3>
+                                {sectionMode === "drive"
+                                  ? "Streckenmodule"
+                                  : "Abschnitte entfernen"}
+                              </h3>
+                              <p className="small">
+                                {sectionMode === "drive"
+                                  ? "Wähle einen Gleisbereich. Beschleuniger sind türkis, Bremsen orange markiert."
+                                  : "Klicke auf die Schiene oder wähle den Bereich. Rot markierte Teile werden entfernt; die Station bleibt."}
+                              </p>
+                              <label>
+                                Von Abschnitt
+                                <select
+                                  aria-label="Erster ausgewählter Abschnitt"
+                                  value={cut.from}
+                                  onChange={(e) =>
+                                    setCut({
+                                      ...cut,
+                                      from: +e.target.value,
+                                      to: Math.max(cut.to, +e.target.value),
+                                    })
+                                  }
+                                >
+                                  {sections.map((part, i) => (
+                                    <option key={i} value={i}>
+                                      {i + 1} · {part.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label>
+                                Bis Abschnitt
+                                <select
+                                  aria-label="Letzter ausgewählter Abschnitt"
+                                  value={cut.to}
+                                  onChange={(e) => setCut({ ...cut, to: +e.target.value })}
+                                >
+                                  {sections.map(
+                                    (part, i) =>
+                                      i >= cut.from && (
+                                        <option key={i} value={i}>
+                                          {i + 1} · {part.label}
+                                        </option>
+                                      ),
+                                  )}
+                                </select>
+                              </label>
+                              {sectionMode === "drive" ? (
+                                <>
+                                  <div className="build-modes">
+                                    <button
+                                      className={drive.kind === "boost" ? "active" : ""}
+                                      onClick={() =>
+                                        setDrive({ ...drive, kind: "boost", speed: 60 })
+                                      }
+                                    >
+                                      <Zap size={16} /> Beschleuniger
+                                    </button>
+                                    <button
+                                      className={drive.kind === "brake" ? "active" : ""}
+                                      onClick={() =>
+                                        setDrive({ ...drive, kind: "brake", speed: 15 })
+                                      }
+                                    >
+                                      <OctagonPause size={16} /> Bremse
+                                    </button>
+                                  </div>
+                                  <label>
+                                    Zieltempo · {drive.speed} km/h
+                                    <input
+                                      aria-label="Zieltempo des Streckenmoduls"
+                                      type="range"
+                                      min="5"
+                                      max={
+                                        b.track?.[0]?.style === "wood"
+                                          ? 68
+                                          : b.track?.[0]?.style === "launch"
+                                            ? 93
+                                            : 82
+                                      }
+                                      value={drive.speed}
+                                      onChange={(e) =>
+                                        setDrive({ ...drive, speed: +e.target.value })
+                                      }
+                                    />
+                                  </label>
+                                  <label>
+                                    Stärke · {drive.strength} m/s²
+                                    <input
+                                      aria-label="Stärke des Streckenmoduls"
+                                      type="range"
+                                      min="0.5"
+                                      max="12"
+                                      step="0.5"
+                                      value={drive.strength}
+                                      onChange={(e) =>
+                                        setDrive({ ...drive, strength: +e.target.value })
+                                      }
+                                    />
+                                  </label>
+                                  <p className="small">
+                                    Wirkt nur auf dem markierten Gleis. Das erreichbare Tempo hängt
+                                    von Länge, Steigung und der nächsten Bremse ab. Die
+                                    Stationsbremse bleibt aktiv.
+                                  </p>
+                                  <button
+                                    className="primary"
+                                    disabled={
+                                      !!modulePlan?.error ||
+                                      !modulePlan?.changed ||
+                                      (modulePlan?.cost ?? 0) > (snapshot?.cash ?? 0)
+                                    }
+                                    onClick={() => mountDrive(drive)}
+                                  >
+                                    Modul montieren · {EUR(modulePlan?.cost ?? 0)}
+                                  </button>
+                                  <button
+                                    className="secondary"
+                                    disabled={!removeModulePlan?.changed}
+                                    onClick={() => mountDrive(null)}
+                                  >
+                                    Module im Bereich entfernen
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button className="primary" onClick={removeSections}>
+                                    <Eraser size={16} /> {cut.to - cut.from + 1} Abschnitt
+                                    {cut.to > cut.from ? "e" : ""} entfernen
+                                  </button>
+                                </>
+                              )}
+                              <button className="secondary" onClick={() => setCut(null)}>
+                                Auswahl abbrechen
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                className="secondary"
+                                onClick={() => {
+                                  setSectionMode("remove");
+                                  setCut({
+                                    id: b.id,
+                                    from: Math.min(1, sections.length - 1),
+                                    to: Math.min(1, sections.length - 1),
+                                  });
+                                  setTool("select");
+                                }}
+                              >
+                                <Eraser size={16} /> Gleisabschnitte bearbeiten
+                              </button>
+                              <button
+                                className="secondary"
+                                onClick={() => {
+                                  setSectionMode("drive");
+                                  setCut({
+                                    id: b.id,
+                                    from: Math.min(1, sections.length - 1),
+                                    to: Math.min(1, sections.length - 1),
+                                  });
+                                  setTool("select");
+                                }}
+                              >
+                                <Zap size={16} /> Beschleuniger & Bremsen
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
                       <div className="adjust-actions">
                         {b.kind === "coaster" && (
-                          <button className="secondary" onClick={() => startAdjustment("station")}>
+                          <button
+                            className="secondary"
+                            disabled={!!snapshot.trackEdit}
+                            onClick={() => startAdjustment("station")}
+                          >
                             <MapPin size={16} /> Station versetzen
                           </button>
                         )}
-                        <button className="secondary" onClick={() => startAdjustment("move")}>
+                        <button
+                          className="secondary"
+                          disabled={!!snapshot.trackEdit}
+                          onClick={() => startAdjustment("move")}
+                        >
                           <Move size={16} />{" "}
                           {b.kind === "coaster" ? "Bahn verschieben / drehen" : "Gebäude versetzen"}
                         </button>
@@ -1385,7 +2091,11 @@ export default function Home() {
                         <div className="connect-action">
                           <button
                             className="primary"
-                            disabled={!!connection.error || (!!b.autoOpen && !!reachable)}
+                            disabled={
+                              snapshot.trackEdit?.buildingId === b.id ||
+                              !!connection.error ||
+                              (!!b.autoOpen && !!reachable)
+                            }
                             onMouseEnter={() => {
                               view.current.connection = connection.points;
                             }}
@@ -1453,7 +2163,7 @@ export default function Home() {
                             </div>
                           </div>
                           <div className="controlrow">
-                            <span>Preis pro Besuch</span>
+                            <span>{isTransport(b.kind) ? "Fahrpreis" : "Preis pro Besuch"}</span>
                             <strong>{EUR(b.price)}</strong>
                           </div>
                           <Slider
@@ -1470,8 +2180,13 @@ export default function Home() {
                             <div className="controlrow">
                               <span>Warteschlange</span>
                               <strong>
-                                {b.queue.length} / {isRide(b.kind) ? queueCapacity(snapshot, b) : 6}{" "}
-                                · ~{Math.ceil(expectedWait(b))} s
+                                {b.queue.length} /{" "}
+                                {isRide(b.kind)
+                                  ? queueCapacity(snapshot, b)
+                                  : isTransport(b.kind)
+                                    ? 16
+                                    : 6}{" "}
+                                {!isTransport(b.kind) && `· ~${Math.ceil(expectedWait(b))} s`}
                               </strong>
                             </div>
                           )}
@@ -1503,7 +2218,7 @@ export default function Home() {
                                 <button
                                   className="secondary"
                                   style={{ width: "100%" }}
-                                  disabled={!!b.testing}
+                                  disabled={snapshot.trackEdit?.buildingId === b.id || !!b.testing}
                                   onClick={() => {
                                     changeBuilding((b) => {
                                       b.testing = rideDuration(b);
@@ -1524,7 +2239,10 @@ export default function Home() {
                             <button
                               className="primary"
                               style={{ marginTop: 14 }}
-                              disabled={!b.open && (!reachable || !b.tested)}
+                              disabled={
+                                snapshot.trackEdit?.buildingId === b.id ||
+                                (!b.open && (!reachable || !b.tested))
+                              }
                               onClick={() => changeBuilding((b) => (b.open = !b.open))}
                             >
                               {b.open ? <Pause size={16} /> : <Play size={16} />}{" "}
@@ -1561,7 +2279,7 @@ export default function Home() {
                     />
                     <div>
                       <strong>
-                        Gast #{g.id} ·{" "}
+                        {g.name ?? guestName(g.id)} ·{" "}
                         {g.profile === "thrill"
                           ? "Nervenkitzel"
                           : g.profile === "budget"
@@ -1765,28 +2483,89 @@ export default function Home() {
             ))}
           </div>
         </div>
-        <nav className="bottom" aria-label="Bauwerkzeuge">
-          {categories.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              aria-pressed={category === id || (id === "erase" && tool === "erase")}
-              className={`tool ${category === id || (id === "erase" && tool === "erase") ? "active" : ""}`}
-              aria-label={label}
-              onClick={() => {
-                if (id === "select" || id === "erase") pickTool(id, id);
+        <ParkMenu
+          open={menuOpen}
+          setOpen={setMenuOpen}
+          actions={[
+            ...categories.slice(0, 6).map(({ id, label, Icon }) => ({
+              id,
+              label,
+              Icon,
+              active: category === id,
+              run: () => {
+                if (id === "select") pickTool(id, id);
                 else if (id === "coaster") pickTool("coaster", "coaster");
                 else {
                   setCategory(id);
                   setSelected(null);
                   setTool(id === "paths" ? "path" : "select");
                 }
-              }}
-            >
-              <Icon strokeWidth={1.6} />
-              <span>{label}</span>
-            </button>
-          ))}
-        </nav>
+              },
+            })),
+            {
+              id: "land",
+              label: "Park erweitern",
+              Icon: MapPin,
+              run: () => {
+                setTab("land");
+                setSettings(true);
+              },
+            },
+            {
+              id: "research",
+              label: "Forschung & Freischaltungen",
+              Icon: FlaskConical,
+              badge: !!snapshot?.research?.active,
+              run: () => {
+                setTab("research");
+                setSettings(true);
+              },
+            },
+            {
+              id: "erase",
+              label: "Abreißen",
+              Icon: Eraser,
+              active: tool === "erase",
+              run: () => pickTool("erase", "erase"),
+            },
+            {
+              id: "workshop",
+              label: "Eigene Attraktionen · Werkstatt",
+              Icon: Sparkles,
+              run: () => {
+                if (snapshot && isUnlocked(snapshot, "custom")) setWorkshop(true);
+                else {
+                  setTab("research");
+                  setSettings(true);
+                }
+              },
+            },
+            {
+              id: "guests",
+              label: "Besucher beobachten",
+              Icon: Users,
+              run: () => {
+                setCategory("guests");
+                setSelected(null);
+                setTool("select");
+              },
+            },
+            {
+              id: "settings",
+              label: "Parkverwaltung",
+              Icon: Settings2,
+              run: () => setSettings(true),
+            },
+            {
+              id: "sound",
+              label: audioSettings.enabled ? "Sound ausschalten" : "Sound einschalten",
+              Icon: audioSettings.enabled ? Volume2 : VolumeX,
+              run: toggleSound,
+            },
+            { id: "save", label: "Park speichern", Icon: Save, run: save },
+            { id: "help", label: "Spielanleitung", Icon: HelpCircle, run: () => setHelp(true) },
+          ]}
+        />
         <div className="camerahelp">Rechts ziehen: verschieben · Mausrad: Zoom zum Zeiger</div>
         <button
           className="undo-build secondary"
@@ -1825,6 +2604,11 @@ export default function Home() {
           </DialogDescription>
           <ol>
             <li>
+              <b>Parkmenü:</b> Das Halbrad unten enthält Bauwerkzeuge, Forschung, Werkstatt,
+              Parkerweiterung und Verwaltung. Fahre über ein Symbol, um seine Funktion zu sehen.
+              Forschung ist auch bei eingeklapptem Menü direkt erreichbar.
+            </li>
+            <li>
               <b>Neue Attraktionen:</b> Wähle unten ein Gebäude und klicke auf freie Wiese. Verbinde
               Fahrgeschäfte mit „Anschließen & öffnen“ automatisch mit dem Wegenetz. Ein direkt
               angrenzender Parkweg bietet vier Warteplätze.
@@ -1845,7 +2629,17 @@ export default function Home() {
             <li>
               <b>Nachträglich anpassen:</b> Klicke eine Bahn an. „Station versetzen“ bietet grüne,
               ebene Gleisfelder; „Bahn verschieben / drehen“ versetzt die gesamte Anlage. R dreht
-              die Vorschau, Strg/⌘ Z nimmt den Umbau zurück.
+              die Vorschau, Strg/⌘ Z nimmt den Umbau zurück. Mit „Gleisabschnitte bearbeiten“
+              entfernst du einen markierten Bereich, setzt neue Bauteile ein und verbindest die
+              offenen Enden automatisch. „Beschleuniger & Bremsen“ montiert Module mit einstellbarem
+              Zieltempo und einstellbarer Stärke. Danach ist eine neue Testfahrt nötig.
+            </li>
+            <li>
+              <b>3D erleben:</b> Auch die anderen Fahrgeschäfte haben eine Mitfahrt aus ihren
+              bewegten Sitzen. Die Parkbahn und der Shuttle verbinden je zwei Haltestellen am
+              Wegenetz; wähle eine verbundene Haltestelle zum Mitfahren. Im 3D-Baumodus dreht die
+              linke Maustaste die Kamera, die rechte verschiebt sie. Das Mausrad zoomt; F schaltet
+              das Folgen des nächsten Bauteils um.
             </li>
             <li>
               <b>Glückliche Gäste:</b> Platziere Burger, Getränke und Toiletten an normalen Wegen.
@@ -1879,6 +2673,10 @@ export default function Home() {
           if (!open) {
             rideActive.current = false;
             setRide(null);
+            if (workshopReturn.current) {
+              workshopReturn.current = false;
+              setWorkshop(true);
+            }
             audio.current?.ride(0, false);
           }
         }}
@@ -1886,7 +2684,7 @@ export default function Home() {
         <DialogContent className="ride-modal" showCloseButton={false}>
           <DialogTitle className="sr-only">3D-Mitfahrt</DialogTitle>
           <DialogDescription className="sr-only">
-            Probefahrt auf deiner gebauten Achterbahn. Der Park pausiert.
+            Probefahrt in deiner gebauten Attraktion. Der Park pausiert.
           </DialogDescription>
           {ride && (
             <Suspense
@@ -1900,6 +2698,10 @@ export default function Home() {
                 onClose={() => {
                   rideActive.current = false;
                   setRide(null);
+                  if (workshopReturn.current) {
+                    workshopReturn.current = false;
+                    setWorkshop(true);
+                  }
                   audio.current?.ride(0, false);
                 }}
               />
@@ -1907,6 +2709,48 @@ export default function Home() {
           )}
         </DialogContent>
       </Dialog>
+      {workshop && (
+        <Suspense fallback={null}>
+          <Workshop
+            initialDesign={customDesign}
+            onClose={() => setWorkshop(false)}
+            onBuild={(d) => {
+              setCustomDesign(d);
+              setWorkshop(false);
+              pickTool("custom", "rides");
+            }}
+            onPreview={(d) => {
+              workshopReturn.current = true;
+              setCustomDesign(d);
+              setWorkshop(false);
+              const copy = structuredClone(park.current!);
+              const id = copy.nextId++;
+              const building: Building = {
+                id,
+                kind: "custom",
+                x: 11,
+                y: 10,
+                name: d.name,
+                open: true,
+                price: 10,
+                served: 0,
+                revenue: 0,
+                queue: [],
+                riders: [],
+                cycle: 0,
+                tested: true,
+                design: structuredClone(d),
+              };
+              copy.buildings = copy.buildings.filter(
+                (b) => !(b.x >= 9 && b.x < 16 && b.y >= 8 && b.y < 15),
+              );
+              copy.buildings.push(building);
+              rideActive.current = true;
+              setRide({ park: copy, building });
+            }}
+          />
+        </Suspense>
+      )}
       <Dialog open={settings} onOpenChange={setSettings}>
         <DialogContent className="manual">
           <DialogTitle>Dein Park, deine Regeln.</DialogTitle>
@@ -1917,7 +2761,59 @@ export default function Home() {
               <TabsTrigger value="save">Spielstand</TabsTrigger>
               <TabsTrigger value="audio">Sound</TabsTrigger>
               <TabsTrigger value="research">Forschung</TabsTrigger>
+              <TabsTrigger value="land">Parkgelände</TabsTrigger>
             </TabsList>
+            <TabsContent value="land">
+              <p>
+                Dein Park besitzt{" "}
+                {snapshot ? `${mapWidth(snapshot)} × ${mapHeight(snapshot)}` : "30 × 30"} Felder.
+                Kaufe angrenzende Wiesen in sechs Felder breiten Streifen.
+              </p>
+              <div className="land-options">
+                {snapshot &&
+                  (["east", "south"] as const).map((axis) => {
+                    const plan = expansionPlan(snapshot, axis);
+                    return (
+                      <div key={axis}>
+                        <strong>{axis === "east" ? "Ostgrundstück" : "Südgrundstück"}</strong>
+                        <p>
+                          {plan.points.length} neue Bauplätze · danach {plan.width} × {plan.height}{" "}
+                          Felder
+                        </p>
+                        <button
+                          className="primary"
+                          disabled={!!plan.error}
+                          onClick={() => {
+                            const error = expandPark(park.current!, axis);
+                            if (!error) {
+                              setWorldRevision((v) => v + 1);
+                              setSettings(false);
+                              cameraTarget.current = null;
+                              const live = park.current!,
+                                max = Math.max(mapWidth(live), mapHeight(live));
+                              view.current.zoom = Math.max(0.55, 30 / max);
+                              view.current.panX = 0;
+                              view.current.panY = 40;
+                              setZoom(Math.round(view.current.zoom * 100));
+                            }
+                            notify(
+                              error ??
+                                "Grundstück gekauft. Neue Wege und Bauwerke sind hier jetzt möglich.",
+                            );
+                            sync();
+                          }}
+                        >
+                          {EUR(plan.cost)} · Grundstück kaufen
+                        </button>
+                        {plan.error && <p className="small">{plan.error}</p>}
+                      </div>
+                    );
+                  })}
+              </div>
+              <p className="small">
+                Bis zu 54 × 54 Felder. Der Eingang und bestehende Bauwerke bleiben an ihrem Platz.
+              </p>
+            </TabsContent>
             <TabsContent value="research">
               <p className="small">
                 Forschung wird einmal bezahlt und läuft mit der Spielzeit. Im freien Spiel ist alles
@@ -1933,8 +2829,8 @@ export default function Home() {
                       <h3>{project.name}</h3>
                       <p>{project.description}</p>
                       <small>
-                        {EUR(project.cost)} · {project.duration / 90 < 2 ? "1–2" : "2"} Spieltage
-                        {project.requires ? " · benötigt Hoch hinaus" : ""}
+                        {EUR(project.cost)} · {Math.ceil(project.duration / 90)} Spieltage
+                        {project.requires ? ` · benötigt ${RESEARCH[project.requires].name}` : ""}
                       </small>
                     </div>
                     <button

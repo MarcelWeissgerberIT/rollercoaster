@@ -1,3 +1,7 @@
+import { addDriveHardware } from "@/game/track-hardware";
+import { createGuestModel } from "@/game/guest-model";
+import FlatRideView from "./flat-ride-view";
+import { mapWidth, mapHeight } from "../game/grid";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Pause, Play, RotateCcw, X, Volume2, VolumeX } from "lucide-react";
@@ -14,7 +18,14 @@ type Props = {
   onMute: () => void;
   onClose: () => void;
 };
-export default function RideView({ park, building, audio, muted, onMute, onClose }: Props) {
+export default function RideView(props: Props) {
+  return props.building.kind === "coaster" ? (
+    <CoasterRideView {...props} />
+  ) : (
+    <FlatRideView {...props} />
+  );
+}
+function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Props) {
   const compiledPath = useMemo(() => makeRidePath(building.track!), [building.track]);
   const host = useRef<HTMLDivElement>(null),
     control = useRef({
@@ -82,7 +93,16 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
       parent.add(m);
       return m;
     }
-    const ground = mesh(cube, "#7caa49", 72.5, -0.6, 72.5, 155, 1, 155);
+    const ground = mesh(
+      cube,
+      "#7caa49",
+      (mapWidth(park) - 1) * 2.5,
+      -0.6,
+      (mapHeight(park) - 1) * 2.5,
+      mapWidth(park) * 5,
+      1,
+      mapHeight(park) * 5,
+    );
     const tileGeometry = new THREE.BoxGeometry(4.96, 0.12, 4.96);
     for (const type of ["path", "queue", "water"] as const) {
       const tiles = park.tiles.flatMap((row, y) =>
@@ -161,6 +181,18 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
       scene.add(wagon);
       train.push(wagon);
     }
+    train.forEach((wagon, i) => {
+      for (let side = 0; side < 2; side++)
+        if (i * 2 + side < building.riders.length) {
+          const x = side ? 0.4 : -0.4;
+          const person = createGuestModel(
+            park.guests.find((g) => g.id === building.riders[i * 2 + side]),
+          );
+          person.position.set(x, 0.75, 0.15);
+          wagon.add(person);
+        }
+    });
+    addDriveHardware(scene, path);
     const desiredCamera = new THREE.PerspectiveCamera();
     const resize = () => {
       const w = target.clientWidth,
@@ -304,11 +336,23 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       audio?.ride(0, false);
       const geometries = new Set<THREE.BufferGeometry>();
+      const sceneMaterials = new Set<THREE.Material>();
+      const maps = new Set<THREE.Texture>();
       scene.traverse((o) => {
-        if (o instanceof THREE.Mesh) geometries.add(o.geometry);
+        if (o instanceof THREE.Mesh) {
+          geometries.add(o.geometry);
+          for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
+            sceneMaterials.add(material);
+            for (const value of Object.values(material))
+              if (value instanceof THREE.Texture) maps.add(value);
+          }
+        }
+        if (o instanceof THREE.InstancedMesh) o.dispose();
       });
       geometries.forEach((g) => g.dispose());
-      materials.forEach((m) => m.dispose());
+      materials.forEach((m) => sceneMaterials.add(m));
+      sceneMaterials.forEach((m) => m.dispose());
+      maps.forEach((t) => t.dispose());
       ground.removeFromParent();
       renderer.dispose();
       renderer.forceContextLoss();

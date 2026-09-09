@@ -28,7 +28,7 @@ export const PHASE_NAMES: Record<RidePhase, string> = {
   lift: "Kettenlift",
   launch: "Beschleunigung",
   coast: "Freie Fahrt",
-  brake: "Schlussbremse",
+  brake: "Bremse",
 };
 const add = (a: Vec, b: Vec, f = 1): Vec => ({
   x: a.x + b.x * f,
@@ -118,6 +118,7 @@ export function prepareRoute(track: Point[]): RouteMotion {
       const f = j / steps;
       samples.push({
         ...b,
+        drive: a.drive,
         x: a.x + (b.x - a.x) * f,
         y: a.y + (b.y - a.y) * f,
         z: (a.z ?? 0) + ((b.z ?? 0) - (a.z ?? 0)) * f,
@@ -177,6 +178,8 @@ export function prepareRoute(track: Point[]): RouteMotion {
   for (let i = 0; i <= n; i++) ups.push(norm(cross(rights[i], tangents[i])));
   const speeds: number[] = [],
     phases: RidePhase[] = [],
+    accelerationLimits: number[] = [],
+    brakingLimits: number[] = [],
     style = track[0]?.style ?? "steel";
   const cap = style === "wood" ? 19 : style === "launch" ? 26 : 23;
   for (let i = 0; i <= n; i++) {
@@ -184,10 +187,20 @@ export function prepareRoute(track: Point[]): RouteMotion {
       remaining = (length - distance[i]) * 5,
       ds = i ? (distance[i] - distance[i - 1]) * 5 : 0,
       dz = i ? ((samples[i].z ?? 0) - (samples[i - 1].z ?? 0)) * 5 : 0;
-    let v = i ? Math.sqrt(Math.max(4, speeds[i - 1] ** 2 - 2 * 9.81 * dz - 0.16 * ds)) : 0;
+    let v = i
+      ? Math.sqrt(
+          Math.max(Math.min(4, speeds[i - 1] ** 2), speeds[i - 1] ** 2 - 2 * 9.81 * dz - 0.16 * ds),
+        )
+      : 0;
     let phase: RidePhase = "coast";
+    const drive = samples[i].drive;
     if (style !== "launch" && !samples[i].inversion && tangents[i].z > 0.12) {
-      v = 3;
+      v =
+        drive?.kind === "boost" && drive.speed / 3.6 > 3
+          ? Math.max(3, v)
+          : drive?.kind === "brake" && drive.speed / 3.6 < 3
+            ? Math.min(3, i ? speeds[i - 1] : 3)
+            : 3;
       phase = "lift";
     }
     if (meters < Math.min(15, length * 1.2)) {
@@ -197,6 +210,28 @@ export function prepareRoute(track: Point[]): RouteMotion {
       );
       phase = style === "launch" ? "launch" : "departure";
     }
+    let acceleration = phase === "launch" ? 12 : 3,
+      deceleration = 3;
+    if (drive && i > 0) {
+      const target = Math.min(cap, drive.speed / 3.6),
+        old = v;
+      if (drive.kind === "boost" && v < target) {
+        v = Math.max(v, Math.min(target, Math.sqrt(v * v + 2 * drive.strength * ds)));
+        if (v > old) {
+          phase = "launch";
+          acceleration = Math.max(acceleration, drive.strength);
+        }
+      }
+      if (drive.kind === "brake" && v > target) {
+        v = Math.min(v, Math.max(target, Math.sqrt(Math.max(0, v * v - 2 * drive.strength * ds))));
+        if (v < old) {
+          phase = "brake";
+          deceleration = Math.max(3, drive.strength);
+        }
+      }
+    }
+    accelerationLimits.push(acceleration);
+    brakingLimits.push(deceleration);
     v = Math.min(cap, v);
     if (remaining < Math.min(22, length * 1.5)) {
       const braking = Math.sqrt(2 * 3 * remaining);
@@ -218,14 +253,15 @@ export function prepareRoute(track: Point[]): RouteMotion {
     speeds[i] = Math.min(
       speeds[i],
       Math.sqrt(
-        speeds[i - 1] ** 2 +
-          2 * (phases[i] === "launch" ? 12 : 3) * (distance[i] - distance[i - 1]) * 5,
+        speeds[i - 1] ** 2 + 2 * accelerationLimits[i] * (distance[i] - distance[i - 1]) * 5,
       ),
     );
   for (let i = n - 1; i >= 0; i--)
     speeds[i] = Math.min(
       speeds[i],
-      Math.sqrt(speeds[i + 1] ** 2 + 2 * 3 * (distance[i + 1] - distance[i]) * 5),
+      Math.sqrt(
+        speeds[i + 1] ** 2 + 2 * brakingLimits[i + 1] * (distance[i + 1] - distance[i]) * 5,
+      ),
     );
   cost.length = 1;
   for (let i = 1; i <= n; i++)
@@ -329,6 +365,7 @@ export function routePosition(
       Math.max(0, route.speeds[i - 1] ** 2 + (route.speeds[i] ** 2 - route.speeds[i - 1] ** 2) * f),
     ),
     phase: route.phases[i],
+    drive: route.points[i].drive,
     x: a.x + (b.x - a.x) * f,
     y: a.y + (b.y - a.y) * f,
     z: (a.z ?? 0) + ((b.z ?? 0) - (a.z ?? 0)) * f,

@@ -1,3 +1,4 @@
+import { insideMap } from "./grid";
 import {
   type Point,
   type Park,
@@ -20,7 +21,7 @@ const snap = (v: number) => Math.round(v * 1e6) / 1e6;
 export function startTrack(p: Point, rotation = 0, style: CoasterType = "steel"): Point[] {
   return [{ ...p, z: 0, smooth: true, heading: (rotation * Math.PI) / 2, style }];
 }
-export function appendPiece(track: Point[], piece: Piece): Point[] {
+export function appendPiece(track: Point[], piece: Piece, straightLength = 2): Point[] {
   if (!track.length) return track;
   const end = track.at(-1)!;
   const angle =
@@ -31,7 +32,7 @@ export function appendPiece(track: Point[], piece: Piece): Point[] {
   const points: Point[] = [];
   for (let i = 1; i <= count; i++) {
     const t = i / count;
-    let x = 2 * t,
+    let x = (piece === "straight" ? straightLength : 2) * t,
       y = 0,
       z = 0,
       heading = angle;
@@ -68,7 +69,46 @@ export function isClosedTrack(t: Point[]) {
     Math.cos((t[0].heading ?? 0) - (t.at(-1)!.heading ?? 0)) > 0.999
   );
 }
-export function pieceError(s: Park, old: Point[], next: Point[], clear: boolean): string | null {
+export function retainedTrackError(old: Point[], next: Point[], suffix?: Point[]): string | null {
+  if (!suffix?.length) return null;
+  const arc = (t: Point[]) => {
+    const d = [0];
+    for (let i = 1; i < t.length; i++)
+      d.push(
+        d[i - 1] +
+          Math.hypot(t[i].x - t[i - 1].x, t[i].y - t[i - 1].y, (t[i].z ?? 0) - (t[i - 1].z ?? 0)),
+      );
+    return d;
+  };
+  const distances = arc(next),
+    tail = arc(suffix),
+    end = next.at(-1)!,
+    goal = suffix[0];
+  const joined =
+    Math.hypot(end.x - goal.x, end.y - goal.y, (end.z ?? 0) - (goal.z ?? 0)) < 0.001 &&
+    Math.cos((end.heading ?? 0) - (goal.heading ?? 0)) > 0.999;
+  for (let i = old.length; i < next.length; i++)
+    for (let j = 0; j < suffix.length; j++) {
+      if (
+        distances[i] + tail.at(-1)! - tail[j] < 2.5 ||
+        (joined && distances.at(-1)! - distances[i] + tail[j] < 2.5)
+      )
+        continue;
+      if (
+        Math.hypot(next[i].x - suffix[j].x, next[i].y - suffix[j].y) < 0.35 &&
+        Math.abs((next[i].z ?? 0) - (suffix[j].z ?? 0)) < 0.6
+      )
+        return "Dieses Bauteil kreuzt den erhaltenen Streckenteil. Ändere Richtung oder Höhe.";
+    }
+  return null;
+}
+export function pieceError(
+  s: Park,
+  old: Point[],
+  next: Point[],
+  clear: boolean,
+  suffix?: Point[],
+): string | null {
   if (isClosedTrack(old)) return "Der Rundkurs ist geschlossen. Du kannst ihn jetzt bauen.";
   if (next.length > 2048) return "Maximal 2.048 Streckenpunkte pro Bahn.";
   if (next.some((p) => (p.z ?? 0) < 0 || (p.z ?? 0) > (next[0]?.style === "wood" ? 4 : 8)))
@@ -100,12 +140,12 @@ export function pieceError(s: Park, old: Point[], next: Point[], clear: boolean)
     }
   const added = next.slice(Math.max(0, old.length - 1));
   for (const p of trackFootprint(added)) {
-    if (p.x < 0 || p.y < 0 || p.x >= 30 || p.y >= 30) return "Das Bauteil ragt aus dem Park.";
+    if (!insideMap(s, p.x, p.y)) return "Das Bauteil ragt aus dem Park.";
     const b = occupant(s, p.x, p.y);
     if (s.tiles[p.y][p.x] !== "grass" || (b && (!clear || !decorative(b.kind))))
       return "Am Anschluss ist kein Platz für dieses Bauteil.";
   }
-  return null;
+  return retainedTrackError(old, next, suffix);
 }
 export function prefabBlueprint(p: Point, rotation: number, style: CoasterType): Point[] {
   let t = startTrack(p, rotation, style);
@@ -149,60 +189,118 @@ export function closeTrack(
   s: Park,
   track: Point[],
   clear = true,
+  suffix?: Point[],
 ): { track?: Point[]; error?: string } {
-  if (track.length < 2) return { error: "Baue zuerst ein paar Abschnitte." };
-  const first = track[0];
-  const same = (a: Point) =>
-    Math.hypot(a.x - first.x, a.y - first.y, (a.z ?? 0) - (first.z ?? 0)) < 0.001 &&
-    Math.cos((a.heading ?? 0) - (first.heading ?? 0)) > 0.999;
-  if (same(track.at(-1)!)) return { track };
+  if (track.length < (suffix ? 1 : 2)) return { error: "Baue zuerst ein paar Abschnitte." };
+  const first = suffix?.[0] ?? track[0],
+    targetHeading =
+      first.heading ?? (suffix?.[1] ? Math.atan2(suffix[1].y - first.y, suffix[1].x - first.x) : 0);
+  const same = (p: Point) =>
+    Math.hypot(p.x - first.x, p.y - first.y, (p.z ?? 0) - (first.z ?? 0)) < 0.001 &&
+    Math.cos((p.heading ?? 0) - targetHeading) > 0.999;
+  const virtual = { ...s, buildings: s.buildings.filter((b) => !clear || !decorative(b.kind)) };
+  const suffixDistances = [0];
+  if (suffix)
+    for (let i = 1; i < suffix.length; i++)
+      suffixDistances.push(
+        suffixDistances[i - 1] +
+          Math.hypot(
+            suffix[i].x - suffix[i - 1].x,
+            suffix[i].y - suffix[i - 1].y,
+            (suffix[i].z ?? 0) - (suffix[i - 1].z ?? 0),
+          ),
+      );
+  const finish = (t: Point[]) =>
+    suffix ? [...t.slice(0, -1), ...suffix] : [...t.slice(0, -1), { ...track[0] }];
   type Node = { track: Point[]; depth: number; score: number };
   const queue: Node[] = [{ track, depth: 0, score: 0 }],
     visited = new Set<string>();
-  for (let iterations = 0; queue.length && iterations < 5000; iterations++) {
+  for (let iterations = 0; queue.length && iterations < 6500; iterations++) {
     queue.sort((a, b) => a.score - b.score);
     const node = queue.shift()!,
       last = node.track.at(-1)!;
-    if (node.depth && same(last)) {
-      const completed = [...node.track.slice(0, -1), { ...first }];
-      const virtual = { ...s, buildings: s.buildings.filter((b) => !clear || !decorative(b.kind)) };
-      if (!validateTrack(virtual, completed)) return { track: completed };
-      continue;
+    if (same(last)) {
+      const done = finish(node.track);
+      if (!validateTrack(virtual, done)) return { track: done };
+      if (node.depth) continue;
     }
-    if (node.depth >= 24) continue;
+    if (node.depth >= 28) continue;
     const key = `${last.x},${last.y},${last.z},${Math.round((last.heading ?? 0) / (Math.PI / 2) + 400) % 4}`;
     if (visited.has(key)) continue;
     visited.add(key);
-    const options: Piece[] =
-      (last.z ?? 0) > 0 ? ["fall", "straight", "left", "right"] : ["straight", "left", "right"];
-    for (const piece of options) {
-      const next = appendPiece(node.track, piece),
+    const options: Piece[] = ["straight", "left", "right"];
+    if ((last.z ?? 0) > 0) options.push("fall");
+    if ((last.z ?? 0) < Math.min(track[0].style === "wood" ? 4 : 8, (first.z ?? 0) + 1))
+      options.push("rise");
+    for (const choice of [
+      ...options.map((piece) => ({ piece, length: 2 })),
+      { piece: "straight" as Piece, length: 1 },
+    ]) {
+      const next = appendPiece(node.track, choice.piece, choice.length),
         end = next.at(-1)!;
-      if (pieceError(s, node.track, next, clear)) continue;
-      // Avoid running through the existing route; neighbouring samples and the final station are allowed.
-      const old = node.track.slice(0, -24);
       if (
-        next
-          .slice(node.track.length)
-          .some((p) =>
-            old.some(
-              (o) =>
-                Math.hypot(o.x - p.x, o.y - p.y) < 0.35 &&
-                Math.abs((o.z ?? 0) - (p.z ?? 0)) < 0.6 &&
-                Math.hypot(p.x - first.x, p.y - first.y) > 0.45,
-            ),
-          )
+        next.length + (suffix?.length ?? 1) - 1 > 2048 ||
+        pieceError(s, node.track, next, clear, suffix)
       )
         continue;
       queue.push({
         track: next,
         depth: node.depth + 1,
-        score: node.depth + 1 + Math.hypot(end.x - first.x, end.y - first.y) / 2 + (end.z ?? 0) * 2,
+        score:
+          node.depth +
+          1 +
+          Math.hypot(end.x - first.x, end.y - first.y) / 2 +
+          Math.abs((end.z ?? 0) - (first.z ?? 0)) * 2,
       });
     }
   }
   return {
-    error:
-      "Kein freier Rückweg gefunden. Führe das Ende näher zur Station oder entferne ein Bauteil.",
+    error: suffix
+      ? "Kein freier Anschluss gefunden. Entferne einen größeren Abschnitt oder ändere Höhe und Richtung."
+      : "Kein freier Rückweg gefunden. Führe das Ende näher zur Station oder entferne ein Bauteil.",
   };
+}
+
+/** Alternatives are fully preflighted against terrain, other rides, height and self-collisions. */
+export function suggestPieces(
+  s: Park,
+  track: Point[],
+  selected: Piece,
+  clear = true,
+  suffix?: Point[],
+) {
+  if (!track.length || isClosedTrack(track)) return [];
+  const choices: Piece[][] = [
+    ["left"],
+    ["right"],
+    ["rise"],
+    ["fall"],
+    ["straight"],
+    ["rise", "left"],
+    ["rise", "right"],
+    ["left", "straight"],
+    ["right", "straight"],
+  ];
+  const result: { label: string; track: Point[]; pieces: Piece[] }[] = [];
+  for (const parts of choices) {
+    if (parts.length === 1 && parts[0] === selected) continue;
+    let next = track,
+      valid = true;
+    for (const part of parts) {
+      const candidate = appendPiece(next, part);
+      if (pieceError(s, next, candidate, clear, suffix)) {
+        valid = false;
+        break;
+      }
+      next = candidate;
+    }
+    if (valid)
+      result.push({
+        label: parts.map((p) => PIECES[p].name).join(" + "),
+        track: next,
+        pieces: parts,
+      });
+    if (result.length === 3) break;
+  }
+  return result;
 }

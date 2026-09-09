@@ -1,0 +1,100 @@
+{
+  "units": "logical pixels, relative to top-left of each complete frame",
+  "riderCanvas": [
+    20,
+    24
+  ],
+  "riderPelvisPivot": [
+    10,
+    16
+  ],
+  "riderClipBelowY": 17,
+  "entries": {
+    "drop-gondola": {
+      "canvas": [
+        80,
+        64
+      ],
+      "pivot": [
+        40,
+        32
+      ],
+      "pelvis": [
+        [
+          40,
+          21
+        ],
+        [
+          18,
+          26
+        ],
+        [
+          62,
+          26
+        ],
+        [
+          15,
+          39
+        ],
+        [
+          65,
+          39
+        ],
+        [
+          40,
+          49
+        ]
+      ],
+      "viewHints": [
+        "se/sw",
+        "se",
+        "sw",
+        "ne",
+        "nw",
+        "nw/ne"
+      ],
+      "riderScale": 1.4
+    },
+    "pirate-ship": {
+      "canvas": [
+        144,
+        144
+      ],
+      "pivot": [
+        72,
+        16
+      ],
+      "pelvis": [
+        [
+          42,
+          100
+        ],
+        [
+          62,
+          105
+        ],
+        [
+          83,
+          105
+        ],
+        [
+          104,
+          100
+        ]
+      ],
+      "viewHints": [
+        "se",
+        "se",
+        "sw",
+        "sw"
+      ],
+      "riderScale": 1.4
+    }
+  },
+  "notes": [
+    "Coordinates are visual estimates at seat cushions, not automatically calibrated to a physics model.",
+    "Rotate/transform pirate riders and clipping masks with the ship around its pivot; do not leave riders upright in world coordinates.",
+    "Drop gondola is a ring of six seats. Pelvis coordinates describe the neutral ring sprite; radial facing hints are approximate.",
+    "Use per-seat foreground layers or local clipping so hull rims, railings, lap bars and seat shells occlude the lower rider body."
+  ]
+}

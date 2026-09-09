@@ -1,0 +1,209 @@
+{
+  "projectId": "ZUPnQYt5rmIl9G729LjL",
+  "model": "gpt-image-2-5-sunburst",
+  "mode": "image2image",
+  "referenceSource": "rollercoaster/art/expansion-v4/provenance.json",
+  "entries": [
+    {
+      "atlas": "transport-shops",
+      "columns": 4,
+      "rows": 3,
+      "names": [
+        "train-loco-se",
+        "train-loco-sw",
+        "train-loco-nw",
+        "train-loco-ne",
+        "shuttle-se",
+        "shuttle-sw",
+        "shuttle-nw",
+        "shuttle-ne",
+        "train-station",
+        "shuttle-stop",
+        "balloon-shop",
+        "plush-shop"
+      ],
+      "params": {
+        "prompt": "Create ORIGINAL NEW PRODUCTION SPRITES for the existing Coaster Grove game. The reference images are its current expansion-v4 assets. Match their PIXEL ART style, outline strength, material colors, simple clustered highlights and adult miniature-game scale. Authentic late1990s PC park management sprites, crisp squarepixel clusters, hard staircase silhouettes, 2-3 flat palette shades per material. No smooth/vector illustration, no photorealism, no 3Drender, no gradients, no soft lighting, no textures, no antialiasing, no blur. Use coral red, turquoise/teal, cream, warmgold, restrained brown and darkgreen. Deep violet accent allowed but NEVER magenta on objects.\nAll objects in ISOMETRIC ORTHOGRAPHIC 2:1 projection: screen ground edges travel TWO pixels horizontally for ONE vertically, azimuth45degrees/elevation26.565degrees. No converging perspective. Lighting fromupperleft matching reference.\nTRANSPARENCY PRODUCTION BACKDROP: uniformly bright MAGENTA #FF00FF to be keyed out, perfectly flat including every gap/hole between components. No castgroundshadows, no background, no landscape, no grassfloor, no parkpaths, no pavement, no decorative displaybases unless an actual ride component. No text, labels, letters, cellnumbers, gridlines, borders, logos or interface. Every object fully separate and fully inside its owncell with at least15percent clear margin.\nEXACT ATLAS: FOUR equal columns by THREE equal rows, twelve equal SQUARE cells, overall4:3. ExactlyONE complete isolated requested object percell. No omitted or repeatedcells. Eachcell represents128x128 logicalpixels enlarged nearest-neighbor. Keep tiny gameasset silhouettes, not detailed illustrations.\n\nROW1: FOUR directions of exactlythe SAME PARK RAILWAY LOCOMOTIVE. Cute but adult proportioned small narrow-gauge park steamengine, warmred cylindrical boiler, teal drivercab with creamroof, dark smokestack, golden bands, small darkwheels, NO smoke, NO driver, NO rail, NO coaches. About46x34 logicalpixels. All4views identicalsize. Clear long enginefront and flat enclosedcabback.\nColumn1 front points SCREEN LOWER RIGHT(SE).\nColumn2 front points SCREEN LOWER LEFT(SW).\nColumn3 front points SCREEN UPPER LEFT(NW), expose BACK of drivercab.\nColumn4 front points SCREEN UPPER RIGHT(NE), expose BACK of drivercab.\nRearviews must genuinely show cabback; do not duplicate frontviews.\nROW2: FOUR directions of exactlythe SAME SMALL PARK SHUTTLE BUS. Compact real passenger shuttle, cream rectangularbody, teal lowerbody and roofstrip, large darkblue windows, coralred front bumper, two axles with four darkwheels, obvious large frontwindshield versus solidrearpanel with twotiny redtail-lights. No branding, no words, no riders, no roadway. About48x32logicalpixels. Sameconsistent scale as locomotive. Columns1SE(frontlower-right),2SW(frontlower-left),3NW(frontupper-left/backvisible),4NE(frontupper-right/backvisible). Correct facingorientation and differentfront/back.\nROW3 leftto right, four NEW compact servicebuildings:\n1 PARK TRAIN STATION: small golden timber waitingplatform under cream-and-teal gabledcanopy, coral trim, tiny freestanding round clockface with no text, short narrow-gauge steeltrack segment on brownsleepers through shelter, no locomotive. About72x62logicalpixels. Onlyactualstation, no groundtile.\n2 SHUTTLE BUS STOP: compact tealmetalshelter with creamroof, clear openfront, goldenbench beneath, shortcoral stoppost with simple emptyroundsign, no bus, no roadway. About54x48logicalpixels.\n3 BALLOON SELLER KIOSK: tiny cream squarestall, coral stripedawning, tealservingcounter and a cluster of six distinctround inflatedBALLOONS in coral/turquoise/gold/cream tied above onecorner by thinstrings. Balloon silhouettes must be unmistakable. No vendor. About56x68logicalpixels includingballoons.\n4 PLUSH TOY SELLER KIOSK: tiny cream stall with tealroof/coralawning and wideopenshelf showing THREE simple stuffed TEDDYBEAR silhouettes in warmbrown/cream/coraltone, roundedears and seatedpaws; larger goldenbearsign fixedonroof. No vendor, no text. About56x60logicalpixels.\nExactly12 isolated sprites.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "TBEmTDCPXTne881jllF4",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942931461_ab48ea9d.png",
+            "label": "Coaster Grove expansion-v4 exact miniature vehicle pixel style"
+          },
+          {
+            "type": "image",
+            "id": "2PWtn7a4J7TTrjecYX1K",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942936076_abfa6039.png",
+            "label": "Coaster Grove expansion-v4 exact miniature ride and station pixel style"
+          }
+        ],
+        "aspectRatio": "4:3",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "status": "COMPLETED",
+      "historyId": "2Xw3htNvbaIKH1PJ4Q5G",
+      "capabilityId": "gpt-image-2-5-sunburst:image2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "4:3",
+      "resources": [
+        {
+          "id": "ZVausv2kvR6IF4KEYU58",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788947618707_b4ca907a.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788947618946_b11801cb.webp",
+          "metadata": {
+            "width": 1792,
+            "height": 1344,
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "atlas": "rides-themes",
+      "columns": 4,
+      "rows": 3,
+      "names": [
+        "teacup-base",
+        "teacup-cup",
+        "spinner-base",
+        "spinner-arm",
+        "spinner-gondola",
+        "theme-moon",
+        "theme-dragon",
+        "theme-mushroom",
+        "theme-star",
+        "workshop",
+        "ride-teacups",
+        "ride-spinner"
+      ],
+      "params": {
+        "prompt": "Create ORIGINAL NEW PRODUCTION SPRITES for the existing Coaster Grove game. The reference images are its current expansion-v4 assets. Match their PIXEL ART style, outline strength, material colors, simple clustered highlights and adult miniature-game scale. Authentic late1990s PC park management sprites, crisp squarepixel clusters, hard staircase silhouettes, 2-3 flat palette shades per material. No smooth/vector illustration, no photorealism, no 3Drender, no gradients, no soft lighting, no textures, no antialiasing, no blur. Use coral red, turquoise/teal, cream, warmgold, restrained brown and darkgreen. Deep violet accent allowed but NEVER magenta on objects.\nAll objects in ISOMETRIC ORTHOGRAPHIC 2:1 projection: screen ground edges travel TWO pixels horizontally for ONE vertically, azimuth45degrees/elevation26.565degrees. No converging perspective. Lighting fromupperleft matching reference.\nTRANSPARENCY PRODUCTION BACKDROP: uniformly bright MAGENTA #FF00FF to be keyed out, perfectly flat including every gap/hole between components. No castgroundshadows, no background, no landscape, no grassfloor, no parkpaths, no pavement, no decorative displaybases unless an actual ride component. No text, labels, letters, cellnumbers, gridlines, borders, logos or interface. Every object fully separate and fully inside its owncell with at least15percent clear margin.\nEXACT ATLAS: FOUR equal columns by THREE equal rows, twelve equal SQUARE cells, overall4:3. ExactlyONE complete isolated requested object percell. No omitted or repeatedcells. Eachcell represents128x128 logicalpixels enlarged nearest-neighbor. Keep tiny gameasset silhouettes, not detailed illustrations.\n\nThis atlas contains separately animatable ridecomponents and smallthemedecorations. Bigcomponents about90x90logicalpixels; smallmovingparts20-50logicalpixels. Preserve relative smallness, no fullscene. Each item exactlyoccupies its specifiedcell.\nROW1 lefttoright:\n1 TEACUP RIDE BASE ONLY: a broad circular goldenwood rotatingdeck in2:1isometric (ellipse widthtwice depth), creamrim with teal/coral alternating fascia, tiny central cream axlecap. NO CUPS, NO SEATS, NO FENCE, NO CANOPY. About104x54logicalpixels. Completelyempty topdeck suitable for placing separatecups.\n2 ONE TEACUP CAR ONLY: round CORAL AND CREAM open teacup with large distinctloophandle on screenright, smallgolden steeringwheel atcenter, darkteal circularfoot. Emptyinterior with tinybench. About26x24logicalpixels. No flooroutside cup, no deck, no othercups. A single smallisolatedmovingpart.\n3 ORBITAL SPINNER STATIONARY BASE ONLY: compact teal octagonalfootplatform, one sturdy vertical GOLDEN mast with coralcollar and compact teal cylindrical AXLE HUB at top. About60x84logicalpixels. NO RADIAL ARMS, NO GONDOLAS, NO SEATS, NO ROOF. Emptyspace all around topaxle, ready to attach rotatingarm.\n4 ONE ORBITAL SPINNER RADIAL ARM ONLY: straight slim GOLDEN/CREAM mechanicalbeam connecting a smallteal circular ROOTBEARING at upperleft to a smallcoral END-HOOK at lowerright, groundaxis in2:1isometric. About66x34logicalpixels. ONEbeam, NO centralmast, NO seat, NO attachedgondola, NO extraoppositebeam. The rootbearing atupperleft and endhookatlowerright are its two attachmentpoints. Entirebeam separate.\nROW2 lefttoright:\n5 ONE ORBITAL SPINNER GONDOLA ONLY: small suspended two-seat ridepod, coral lowerbody, cream2-seat backs and tinyteal overheadframe with topcenter hangingeye. Upright slight2:1isometric. No passengers, no arm, no base. About28x32logicalpixels. Hangingeye at topcenter is pivot.\n6 MOON fantasytheme DECORATION: one boldgolden CRESCENT MOON sculpture with deepviolet inneredge, mountedon shorttealpost with necessarysmallfoot. No starsaroundit, no sky, no scenery. About32x48logicalpixels.\n7 DRAGON fantasytheme DECORATION: ONE friendly emeraldgreen smallpark DRAGON STATUE, curledtail, smallcoral foldedwings, goldhorns, tinycream belly, sittingupright. Coarse recognizablepixels with veryfew details, no facialexpressions, no fire, no scenery. About44x50logicalpixels.\n8 MUSHROOM fantasytheme DECORATION: ONE giant whimsicalCORAL MUSHROOM with a few largecream capspots, shortcreamy stalk, smalltealdoor-shaped markonstalk, no secondarymushrooms, no grass, no terrain. About36x44logicalpixels.\nROW3 lefttoright:\n9 STAR fantasytheme DECORATION: ONE large solid GOLDEN FIVE-POINTED STAR sculpture on shortteal post, coral accentedge, actualsmallfoot. No glow, no otherstars, no sky. About32x42logicalpixels.\n10 CUSTOM RIDE WORKSHOP BUILDING: small charming creamworkshop with teal doublegable roof, coral large doubleworkshopdoors, one large GOLDEN GEAR emblem onroof and tiny crossedwrench silhouettes above doorway, darkteal sidewindow. No words, no people, no tools lyingoutside, no landscape. About76x64logicalpixels. Distinct readable workshopbuilding suitable for a player to create originalrides.\n11 COMPLETE TEACUP RIDE staticcatalogicon: the SAME broad goldenwood deck fromcell1, with FIVE copies of coral/cream cups fromcell2 at regular positions, smallcenteraxle. No canopy. About104x70logicalpixels. Correctsame style and colors as separateparts.\n12 COMPLETE ORBITAL SPINNER staticcatalogicon: the SAME goldmast/tealbase fromcell3 with THREE slim gold radialarms fromcell4 rotatingaroundtophub and THREE coral/cream two-seat gondolas fromcell5 hangingone at eachtip. Cleanuncluttered silhouette, no extraarms, no riders. About112x110logicalpixels. Correctsame style and colors as separateparts.\nExactly12 isolated sprites.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "2PWtn7a4J7TTrjecYX1K",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942936076_abfa6039.png",
+            "label": "Coaster Grove expansion-v4 exact miniature ride and station pixel style"
+          },
+          {
+            "type": "image",
+            "id": "uzx1CDqTu26mLr4kjsFA",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788942936345_8e52dc17.png",
+            "label": "Coaster Grove expansion-v4 isolated animation component reference"
+          }
+        ],
+        "aspectRatio": "4:3",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "status": "COMPLETED",
+      "historyId": "qgkSU8eoQFC8xtdgW7fD",
+      "capabilityId": "gpt-image-2-5-sunburst:image2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "4:3",
+      "resources": [
+        {
+          "id": "adImQz1V3yvm8wcHMPH5",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788947619719_686f9798.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788947619875_eaf71b1b.webp",
+          "metadata": {
+            "width": 1792,
+            "height": 1344,
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "atlas": "seated-riders",
+      "columns": 4,
+      "rows": 2,
+      "names": [
+        "rider-red-se",
+        "rider-red-sw",
+        "rider-red-nw",
+        "rider-red-ne",
+        "rider-teal-se",
+        "rider-teal-sw",
+        "rider-teal-nw",
+        "rider-teal-ne"
+      ],
+      "params": {
+        "prompt": "COASTER GROVE GAME SEATED RIDER SPRITE ATLAS. Use the supplied reference ONLY for the exact simple brown-haired light-skinned red-shirt visitor in top rows and short-black-haired dark-brown-skinned teal-shirt visitor in bottomrow. Preserve their tiny adult proportions, limited flat palette and hard chunky squarepixel clusters. We need eight tiny transparent-overlay sprites to place visibly INTO EXISTING ROLLERCOASTER CARS at48logicalpixelcarwidth. Each seatedperson should be approximately6-9logicalpixelswide and11-13logicalpixelshigh, head3x3logicalpixels, torso5pixels, arms2pixels. No eyes, no face details, no cute chibi head, no portrait, no smooth illustration. Late1990s PC isometricthemepark pixelart, same coarsegame style as reference, dark modest outlines, 2-3 solidcolors per material, NO gradients, NO antialiasing, NO blur, NO shadows.\nEntire background uniformly MAGENTA #FF00FF including gaps betweenarms andbody, to be removedastransparent. No text, gridlines, cellborders or labels. No ground, no scenery, no coastercar, no chair, no seat, no lapbar, no extraobjects. ONLY riderbody.\nEXACT layout FOUR equal columns by TWO equal rows, EIGHT isolated compact seatedpeople, widescreen16:9 overall. Largeuniformmagenta gutters. Every person same physicalscale and samecellanchor at seatedpelvis, abouta24x24logicalpixelcanvas enlargednearestneighbor.\nEach person is in a SEATED RIDING POSE: head above shortuprighttorso, shouldersslightlyforward, elbowsbent90degrees, forearmsreachingforwardaroundwaistheight asifholdingan invisiblelapbar. Short visible upperlegs pointingforward with kneesbent; no long dangling straightstandinglegs. Bodyends justbelowknees. Do NOT include anypart ofthe imaginaryseat/car. Seatcontact/pelvis centerednear lowerpartofeachcell.\nCOLUMNS in bothrows: 1 SE, facesSCREEN LOWER RIGHT(frontthreequarter); 2 SW facesSCREEN LOWER LEFT(frontthreequarter); 3 NW facesSCREEN UPPER LEFT(backthreequarter: backofhead and backofshirt visible); 4 NE facesSCREEN UPPER RIGHT(backthreequarter). Match2:1 isometricorthographiccamera. Clearlyoppositeleft/right orientation, exactly4differentviews.\nROW1: same LIGHT-SKINNED visitor with plainshort BROWNHAIR, CORALREDshortsleeveshirt, DARKNAVYtrousers, creamshortshoesonlyifvisible. Sameidentity inall4cells.\nROW2: same DARKBROWNSKINNED visitor with shortBLACKHAIR, TEALshortsleeveshirt, CREAMtrousers, darkshortshoesonlyifvisible. Sameidentity inall4cells.\nExactly8 tiny seated rideroverlays, no seats, no cars, no accessories. Maintain comparable headsize andpixelblocksize to existingwalkingsprites. Rider arms and posture must readasseated insideacar afterdownscaling.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "kPGGzt6lGzp5mHN0q0Nq",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938063832_39ad46fa.png",
+            "label": "Exact existing Coaster Grove red and teal visitor identities"
+          }
+        ],
+        "aspectRatio": "16:9",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "status": "COMPLETED",
+      "historyId": "AJv9Y8VBiDQMaxYOG3pW",
+      "capabilityId": "gpt-image-2-5-sunburst:image2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "16:9",
+      "resources": [
+        {
+          "id": "ii5Be5TrYgOfyY87rRLs",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788947743005_c592baa4.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788947743173_be3499c7.webp",
+          "metadata": {
+            "width": 2304,
+            "height": 1296,
+            "format": "png"
+          }
+        }
+      ]
+    }
+  ],
+  "processing": "Technical processing only: atlas-cell extraction with gutter corrections (transport last row begins y816, final-row first column ends x512; rides last row begins y840, first-row first column ends x512), bright-magenta key to binary alpha, transparent trim, common isotropic nearest-neighbor scale per vehicle direction group, fixed logical canvas/pivot normalization, exact4x nearest-neighbor PNG copies. The generated NW locomotive pointed NE and is horizontally reflected for its declared NW heading. No visual features painted or synthesized by code. Dark violet object colors retained.",
+  "manifest": "manifest.json",
+  "validation": {
+    "assetCount": 32,
+    "uniqueLogicalImages": 32,
+    "visualReview": {
+      "reviewed": [
+        "raw/transport-shops.png",
+        "raw/rides-themes.png",
+        "raw/seated-riders.png",
+        "contact/transport-shops-1x.png",
+        "contact/rides-themes-1x.png",
+        "contact/seated-riders-2x.png"
+      ],
+      "result": "Readable coherent pixelart matching expansion-v4, isolated ride components, transparent holes and correctly cropped balloon tops and buildings. Four transport headings after NW locomotive reflection. Eight seated rider views match the original red/teal guests.",
+      "limitations": [
+        "NW locomotive originally duplicated the NE-facing direction; a technical horizontal reflection corrects direction but mirrors baked lighting.",
+        "Orbital-spinner catalogue icon has two visible arms/gondolas rather than three. Components are separate, so renderer can assemble the desired count.",
+        "One cup/arm/gondola angle is provided; orientation, orbit and occlusion are renderer work.",
+        "Seated riders include short bent legs; mask lower body behind vehicle shell. No separate hand-held balloon or teddy asset was generated because the two main jobs had already been submitted.",
+        "Projection follows the fixed pixel reference; exact geometric2:1 consistency is visually assessed, not mathematically guaranteed."
+      ]
+    },
+    "technicalChecks": {
+      "count": 32,
+      "binaryAlpha": true,
+      "exact4xNearestCopies": true,
+      "nonempty": true,
+      "allSourceCropsClearOfBoundaries": true
+    }
+  }
+}

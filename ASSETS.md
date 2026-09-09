@@ -31,3 +31,9 @@ Die Engine steuert Anfahren und Bremsen der Fahrgeschäfte über gedämpfte Moto
 24 zusätzliche PNGs aus drei OpenArt-MCP-Generierungen: zwölf Wagenansichten (je vier für Stahl-, Holz- und Launch-Coaster), drei Stationen, drei Attraktionsicons und sechs montierbare Teile für Kettenkarussell, Fallturm und Piratenschaukel. Laufzeitdateien unter `public/assets/expansion-v4/`; Quellen, exakte Prompts und Montagepunkte unter [`art/expansion-v4/`](art/expansion-v4/).
 
 Die Wagen behalten 48 × 40 logische Pixel und Anker (24,30); Stationen nutzen 72 × 96 und (36,80). Die Engine bewegt Sitze an ihren Aufhängungen, die Turmgondel auf ihrer vertikalen Achse und das Schiff um seinen oberen Drehpunkt. Stahl-/Launch-Schienen und Holztragwerke sind konstruktive Spielgeometrie. Die 3D-Mitfahrt erzeugt Schienen, Schwellen und Stützen aus derselben gespeicherten Strecke; die Parkumgebung wird mit vereinfachten 3D-Modellen dargestellt.
+
+## Park expansion, transport and seated guests (v5)
+
+OpenArt generated three atlases for this release: transport/shops, animated attraction parts/themes, and seated red/teal guests in four directions. 32 normalized sprites plus two small accessories extracted from the shop art are served from `public/assets/park-v5`. Source atlases, prompts, job IDs and extraction provenance are in `art/park-v5`. Render dimensions and anchors live in `game/park-sprites.json`.
+
+The runtime combines these components with animated geometry and actual guest IDs. Workshop images are user-imported PNG/WebP motifs, stored inside the design and save. No OpenArt credentials or generation API run in the published client.

@@ -17,7 +17,16 @@ export function makeRidePath(track: Point[]) {
     const quaternion = new THREE.Quaternion()
       .setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, tangent.clone().negate()))
       .normalize();
-    return { position, tangent, right, up, quaternion, speed: p.speed, phase: p.phase };
+    return {
+      position,
+      tangent,
+      right,
+      up,
+      quaternion,
+      speed: p.speed,
+      phase: p.phase,
+      drive: p.drive,
+    };
   }
   const frames = Array.from({ length: count + 1 }, (_, i) => at(i / count));
   return {

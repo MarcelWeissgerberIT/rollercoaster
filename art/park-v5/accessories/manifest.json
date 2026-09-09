@@ -1,0 +1,100 @@
+{
+  "derivedFromProject": "ZUPnQYt5rmIl9G729LjL",
+  "sourceHistoryId": "2Xw3htNvbaIKH1PJ4Q5G",
+  "newGenerationJobs": 0,
+  "processing": "Technical selection masks, transparent trimming and nearest-neighbor scaling only. Existing colour pixels reused; no drawn new visual content.",
+  "assets": [
+    {
+      "name": "hand-balloon",
+      "sourceCrop": "../crops/balloon-shop.png",
+      "sourceBounds": [
+        224,
+        139,
+        307,
+        251
+      ],
+      "sourceAnchor": [
+        228,
+        248
+      ],
+      "logicalCanvas": [
+        16,
+        24
+      ],
+      "logicalPivot": [
+        4,
+        20
+      ],
+      "logicalBounds": [
+        4,
+        7,
+        14,
+        20
+      ],
+      "visible": [
+        10,
+        13
+      ],
+      "scale": 0.12048192771084337,
+      "fileScale": 4,
+      "canvas": [
+        64,
+        96
+      ],
+      "pivot": [
+        16,
+        80
+      ],
+      "asset": "assets/hand-balloon.png",
+      "logical": "logical/hand-balloon.png",
+      "processing": "Mask the existing lower red balloon and its existing dark string. Nearest-neighbor body plus source-colour coverage-preserving sampling for the subpixel-thin string; no newly drawn string or invented colours. Anchored at lower string tip.",
+      "sha256": "2dc36c50d5f6ccaaae9f34344109f460fd806b41fb48ff6595764b385e966dec"
+    },
+    {
+      "name": "hand-teddy",
+      "sourceCrop": "../crops/plush-shop.png",
+      "sourceBounds": [
+        109,
+        0,
+        232,
+        140
+      ],
+      "sourceAnchor": [
+        177,
+        102
+      ],
+      "logicalCanvas": [
+        12,
+        16
+      ],
+      "logicalPivot": [
+        6,
+        11
+      ],
+      "logicalBounds": [
+        2,
+        4,
+        10,
+        13
+      ],
+      "visible": [
+        8,
+        9
+      ],
+      "scale": 0.06504065040650407,
+      "fileScale": 4,
+      "canvas": [
+        48,
+        64
+      ],
+      "pivot": [
+        24,
+        44
+      ],
+      "asset": "assets/hand-teddy.png",
+      "logical": "logical/hand-teddy.png",
+      "processing": "Polygon extraction of existing gold roof teddy, excluding teal roof pixels. No new colours or painted body features; anchored at lower torso for a guest hand.",
+      "sha256": "e61c8c252d85f61b48396ec1588db4c8dd1fa3948b2a54fade9ff9441141f599"
+    }
+  ]
+}

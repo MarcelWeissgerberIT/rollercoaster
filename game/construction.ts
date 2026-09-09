@@ -1,3 +1,6 @@
+import { insideMap } from "./grid";
+import { designStats, validDesign, type AttractionDesign } from "./designs";
+import { tickTransit, releaseTransit, cancelTransitDestination, type TransitLine } from "./transit";
 import {
   rideDuration,
   CATALOG,
@@ -32,13 +35,8 @@ export type Placement = {
   warning?: string;
 };
 const unique = (points: Point[]) => [...new Map(points.map((p) => [`${p.x},${p.y}`, p])).values()];
-const inside = (p: Point) =>
-  Number.isInteger(p.x) &&
-  Number.isInteger(p.y) &&
-  p.x >= 0 &&
-  p.y >= 0 &&
-  p.x < SIZE &&
-  p.y < SIZE;
+const inside = (s: Park, p: Point) =>
+  Number.isInteger(p.x) && Number.isInteger(p.y) && p.x >= 0 && p.y >= 0 && insideMap(s, p.x, p.y);
 export function blueprint(origin: Point, rotation = 0): Point[] {
   const t: Point[] = [];
   for (let i = 0; i <= 5; i++) t.push({ x: i, y: 0, z: i <= 2 ? i : Math.max(0, 4 - i) });
@@ -57,6 +55,7 @@ export function planPlacement(
   p: Point,
   track?: Point[],
   clear = true,
+  design?: AttractionDesign,
 ): Placement {
   const points =
     tool === "erase"
@@ -65,9 +64,11 @@ export function planPlacement(
         ? unique(footprint({ kind: tool as Kind, x: p.x, y: p.y, track }))
         : [p];
   const plan: Placement = { points, clearIds: [], cost: 0, error: null };
+  if (tool === "custom" && !validDesign(design))
+    return { ...plan, error: "Wähle einen Werkstatt-Entwurf." };
   if (tool in CATALOG && !isUnlocked(s, tool as Kind, track?.[0]?.style))
     return { ...plan, error: "Durch Forschung freischalten" };
-  if (!points.length || points.some((t) => !inside(t)))
+  if (!points.length || points.some((t) => !inside(s, t)))
     return { ...plan, error: "Außerhalb des Parkgeländes" };
   if (tool === "erase") {
     const b = occupant(s, p.x, p.y);
@@ -107,7 +108,9 @@ export function planPlacement(
           : 35
     : track
       ? trackCost(track)
-      : CATALOG[tool as Kind].cost;
+      : design
+        ? designStats(design).cost
+        : CATALOG[tool as Kind].cost;
   plan.cost += plan.clearIds.length * 10;
   if (tool === "coaster") {
     const virtual = { ...s, buildings: s.buildings.filter((b) => !plan.clearIds.includes(b.id)) };
@@ -125,8 +128,9 @@ export function place(
   p: Point,
   track?: Point[],
   clear = true,
+  design?: AttractionDesign,
 ): { error?: string; id?: number; cost?: number } {
-  const plan = planPlacement(s, tool, p, track, clear);
+  const plan = planPlacement(s, tool, p, track, clear, design);
   if (plan.error) return { error: plan.error };
   if (tool === "erase") {
     remove(s, p.x, p.y);
@@ -140,7 +144,7 @@ export function place(
     const error = paint(s, p.x, p.y, tool as Tile);
     return error ? { error } : { cost: plan.cost };
   }
-  return { ...build(s, tool as Kind, p.x, p.y, track), cost: plan.cost };
+  return { ...build(s, tool as Kind, p.x, p.y, track, design), cost: plan.cost };
 }
 export const CONNECTION_LIMIT = 30;
 export type Connection = {
@@ -168,7 +172,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
     if (!clear || !decorative(item.kind))
       for (const p of footprint(item)) blocked.add(`${p.x},${p.y}`);
   const passable = (p: Point) =>
-    inside(p) && !blocked.has(`${p.x},${p.y}`) && s.tiles[p.y][p.x] !== "water";
+    inside(s, p) && !blocked.has(`${p.x},${p.y}`) && s.tiles[p.y][p.x] !== "water";
   // Dijkstra prefers existing paths (free) and fills only missing cells. It never repaints infrastructure.
   type Search = { p: Point; path: Point[]; cost: number; newCells: number };
   const heap: Search[] = [],
@@ -261,6 +265,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   };
 }
 export function connectBuilding(s: Park, b: Building, clear = true): string | null {
+  if (s.trackEdit?.buildingId === b.id) return "Beende zuerst den Streckenumbau.";
   const plan = planConnection(s, b, clear);
   if (plan.error) return plan.error;
   s.buildings = s.buildings.filter((item) => !plan.clearIds.includes(item.id));
@@ -275,7 +280,7 @@ export function connectBuilding(s: Park, b: Building, clear = true): string | nu
   } else b.open = true;
   return null;
 }
-export type Geometry = Pick<Building, "x" | "y" | "track">;
+export type Geometry = Pick<Building, "x" | "y" | "track"> & { tested?: boolean };
 export type AdjustmentPlan = Placement & {
   geometry: Geometry;
   changed: boolean;
@@ -285,6 +290,7 @@ const geometryOf = (b: Building): Geometry => ({
   x: b.x,
   y: b.y,
   track: b.track?.map((p) => ({ ...p })),
+  tested: b.tested,
 });
 const sameGeometry = (a: Geometry, b: Geometry) =>
   a.x === b.x && a.y === b.y && JSON.stringify(a.track) === JSON.stringify(b.track);
@@ -380,7 +386,7 @@ export function planRelocation(
     changed: !sameGeometry(b, geometry),
     connection: null,
   };
-  if (points.some((q) => !inside(q)))
+  if (points.some((q) => !inside(s, q)))
     return { ...plan, error: "Die Bahn ragt über den Parkrand hinaus." };
   const virtual = { ...s, buildings: s.buildings.filter((item) => item.id !== b.id) };
   for (const q of points) {
@@ -425,10 +431,11 @@ export function suggestStation(s: Park, b: Building, clear = true): Point | null
   options.sort((a, b) => (a.plan.connection?.cost ?? 0) - (b.plan.connection?.cost ?? 0));
   return options[0]?.p ?? null;
 }
-function releaseBuildingGuests(s: Park, b: Building) {
+export function releaseBuildingGuests(s: Park, b: Building) {
   const exit = access(s, b) ?? ENTRANCE;
   for (const g of s.guests)
     if (g.target === b.id) {
+      if (cancelTransitDestination(s, g)) continue;
       if (g.state === "ride" || g.state === "queue") {
         g.x = exit.x;
         g.y = exit.y;
@@ -472,6 +479,7 @@ export type EditRecord = {
   removed: Building[];
   flags: { id: number; open: boolean; autoOpen?: boolean }[];
   geometry: { id: number; before: Geometry }[];
+  lines?: { id: number; before: TransitLine | null }[];
   cash: number;
   income: number;
   expenses: number;
@@ -481,10 +489,22 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     buildings = [...s.buildings],
     flags = buildings.map((b) => ({ id: b.id, open: b.open, autoOpen: b.autoOpen }));
   const geometries = buildings.map((b) => ({ id: b.id, before: geometryOf(b) }));
+  const lines = structuredClone(s.transitLines ?? []);
   const cash = s.cash,
     income = s.income,
     expenses = s.expenses;
   fn();
+  const lineConfig = (l: TransitLine | undefined) =>
+    l ? JSON.stringify([l.id, l.a, l.b, l.enabled, l.route]) : null;
+  const changedLines = [
+    ...new Set([...lines.map((l) => l.id), ...(s.transitLines ?? []).map((l) => l.id)]),
+  ]
+    .filter(
+      (id) =>
+        lineConfig(lines.find((l) => l.id === id)) !==
+        lineConfig(s.transitLines?.find((l) => l.id === id)),
+    )
+    .map((id) => ({ id, before: lines.find((l) => l.id === id) ?? null }));
   const changes: EditRecord = {
     label,
     tiles: [],
@@ -500,26 +520,41 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
       const b = s.buildings.find((b) => b.id === old.id);
       return b && (b.open !== old.open || b.autoOpen !== old.autoOpen);
     }),
+    lines: changedLines.length ? changedLines : undefined,
     cash: s.cash - cash,
     income: s.income - income,
     expenses: s.expenses - expenses,
   };
-  for (let y = 0; y < SIZE; y++)
-    for (let x = 0; x < SIZE; x++)
+  for (let y = 0; y < tiles.length; y++)
+    for (let x = 0; x < tiles[y].length; x++)
       if (tiles[y][x] !== s.tiles[y][x])
         changes.tiles.push({ x, y, before: tiles[y][x], after: s.tiles[y][x] });
   return changes.tiles.length ||
     changes.added.length ||
     changes.removed.length ||
     changes.flags.length ||
-    changes.geometry.length
+    changes.geometry.length ||
+    changes.lines
     ? changes
     : null;
 }
 export function undoEdits(s: Park, records: EditRecord[]) {
   for (const record of [...records].reverse()) {
+    const editing = s.trackEdit?.buildingId;
+    if (
+      editing !== undefined &&
+      (record.added.includes(editing) ||
+        record.removed.some((b) => b.id === editing) ||
+        record.geometry.some((b) => b.id === editing))
+    ) {
+      const b = s.buildings.find((b) => b.id === editing);
+      if (b) b.open = s.trackEdit!.wasOpen;
+      s.trackEdit = undefined;
+      s.draft = undefined;
+    }
     for (const g of s.guests)
       if (g.target !== null && record.added.includes(g.target)) {
+        if (cancelTransitDestination(s, g)) continue;
         g.state = "walk";
         g.target = null;
         g.route = [];
@@ -552,6 +587,36 @@ export function undoEdits(s: Park, records: EditRecord[]) {
         b.autoOpen = record.geometry.some((item) => item.id === b.id) ? false : old.autoOpen;
       }
     }
+    for (const change of record.lines ?? []) {
+      const live = s.transitLines?.find((l) => l.id === change.id);
+      if (live)
+        for (const g of s.guests) if (g.transit?.line === live.id) releaseTransit(s, g, live);
+      s.transitLines = s.transitLines?.filter((l) => l.id !== change.id) ?? [];
+      const previous = change.before;
+      if (previous) {
+        const atA = (live?.position ?? previous.position) < (previous.route.length - 1) / 2;
+        s.transitLines.push({
+          ...structuredClone(previous),
+          served: live?.served ?? previous.served,
+          revenue: live?.revenue ?? previous.revenue,
+          trips: live?.trips ?? previous.trips,
+          position: atA ? 0 : previous.route.length - 1,
+          direction: atA ? 1 : -1,
+          passengers: [],
+          wait: 4,
+        });
+      }
+      for (const b of s.buildings)
+        if (b.id === (live ?? previous)?.a || b.id === (live ?? previous)?.b) b.queue = [];
+    }
+    if (s.trackEdit) {
+      const b = s.buildings.find((b) => b.id === s.trackEdit!.buildingId);
+      if (b) {
+        b.open = false;
+        b.autoOpen = false;
+      }
+    }
+    tickTransit(s, 0);
     s.cash -= record.cash;
     s.income -= record.income;
     s.expenses -= record.expenses;

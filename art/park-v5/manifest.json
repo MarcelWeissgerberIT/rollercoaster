@@ -1,0 +1,2174 @@
+{
+  "projectId": "ZUPnQYt5rmIl9G729LjL",
+  "model": "gpt-image-2-5-sunburst",
+  "mode": "image2image",
+  "processing": "Technical processing only: atlas-cell extraction with gutter corrections (transport last row begins y816, final-row first column ends x512; rides last row begins y840, first-row first column ends x512), bright-magenta key to binary alpha, transparent trim, common isotropic nearest-neighbor scale per vehicle direction group, fixed logical canvas/pivot normalization, exact4x nearest-neighbor PNG copies. The generated NW locomotive pointed NE and is horizontally reflected for its declared NW heading. No visual features painted or synthesized by code. Dark violet object colors retained.",
+  "fileScale": 4,
+  "assets": [
+    {
+      "name": "train-loco-se",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 0,
+      "nominalCellBounds": [
+        0,
+        0,
+        448,
+        448
+      ],
+      "cellBounds": [
+        0,
+        0,
+        448,
+        448
+      ],
+      "trimBoundsInCell": [
+        87,
+        113,
+        391,
+        401
+      ],
+      "cropDimensions": [
+        304,
+        288
+      ],
+      "crop": "crops/train-loco-se.png",
+      "logicalCanvas": [
+        64,
+        48
+      ],
+      "logicalPivot": [
+        32,
+        36
+      ],
+      "logicalBounds": [
+        14,
+        2,
+        50,
+        36
+      ],
+      "logicalVisibleDimensions": [
+        36,
+        34
+      ],
+      "sourceToLogicalScale": 0.11805555555555555,
+      "scaleGroup": "locomotive",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        192
+      ],
+      "pivot": [
+        128,
+        144
+      ],
+      "asset": "assets/train-loco-se.png",
+      "logical": "logical/train-loco-se.png",
+      "sha256": "865ec9c2456c45ed824a883ee89da7a599901088aa168b1a7f3ec4bc96e5bdfe"
+    },
+    {
+      "name": "train-loco-sw",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 1,
+      "nominalCellBounds": [
+        448,
+        0,
+        896,
+        448
+      ],
+      "cellBounds": [
+        448,
+        0,
+        896,
+        448
+      ],
+      "trimBoundsInCell": [
+        82,
+        113,
+        387,
+        401
+      ],
+      "cropDimensions": [
+        305,
+        288
+      ],
+      "crop": "crops/train-loco-sw.png",
+      "logicalCanvas": [
+        64,
+        48
+      ],
+      "logicalPivot": [
+        32,
+        36
+      ],
+      "logicalBounds": [
+        14,
+        2,
+        50,
+        36
+      ],
+      "logicalVisibleDimensions": [
+        36,
+        34
+      ],
+      "sourceToLogicalScale": 0.11805555555555555,
+      "scaleGroup": "locomotive",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        192
+      ],
+      "pivot": [
+        128,
+        144
+      ],
+      "asset": "assets/train-loco-sw.png",
+      "logical": "logical/train-loco-sw.png",
+      "sha256": "13273608c402ff91f27b4246f79af6ff9245e7888fd0e8d03dc9305fca8ddd29"
+    },
+    {
+      "name": "train-loco-nw",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 2,
+      "nominalCellBounds": [
+        896,
+        0,
+        1344,
+        448
+      ],
+      "cellBounds": [
+        896,
+        0,
+        1344,
+        448
+      ],
+      "trimBoundsInCell": [
+        92,
+        113,
+        379,
+        375
+      ],
+      "cropDimensions": [
+        287,
+        262
+      ],
+      "crop": "crops/train-loco-nw.png",
+      "orientationCorrection": "horizontal reflection: source facingNE correctedtoNW",
+      "logicalCanvas": [
+        64,
+        48
+      ],
+      "logicalPivot": [
+        32,
+        36
+      ],
+      "logicalBounds": [
+        15,
+        5,
+        49,
+        36
+      ],
+      "logicalVisibleDimensions": [
+        34,
+        31
+      ],
+      "sourceToLogicalScale": 0.11805555555555555,
+      "scaleGroup": "locomotive",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        192
+      ],
+      "pivot": [
+        128,
+        144
+      ],
+      "asset": "assets/train-loco-nw.png",
+      "logical": "logical/train-loco-nw.png",
+      "sha256": "2103950babbb941d1d74dc86cf4c712f14953cd68188163180bcc702afd4638c"
+    },
+    {
+      "name": "train-loco-ne",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 3,
+      "nominalCellBounds": [
+        1344,
+        0,
+        1792,
+        448
+      ],
+      "cellBounds": [
+        1344,
+        0,
+        1792,
+        448
+      ],
+      "trimBoundsInCell": [
+        75,
+        111,
+        382,
+        383
+      ],
+      "cropDimensions": [
+        307,
+        272
+      ],
+      "crop": "crops/train-loco-ne.png",
+      "logicalCanvas": [
+        64,
+        48
+      ],
+      "logicalPivot": [
+        32,
+        36
+      ],
+      "logicalBounds": [
+        14,
+        4,
+        50,
+        36
+      ],
+      "logicalVisibleDimensions": [
+        36,
+        32
+      ],
+      "sourceToLogicalScale": 0.11805555555555555,
+      "scaleGroup": "locomotive",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        192
+      ],
+      "pivot": [
+        128,
+        144
+      ],
+      "asset": "assets/train-loco-ne.png",
+      "logical": "logical/train-loco-ne.png",
+      "sha256": "d38557a434b404be403e3568360932840743a89cb65c526be23a7303595ecea4"
+    },
+    {
+      "name": "shuttle-se",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 4,
+      "nominalCellBounds": [
+        0,
+        448,
+        448,
+        896
+      ],
+      "cellBounds": [
+        0,
+        448,
+        448,
+        816
+      ],
+      "trimBoundsInCell": [
+        73,
+        67,
+        396,
+        338
+      ],
+      "cropDimensions": [
+        323,
+        271
+      ],
+      "crop": "crops/shuttle-se.png",
+      "logicalCanvas": [
+        64,
+        48
+      ],
+      "logicalPivot": [
+        32,
+        36
+      ],
+      "logicalBounds": [
+        13,
+        4,
+        51,
+        36
+      ],
+      "logicalVisibleDimensions": [
+        38,
+        32
+      ],
+      "sourceToLogicalScale": 0.11808118081180811,
+      "scaleGroup": "shuttle",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        192
+      ],
+      "pivot": [
+        128,
+        144
+      ],
+      "asset": "assets/shuttle-se.png",
+      "logical": "logical/shuttle-se.png",
+      "sha256": "87d1103c9a744e3882d8066b4aaf967233bc23c03308094ea28bdd04d65fa2c8"
+    },
+    {
+      "name": "shuttle-sw",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 5,
+      "nominalCellBounds": [
+        448,
+        448,
+        896,
+        896
+      ],
+      "cellBounds": [
+        448,
+        448,
+        896,
+        816
+      ],
+      "trimBoundsInCell": [
+        72,
+        67,
+        396,
+        338
+      ],
+      "cropDimensions": [
+        324,
+        271
+      ],
+      "crop": "crops/shuttle-sw.png",
+      "logicalCanvas": [
+        64,
+        48
+      ],
+      "logicalPivot": [
+        32,
+        36
+      ],
+      "logicalBounds": [
+        13,
+        4,
+        51,
+        36
+      ],
+      "logicalVisibleDimensions": [
+        38,
+        32
+      ],
+      "sourceToLogicalScale": 0.11808118081180811,
+      "scaleGroup": "shuttle",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        192
+      ],
+      "pivot": [
+        128,
+        144
+      ],
+      "asset": "assets/shuttle-sw.png",
+      "logical": "logical/shuttle-sw.png",
+      "sha256": "7f18f480db17666a4355ddd094d5888a9789e59886b7cc78cb0b86600db7c08f"
+    },
+    {
+      "name": "shuttle-nw",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 6,
+      "nominalCellBounds": [
+        896,
+        448,
+        1344,
+        896
+      ],
+      "cellBounds": [
+        896,
+        448,
+        1344,
+        816
+      ],
+      "trimBoundsInCell": [
+        61,
+        64,
+        378,
+        333
+      ],
+      "cropDimensions": [
+        317,
+        269
+      ],
+      "crop": "crops/shuttle-nw.png",
+      "logicalCanvas": [
+        64,
+        48
+      ],
+      "logicalPivot": [
+        32,
+        36
+      ],
+      "logicalBounds": [
+        14,
+        4,
+        51,
+        36
+      ],
+      "logicalVisibleDimensions": [
+        37,
+        32
+      ],
+      "sourceToLogicalScale": 0.11808118081180811,
+      "scaleGroup": "shuttle",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        192
+      ],
+      "pivot": [
+        128,
+        144
+      ],
+      "asset": "assets/shuttle-nw.png",
+      "logical": "logical/shuttle-nw.png",
+      "sha256": "a754db9a21b8c16811a545ee5017e485ef7b1a803472f17ed8588914487ca3c6"
+    },
+    {
+      "name": "shuttle-ne",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 7,
+      "nominalCellBounds": [
+        1344,
+        448,
+        1792,
+        896
+      ],
+      "cellBounds": [
+        1344,
+        448,
+        1792,
+        816
+      ],
+      "trimBoundsInCell": [
+        67,
+        64,
+        383,
+        333
+      ],
+      "cropDimensions": [
+        316,
+        269
+      ],
+      "crop": "crops/shuttle-ne.png",
+      "logicalCanvas": [
+        64,
+        48
+      ],
+      "logicalPivot": [
+        32,
+        36
+      ],
+      "logicalBounds": [
+        14,
+        4,
+        51,
+        36
+      ],
+      "logicalVisibleDimensions": [
+        37,
+        32
+      ],
+      "sourceToLogicalScale": 0.11808118081180811,
+      "scaleGroup": "shuttle",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        192
+      ],
+      "pivot": [
+        128,
+        144
+      ],
+      "asset": "assets/shuttle-ne.png",
+      "logical": "logical/shuttle-ne.png",
+      "sha256": "83924dbb5018170db9a5a6c1c51d36f93ee8b76c5c28a253641debebf0c430bc"
+    },
+    {
+      "name": "train-station",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 8,
+      "nominalCellBounds": [
+        0,
+        896,
+        448,
+        1344
+      ],
+      "cellBounds": [
+        0,
+        816,
+        512,
+        1344
+      ],
+      "trimBoundsInCell": [
+        36,
+        42,
+        509,
+        470
+      ],
+      "cropDimensions": [
+        473,
+        428
+      ],
+      "crop": "crops/train-station.png",
+      "logicalCanvas": [
+        88,
+        104
+      ],
+      "logicalPivot": [
+        44,
+        88
+      ],
+      "logicalBounds": [
+        5,
+        17,
+        83,
+        88
+      ],
+      "logicalVisibleDimensions": [
+        78,
+        71
+      ],
+      "sourceToLogicalScale": 0.1649048625792812,
+      "scaleGroup": "train-station",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        352,
+        416
+      ],
+      "pivot": [
+        176,
+        352
+      ],
+      "asset": "assets/train-station.png",
+      "logical": "logical/train-station.png",
+      "sha256": "62c334c5300c2dd73542ba720691efcbca4dfb3704341039fd196663a686f34c"
+    },
+    {
+      "name": "shuttle-stop",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 9,
+      "nominalCellBounds": [
+        448,
+        896,
+        896,
+        1344
+      ],
+      "cellBounds": [
+        512,
+        816,
+        896,
+        1344
+      ],
+      "trimBoundsInCell": [
+        8,
+        87,
+        371,
+        406
+      ],
+      "cropDimensions": [
+        363,
+        319
+      ],
+      "crop": "crops/shuttle-stop.png",
+      "logicalCanvas": [
+        72,
+        80
+      ],
+      "logicalPivot": [
+        36,
+        64
+      ],
+      "logicalBounds": [
+        5,
+        10,
+        67,
+        64
+      ],
+      "logicalVisibleDimensions": [
+        62,
+        54
+      ],
+      "sourceToLogicalScale": 0.17079889807162535,
+      "scaleGroup": "shuttle-stop",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        288,
+        320
+      ],
+      "pivot": [
+        144,
+        256
+      ],
+      "asset": "assets/shuttle-stop.png",
+      "logical": "logical/shuttle-stop.png",
+      "sha256": "93a734edfe3514722042aca47823dc488bb3149a810f34789601b34d3a150356"
+    },
+    {
+      "name": "balloon-shop",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 10,
+      "nominalCellBounds": [
+        896,
+        896,
+        1344,
+        1344
+      ],
+      "cellBounds": [
+        896,
+        816,
+        1344,
+        1344
+      ],
+      "trimBoundsInCell": [
+        58,
+        27,
+        381,
+        451
+      ],
+      "cropDimensions": [
+        323,
+        424
+      ],
+      "crop": "crops/balloon-shop.png",
+      "logicalCanvas": [
+        72,
+        104
+      ],
+      "logicalPivot": [
+        36,
+        88
+      ],
+      "logicalBounds": [
+        6,
+        10,
+        65,
+        88
+      ],
+      "logicalVisibleDimensions": [
+        59,
+        78
+      ],
+      "sourceToLogicalScale": 0.18396226415094338,
+      "scaleGroup": "balloon-shop",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        288,
+        416
+      ],
+      "pivot": [
+        144,
+        352
+      ],
+      "asset": "assets/balloon-shop.png",
+      "logical": "logical/balloon-shop.png",
+      "sha256": "73fecd170f77e3de381809140a58d537deaccac0d3097f3e5c3c35fd73f24a44"
+    },
+    {
+      "name": "plush-shop",
+      "atlas": "transport-shops",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 11,
+      "nominalCellBounds": [
+        1344,
+        896,
+        1792,
+        1344
+      ],
+      "cellBounds": [
+        1344,
+        816,
+        1792,
+        1344
+      ],
+      "trimBoundsInCell": [
+        27,
+        67,
+        400,
+        461
+      ],
+      "cropDimensions": [
+        373,
+        394
+      ],
+      "crop": "crops/plush-shop.png",
+      "logicalCanvas": [
+        72,
+        104
+      ],
+      "logicalPivot": [
+        36,
+        88
+      ],
+      "logicalBounds": [
+        5,
+        23,
+        67,
+        88
+      ],
+      "logicalVisibleDimensions": [
+        62,
+        65
+      ],
+      "sourceToLogicalScale": 0.16621983914209115,
+      "scaleGroup": "plush-shop",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        288,
+        416
+      ],
+      "pivot": [
+        144,
+        352
+      ],
+      "asset": "assets/plush-shop.png",
+      "logical": "logical/plush-shop.png",
+      "sha256": "4148defface060ef381712a8600d35fc2e09cff5eb93cf0cf8e7b24747118078"
+    },
+    {
+      "name": "teacup-base",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 0,
+      "nominalCellBounds": [
+        0,
+        0,
+        448,
+        448
+      ],
+      "cellBounds": [
+        0,
+        0,
+        512,
+        448
+      ],
+      "trimBoundsInCell": [
+        33,
+        165,
+        460,
+        401
+      ],
+      "cropDimensions": [
+        427,
+        236
+      ],
+      "crop": "crops/teacup-base.png",
+      "logicalCanvas": [
+        128,
+        96
+      ],
+      "logicalPivot": [
+        64,
+        76
+      ],
+      "logicalBounds": [
+        6,
+        12,
+        122,
+        76
+      ],
+      "logicalVisibleDimensions": [
+        116,
+        64
+      ],
+      "sourceToLogicalScale": 0.2716627634660422,
+      "scaleGroup": "teacup-base",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        512,
+        384
+      ],
+      "pivot": [
+        256,
+        304
+      ],
+      "asset": "assets/teacup-base.png",
+      "logical": "logical/teacup-base.png",
+      "sha256": "b3286879de071818ef9c035aa2baffc7ada8243595165ca94e5497e310b0a1d6"
+    },
+    {
+      "name": "teacup-cup",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 1,
+      "nominalCellBounds": [
+        448,
+        0,
+        896,
+        448
+      ],
+      "cellBounds": [
+        512,
+        0,
+        896,
+        448
+      ],
+      "trimBoundsInCell": [
+        67,
+        191,
+        304,
+        380
+      ],
+      "cropDimensions": [
+        237,
+        189
+      ],
+      "crop": "crops/teacup-cup.png",
+      "logicalCanvas": [
+        40,
+        40
+      ],
+      "logicalPivot": [
+        20,
+        32
+      ],
+      "logicalBounds": [
+        4,
+        6,
+        36,
+        32
+      ],
+      "logicalVisibleDimensions": [
+        32,
+        26
+      ],
+      "sourceToLogicalScale": 0.1350210970464135,
+      "scaleGroup": "teacup-cup",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        160,
+        160
+      ],
+      "pivot": [
+        80,
+        128
+      ],
+      "asset": "assets/teacup-cup.png",
+      "logical": "logical/teacup-cup.png",
+      "sha256": "fcffe81de5b5b3b2bf6b65320bf05e133beda1531915fc75fbb4895096f7b581"
+    },
+    {
+      "name": "spinner-base",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 2,
+      "nominalCellBounds": [
+        896,
+        0,
+        1344,
+        448
+      ],
+      "cellBounds": [
+        896,
+        0,
+        1344,
+        448
+      ],
+      "trimBoundsInCell": [
+        100,
+        58,
+        340,
+        412
+      ],
+      "cropDimensions": [
+        240,
+        354
+      ],
+      "crop": "crops/spinner-base.png",
+      "logicalCanvas": [
+        96,
+        144
+      ],
+      "logicalPivot": [
+        48,
+        128
+      ],
+      "logicalBounds": [
+        8,
+        12,
+        87,
+        128
+      ],
+      "logicalVisibleDimensions": [
+        79,
+        116
+      ],
+      "sourceToLogicalScale": 0.327683615819209,
+      "scaleGroup": "spinner-base",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        384,
+        576
+      ],
+      "pivot": [
+        192,
+        512
+      ],
+      "asset": "assets/spinner-base.png",
+      "logical": "logical/spinner-base.png",
+      "sha256": "a5df07cfb7c633e9cbc8a3f36509d920b9d764d03a410e59e7e0886e8af65cc3"
+    },
+    {
+      "name": "spinner-arm",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 3,
+      "nominalCellBounds": [
+        1344,
+        0,
+        1792,
+        448
+      ],
+      "cellBounds": [
+        1344,
+        0,
+        1792,
+        448
+      ],
+      "trimBoundsInCell": [
+        60,
+        126,
+        409,
+        381
+      ],
+      "cropDimensions": [
+        349,
+        255
+      ],
+      "crop": "crops/spinner-arm.png",
+      "logicalCanvas": [
+        96,
+        64
+      ],
+      "logicalPivot": [
+        12,
+        16
+      ],
+      "logicalBounds": [
+        4,
+        8,
+        64,
+        52
+      ],
+      "logicalVisibleDimensions": [
+        60,
+        44
+      ],
+      "sourceToLogicalScale": 0.17254901960784313,
+      "scaleGroup": "spinner-arm",
+      "alignment": "root",
+      "fileScale": 4,
+      "canvas": [
+        384,
+        256
+      ],
+      "pivot": [
+        48,
+        64
+      ],
+      "asset": "assets/spinner-arm.png",
+      "logical": "logical/spinner-arm.png",
+      "sha256": "d870afa0dc5f766e130f0e850d197f70c239019c5842889a4f80361404a943fb"
+    },
+    {
+      "name": "spinner-gondola",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 4,
+      "nominalCellBounds": [
+        0,
+        448,
+        448,
+        896
+      ],
+      "cellBounds": [
+        0,
+        448,
+        448,
+        840
+      ],
+      "trimBoundsInCell": [
+        133,
+        82,
+        331,
+        353
+      ],
+      "cropDimensions": [
+        198,
+        271
+      ],
+      "crop": "crops/spinner-gondola.png",
+      "logicalCanvas": [
+        40,
+        48
+      ],
+      "logicalPivot": [
+        20,
+        6
+      ],
+      "logicalBounds": [
+        6,
+        6,
+        34,
+        44
+      ],
+      "logicalVisibleDimensions": [
+        28,
+        38
+      ],
+      "sourceToLogicalScale": 0.14022140221402213,
+      "scaleGroup": "spinner-gondola",
+      "alignment": "top",
+      "fileScale": 4,
+      "canvas": [
+        160,
+        192
+      ],
+      "pivot": [
+        80,
+        24
+      ],
+      "asset": "assets/spinner-gondola.png",
+      "logical": "logical/spinner-gondola.png",
+      "sha256": "3191f12de7f6f986dccde3c64aa12c391b2c39746efe60a5ef25eee28e51fdc3"
+    },
+    {
+      "name": "theme-moon",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 5,
+      "nominalCellBounds": [
+        448,
+        448,
+        896,
+        896
+      ],
+      "cellBounds": [
+        448,
+        448,
+        896,
+        840
+      ],
+      "trimBoundsInCell": [
+        127,
+        33,
+        368,
+        379
+      ],
+      "cropDimensions": [
+        241,
+        346
+      ],
+      "crop": "crops/theme-moon.png",
+      "logicalCanvas": [
+        64,
+        80
+      ],
+      "logicalPivot": [
+        32,
+        68
+      ],
+      "logicalBounds": [
+        11,
+        8,
+        53,
+        68
+      ],
+      "logicalVisibleDimensions": [
+        42,
+        60
+      ],
+      "sourceToLogicalScale": 0.17341040462427745,
+      "scaleGroup": "theme-moon",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        320
+      ],
+      "pivot": [
+        128,
+        272
+      ],
+      "asset": "assets/theme-moon.png",
+      "logical": "logical/theme-moon.png",
+      "sha256": "c94e262decf36b52ddeb697fc0ed7a9d41f5bf126d108c9e764ce942388ae5c1"
+    },
+    {
+      "name": "theme-dragon",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 6,
+      "nominalCellBounds": [
+        896,
+        448,
+        1344,
+        896
+      ],
+      "cellBounds": [
+        896,
+        448,
+        1344,
+        840
+      ],
+      "trimBoundsInCell": [
+        98,
+        53,
+        358,
+        367
+      ],
+      "cropDimensions": [
+        260,
+        314
+      ],
+      "crop": "crops/theme-dragon.png",
+      "logicalCanvas": [
+        64,
+        80
+      ],
+      "logicalPivot": [
+        32,
+        68
+      ],
+      "logicalBounds": [
+        7,
+        8,
+        57,
+        68
+      ],
+      "logicalVisibleDimensions": [
+        50,
+        60
+      ],
+      "sourceToLogicalScale": 0.1910828025477707,
+      "scaleGroup": "theme-dragon",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        320
+      ],
+      "pivot": [
+        128,
+        272
+      ],
+      "asset": "assets/theme-dragon.png",
+      "logical": "logical/theme-dragon.png",
+      "sha256": "4454c5cf227803e35bc454da292bd32bd7ac71dd3328b90619f95e31c005a22b"
+    },
+    {
+      "name": "theme-mushroom",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 7,
+      "nominalCellBounds": [
+        1344,
+        448,
+        1792,
+        896
+      ],
+      "cellBounds": [
+        1344,
+        448,
+        1792,
+        840
+      ],
+      "trimBoundsInCell": [
+        85,
+        90,
+        360,
+        356
+      ],
+      "cropDimensions": [
+        275,
+        266
+      ],
+      "crop": "crops/theme-mushroom.png",
+      "logicalCanvas": [
+        64,
+        80
+      ],
+      "logicalPivot": [
+        32,
+        68
+      ],
+      "logicalBounds": [
+        5,
+        16,
+        59,
+        68
+      ],
+      "logicalVisibleDimensions": [
+        54,
+        52
+      ],
+      "sourceToLogicalScale": 0.19636363636363635,
+      "scaleGroup": "theme-mushroom",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        320
+      ],
+      "pivot": [
+        128,
+        272
+      ],
+      "asset": "assets/theme-mushroom.png",
+      "logical": "logical/theme-mushroom.png",
+      "sha256": "b781df72049aad349b83566b98bf7a4dbdbb06b23bb0583dca5b72e0ed58cead"
+    },
+    {
+      "name": "theme-star",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 8,
+      "nominalCellBounds": [
+        0,
+        896,
+        448,
+        1344
+      ],
+      "cellBounds": [
+        0,
+        840,
+        448,
+        1344
+      ],
+      "trimBoundsInCell": [
+        117,
+        71,
+        346,
+        396
+      ],
+      "cropDimensions": [
+        229,
+        325
+      ],
+      "crop": "crops/theme-star.png",
+      "logicalCanvas": [
+        64,
+        80
+      ],
+      "logicalPivot": [
+        32,
+        68
+      ],
+      "logicalBounds": [
+        11,
+        8,
+        53,
+        68
+      ],
+      "logicalVisibleDimensions": [
+        42,
+        60
+      ],
+      "sourceToLogicalScale": 0.18461538461538463,
+      "scaleGroup": "theme-star",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        256,
+        320
+      ],
+      "pivot": [
+        128,
+        272
+      ],
+      "asset": "assets/theme-star.png",
+      "logical": "logical/theme-star.png",
+      "sha256": "ce84a83b00b92c5cb2248676c138f18289fc0b6a2c5d94e6407bfc88aaacad08"
+    },
+    {
+      "name": "workshop",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 9,
+      "nominalCellBounds": [
+        448,
+        896,
+        896,
+        1344
+      ],
+      "cellBounds": [
+        448,
+        840,
+        896,
+        1344
+      ],
+      "trimBoundsInCell": [
+        15,
+        46,
+        423,
+        410
+      ],
+      "cropDimensions": [
+        408,
+        364
+      ],
+      "crop": "crops/workshop.png",
+      "logicalCanvas": [
+        96,
+        112
+      ],
+      "logicalPivot": [
+        48,
+        96
+      ],
+      "logicalBounds": [
+        5,
+        19,
+        91,
+        96
+      ],
+      "logicalVisibleDimensions": [
+        86,
+        77
+      ],
+      "sourceToLogicalScale": 0.2107843137254902,
+      "scaleGroup": "workshop",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        384,
+        448
+      ],
+      "pivot": [
+        192,
+        384
+      ],
+      "asset": "assets/workshop.png",
+      "logical": "logical/workshop.png",
+      "sha256": "98c132af1f85a80bcef5d99274495cfdf683d6bf945162cd0831915504c6d6a3"
+    },
+    {
+      "name": "ride-teacups",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 10,
+      "nominalCellBounds": [
+        896,
+        896,
+        1344,
+        1344
+      ],
+      "cellBounds": [
+        896,
+        840,
+        1344,
+        1344
+      ],
+      "trimBoundsInCell": [
+        7,
+        86,
+        432,
+        388
+      ],
+      "cropDimensions": [
+        425,
+        302
+      ],
+      "crop": "crops/ride-teacups.png",
+      "logicalCanvas": [
+        144,
+        112
+      ],
+      "logicalPivot": [
+        72,
+        96
+      ],
+      "logicalBounds": [
+        12,
+        10,
+        133,
+        96
+      ],
+      "logicalVisibleDimensions": [
+        121,
+        86
+      ],
+      "sourceToLogicalScale": 0.2847682119205298,
+      "scaleGroup": "ride-teacups",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        576,
+        448
+      ],
+      "pivot": [
+        288,
+        384
+      ],
+      "asset": "assets/ride-teacups.png",
+      "logical": "logical/ride-teacups.png",
+      "sha256": "d395087fc408e3f5650194d55557f1aa47514a2bd2c0916a50f60d92dc65bb5a"
+    },
+    {
+      "name": "ride-spinner",
+      "atlas": "rides-themes",
+      "atlasDimensions": [
+        1792,
+        1344
+      ],
+      "cellIndex": 11,
+      "nominalCellBounds": [
+        1344,
+        896,
+        1792,
+        1344
+      ],
+      "cellBounds": [
+        1344,
+        840,
+        1792,
+        1344
+      ],
+      "trimBoundsInCell": [
+        13,
+        14,
+        426,
+        380
+      ],
+      "cropDimensions": [
+        413,
+        366
+      ],
+      "crop": "crops/ride-spinner.png",
+      "logicalCanvas": [
+        160,
+        192
+      ],
+      "logicalPivot": [
+        80,
+        176
+      ],
+      "logicalBounds": [
+        7,
+        47,
+        153,
+        176
+      ],
+      "logicalVisibleDimensions": [
+        146,
+        129
+      ],
+      "sourceToLogicalScale": 0.35351089588377727,
+      "scaleGroup": "ride-spinner",
+      "alignment": "ground",
+      "fileScale": 4,
+      "canvas": [
+        640,
+        768
+      ],
+      "pivot": [
+        320,
+        704
+      ],
+      "asset": "assets/ride-spinner.png",
+      "logical": "logical/ride-spinner.png",
+      "sha256": "7ebc94b3de12e2dce59a600b45cafa5473584bc4f22abf7a9915c5c012fa7238"
+    },
+    {
+      "name": "rider-red-se",
+      "atlas": "seated-riders",
+      "atlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 0,
+      "nominalCellBounds": [
+        0,
+        0,
+        576,
+        648
+      ],
+      "cellBounds": [
+        0,
+        0,
+        576,
+        648
+      ],
+      "trimBoundsInCell": [
+        254,
+        197,
+        448,
+        530
+      ],
+      "cropDimensions": [
+        194,
+        333
+      ],
+      "crop": "crops/rider-red-se.png",
+      "logicalCanvas": [
+        20,
+        24
+      ],
+      "logicalPivot": [
+        10,
+        16
+      ],
+      "logicalBounds": [
+        6,
+        6,
+        15,
+        22
+      ],
+      "logicalVisibleDimensions": [
+        9,
+        16
+      ],
+      "sourceToLogicalScale": 0.047337278106508875,
+      "scaleGroup": "riders",
+      "alignment": "seat",
+      "fileScale": 4,
+      "canvas": [
+        80,
+        96
+      ],
+      "pivot": [
+        40,
+        64
+      ],
+      "asset": "assets/rider-red-se.png",
+      "logical": "logical/rider-red-se.png",
+      "sha256": "80b10337f3eec63f923262f03adc6d6ff9dcd79c306ac66f696e4c1300f2071d"
+    },
+    {
+      "name": "rider-red-sw",
+      "atlas": "seated-riders",
+      "atlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 1,
+      "nominalCellBounds": [
+        576,
+        0,
+        1152,
+        648
+      ],
+      "cellBounds": [
+        576,
+        0,
+        1152,
+        648
+      ],
+      "trimBoundsInCell": [
+        201,
+        195,
+        395,
+        530
+      ],
+      "cropDimensions": [
+        194,
+        335
+      ],
+      "crop": "crops/rider-red-sw.png",
+      "logicalCanvas": [
+        20,
+        24
+      ],
+      "logicalPivot": [
+        10,
+        16
+      ],
+      "logicalBounds": [
+        6,
+        6,
+        15,
+        22
+      ],
+      "logicalVisibleDimensions": [
+        9,
+        16
+      ],
+      "sourceToLogicalScale": 0.047337278106508875,
+      "scaleGroup": "riders",
+      "alignment": "seat",
+      "fileScale": 4,
+      "canvas": [
+        80,
+        96
+      ],
+      "pivot": [
+        40,
+        64
+      ],
+      "asset": "assets/rider-red-sw.png",
+      "logical": "logical/rider-red-sw.png",
+      "sha256": "cac30e4c2abcdd7edac17815be464e5d7ae75855a314d81db54ce016e33cae1f"
+    },
+    {
+      "name": "rider-red-nw",
+      "atlas": "seated-riders",
+      "atlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 2,
+      "nominalCellBounds": [
+        1152,
+        0,
+        1728,
+        648
+      ],
+      "cellBounds": [
+        1152,
+        0,
+        1728,
+        648
+      ],
+      "trimBoundsInCell": [
+        134,
+        197,
+        321,
+        509
+      ],
+      "cropDimensions": [
+        187,
+        312
+      ],
+      "crop": "crops/rider-red-nw.png",
+      "logicalCanvas": [
+        20,
+        24
+      ],
+      "logicalPivot": [
+        10,
+        16
+      ],
+      "logicalBounds": [
+        6,
+        7,
+        15,
+        22
+      ],
+      "logicalVisibleDimensions": [
+        9,
+        15
+      ],
+      "sourceToLogicalScale": 0.047337278106508875,
+      "scaleGroup": "riders",
+      "alignment": "seat",
+      "fileScale": 4,
+      "canvas": [
+        80,
+        96
+      ],
+      "pivot": [
+        40,
+        64
+      ],
+      "asset": "assets/rider-red-nw.png",
+      "logical": "logical/rider-red-nw.png",
+      "sha256": "a49758b55b71d3367a46d6e0fc6315e9c8f52b861e332bcae8f67627623996df"
+    },
+    {
+      "name": "rider-red-ne",
+      "atlas": "seated-riders",
+      "atlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 3,
+      "nominalCellBounds": [
+        1728,
+        0,
+        2304,
+        648
+      ],
+      "cellBounds": [
+        1728,
+        0,
+        2304,
+        648
+      ],
+      "trimBoundsInCell": [
+        162,
+        195,
+        349,
+        509
+      ],
+      "cropDimensions": [
+        187,
+        314
+      ],
+      "crop": "crops/rider-red-ne.png",
+      "logicalCanvas": [
+        20,
+        24
+      ],
+      "logicalPivot": [
+        10,
+        16
+      ],
+      "logicalBounds": [
+        6,
+        7,
+        15,
+        22
+      ],
+      "logicalVisibleDimensions": [
+        9,
+        15
+      ],
+      "sourceToLogicalScale": 0.047337278106508875,
+      "scaleGroup": "riders",
+      "alignment": "seat",
+      "fileScale": 4,
+      "canvas": [
+        80,
+        96
+      ],
+      "pivot": [
+        40,
+        64
+      ],
+      "asset": "assets/rider-red-ne.png",
+      "logical": "logical/rider-red-ne.png",
+      "sha256": "5840704c14a3aae2f1d416ba112111b0e749fc0d058fc606244daef91d1b734a"
+    },
+    {
+      "name": "rider-teal-se",
+      "atlas": "seated-riders",
+      "atlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 4,
+      "nominalCellBounds": [
+        0,
+        648,
+        576,
+        1296
+      ],
+      "cellBounds": [
+        0,
+        648,
+        576,
+        1296
+      ],
+      "trimBoundsInCell": [
+        254,
+        130,
+        448,
+        466
+      ],
+      "cropDimensions": [
+        194,
+        336
+      ],
+      "crop": "crops/rider-teal-se.png",
+      "logicalCanvas": [
+        20,
+        24
+      ],
+      "logicalPivot": [
+        10,
+        16
+      ],
+      "logicalBounds": [
+        6,
+        6,
+        15,
+        22
+      ],
+      "logicalVisibleDimensions": [
+        9,
+        16
+      ],
+      "sourceToLogicalScale": 0.047337278106508875,
+      "scaleGroup": "riders",
+      "alignment": "seat",
+      "fileScale": 4,
+      "canvas": [
+        80,
+        96
+      ],
+      "pivot": [
+        40,
+        64
+      ],
+      "asset": "assets/rider-teal-se.png",
+      "logical": "logical/rider-teal-se.png",
+      "sha256": "186bd3030f5225a1f62bf103cb7082d0d955e9fa290bb1f963dd5357cd2b7747"
+    },
+    {
+      "name": "rider-teal-sw",
+      "atlas": "seated-riders",
+      "atlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 5,
+      "nominalCellBounds": [
+        576,
+        648,
+        1152,
+        1296
+      ],
+      "cellBounds": [
+        576,
+        648,
+        1152,
+        1296
+      ],
+      "trimBoundsInCell": [
+        201,
+        128,
+        395,
+        466
+      ],
+      "cropDimensions": [
+        194,
+        338
+      ],
+      "crop": "crops/rider-teal-sw.png",
+      "logicalCanvas": [
+        20,
+        24
+      ],
+      "logicalPivot": [
+        10,
+        16
+      ],
+      "logicalBounds": [
+        6,
+        6,
+        15,
+        22
+      ],
+      "logicalVisibleDimensions": [
+        9,
+        16
+      ],
+      "sourceToLogicalScale": 0.047337278106508875,
+      "scaleGroup": "riders",
+      "alignment": "seat",
+      "fileScale": 4,
+      "canvas": [
+        80,
+        96
+      ],
+      "pivot": [
+        40,
+        64
+      ],
+      "asset": "assets/rider-teal-sw.png",
+      "logical": "logical/rider-teal-sw.png",
+      "sha256": "425f1cd13d9dfa22f9cdf3242548cd1a38001ca75f5fa8f2873f62e428937a7b"
+    },
+    {
+      "name": "rider-teal-nw",
+      "atlas": "seated-riders",
+      "atlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 6,
+      "nominalCellBounds": [
+        1152,
+        648,
+        1728,
+        1296
+      ],
+      "cellBounds": [
+        1152,
+        648,
+        1728,
+        1296
+      ],
+      "trimBoundsInCell": [
+        134,
+        130,
+        321,
+        444
+      ],
+      "cropDimensions": [
+        187,
+        314
+      ],
+      "crop": "crops/rider-teal-nw.png",
+      "logicalCanvas": [
+        20,
+        24
+      ],
+      "logicalPivot": [
+        10,
+        16
+      ],
+      "logicalBounds": [
+        6,
+        7,
+        15,
+        22
+      ],
+      "logicalVisibleDimensions": [
+        9,
+        15
+      ],
+      "sourceToLogicalScale": 0.047337278106508875,
+      "scaleGroup": "riders",
+      "alignment": "seat",
+      "fileScale": 4,
+      "canvas": [
+        80,
+        96
+      ],
+      "pivot": [
+        40,
+        64
+      ],
+      "asset": "assets/rider-teal-nw.png",
+      "logical": "logical/rider-teal-nw.png",
+      "sha256": "6f81fdd9df43d3a869194c894e0ce53b044c35c3f90694b6aea11abfb16b80ce"
+    },
+    {
+      "name": "rider-teal-ne",
+      "atlas": "seated-riders",
+      "atlasDimensions": [
+        2304,
+        1296
+      ],
+      "cellIndex": 7,
+      "nominalCellBounds": [
+        1728,
+        648,
+        2304,
+        1296
+      ],
+      "cellBounds": [
+        1728,
+        648,
+        2304,
+        1296
+      ],
+      "trimBoundsInCell": [
+        162,
+        128,
+        349,
+        445
+      ],
+      "cropDimensions": [
+        187,
+        317
+      ],
+      "crop": "crops/rider-teal-ne.png",
+      "logicalCanvas": [
+        20,
+        24
+      ],
+      "logicalPivot": [
+        10,
+        16
+      ],
+      "logicalBounds": [
+        6,
+        7,
+        15,
+        22
+      ],
+      "logicalVisibleDimensions": [
+        9,
+        15
+      ],
+      "sourceToLogicalScale": 0.047337278106508875,
+      "scaleGroup": "riders",
+      "alignment": "seat",
+      "fileScale": 4,
+      "canvas": [
+        80,
+        96
+      ],
+      "pivot": [
+        40,
+        64
+      ],
+      "asset": "assets/rider-teal-ne.png",
+      "logical": "logical/rider-teal-ne.png",
+      "sha256": "7544f1b4fc8374d49369e332a17e0636ba48df9bee915a41b1df426255666760"
+    }
+  ],
+  "validation": {
+    "assetCount": 32,
+    "uniqueLogicalImages": 32,
+    "visualReview": {
+      "reviewed": [
+        "raw/transport-shops.png",
+        "raw/rides-themes.png",
+        "raw/seated-riders.png",
+        "contact/transport-shops-1x.png",
+        "contact/rides-themes-1x.png",
+        "contact/seated-riders-2x.png"
+      ],
+      "result": "Readable coherent pixelart matching expansion-v4, isolated ride components, transparent holes and correctly cropped balloon tops and buildings. Four transport headings after NW locomotive reflection. Eight seated rider views match the original red/teal guests.",
+      "limitations": [
+        "NW locomotive originally duplicated the NE-facing direction; a technical horizontal reflection corrects direction but mirrors baked lighting.",
+        "Orbital-spinner catalogue icon has two visible arms/gondolas rather than three. Components are separate, so renderer can assemble the desired count.",
+        "One cup/arm/gondola angle is provided; orientation, orbit and occlusion are renderer work.",
+        "Seated riders include short bent legs; mask lower body behind vehicle shell. No separate hand-held balloon or teddy asset was generated because the two main jobs had already been submitted.",
+        "Projection follows the fixed pixel reference; exact geometric2:1 consistency is visually assessed, not mathematically guaranteed."
+      ]
+    },
+    "technicalChecks": {
+      "count": 32,
+      "binaryAlpha": true,
+      "exact4xNearestCopies": true,
+      "nonempty": true,
+      "allSourceCropsClearOfBoundaries": true
+    }
+  },
+  "assemblyHints": {
+    "units": "logical pixels; coordinates are approximate features measured from normalized sprite frames",
+    "teacups": {
+      "base": "teacup-base",
+      "moving": "teacup-cup",
+      "deckCenter": [
+        64,
+        39
+      ],
+      "orbitRadii": [
+        43,
+        17
+      ],
+      "cupGroundPivot": [
+        20,
+        32
+      ],
+      "recommendedCupCount": 5,
+      "notes": "Base is separate and clear; cup includes its own small saucer. Rotate/place cup at its ground pivot and depth-sort the five cups."
+    },
+    "spinner": {
+      "base": "spinner-base",
+      "arm": "spinner-arm",
+      "gondola": "spinner-gondola",
+      "baseHub": [
+        55,
+        28
+      ],
+      "armRoot": [
+        12,
+        16
+      ],
+      "armTip": [
+        60,
+        45
+      ],
+      "gondolaAttachment": [
+        20,
+        6
+      ],
+      "notes": "Arm is a single diagonal beam with root bearing and hook. Transform both attachment points together, and keep the gondola upright at the moving end. Catalogue icon contains two visible arms rather than the requested three; runtime may assemble more arms."
+    },
+    "riders": {
+      "frame": [
+        20,
+        24
+      ],
+      "pelvisPivot": [
+        10,
+        16
+      ],
+      "upperBodyClipBelowY": 17,
+      "notes": "Eight seated riders, no car or seat in the PNG. Draw lower body behind the car front/seat shell; y17 is a suggested local clipping boundary if only head, torso and bent arms should remain visible. Root must place rows and depth order from vehicle orientation."
+    }
+  }
+}

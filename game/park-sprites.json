@@ -1,0 +1,206 @@
+{
+  "train-loco-se": {
+    "width": 64,
+    "height": 48,
+    "anchorX": 32,
+    "anchorY": 36
+  },
+  "train-loco-sw": {
+    "width": 64,
+    "height": 48,
+    "anchorX": 32,
+    "anchorY": 36
+  },
+  "train-loco-nw": {
+    "width": 64,
+    "height": 48,
+    "anchorX": 32,
+    "anchorY": 36
+  },
+  "train-loco-ne": {
+    "width": 64,
+    "height": 48,
+    "anchorX": 32,
+    "anchorY": 36
+  },
+  "shuttle-se": {
+    "width": 64,
+    "height": 48,
+    "anchorX": 32,
+    "anchorY": 36
+  },
+  "shuttle-sw": {
+    "width": 64,
+    "height": 48,
+    "anchorX": 32,
+    "anchorY": 36
+  },
+  "shuttle-nw": {
+    "width": 64,
+    "height": 48,
+    "anchorX": 32,
+    "anchorY": 36
+  },
+  "shuttle-ne": {
+    "width": 64,
+    "height": 48,
+    "anchorX": 32,
+    "anchorY": 36
+  },
+  "train-station": {
+    "width": 88,
+    "height": 104,
+    "anchorX": 44,
+    "anchorY": 88
+  },
+  "shuttle-stop": {
+    "width": 72,
+    "height": 80,
+    "anchorX": 36,
+    "anchorY": 64
+  },
+  "balloon-shop": {
+    "width": 72,
+    "height": 104,
+    "anchorX": 36,
+    "anchorY": 88
+  },
+  "plush-shop": {
+    "width": 72,
+    "height": 104,
+    "anchorX": 36,
+    "anchorY": 88
+  },
+  "teacup-base": {
+    "width": 128,
+    "height": 96,
+    "anchorX": 64,
+    "anchorY": 76
+  },
+  "teacup-cup": {
+    "width": 40,
+    "height": 40,
+    "anchorX": 20,
+    "anchorY": 32
+  },
+  "spinner-base": {
+    "width": 96,
+    "height": 144,
+    "anchorX": 48,
+    "anchorY": 128
+  },
+  "spinner-arm": {
+    "width": 96,
+    "height": 64,
+    "anchorX": 12,
+    "anchorY": 16
+  },
+  "spinner-gondola": {
+    "width": 40,
+    "height": 48,
+    "anchorX": 20,
+    "anchorY": 6
+  },
+  "theme-moon": {
+    "width": 64,
+    "height": 80,
+    "anchorX": 32,
+    "anchorY": 68
+  },
+  "theme-dragon": {
+    "width": 64,
+    "height": 80,
+    "anchorX": 32,
+    "anchorY": 68
+  },
+  "theme-mushroom": {
+    "width": 64,
+    "height": 80,
+    "anchorX": 32,
+    "anchorY": 68
+  },
+  "theme-star": {
+    "width": 64,
+    "height": 80,
+    "anchorX": 32,
+    "anchorY": 68
+  },
+  "workshop": {
+    "width": 96,
+    "height": 112,
+    "anchorX": 48,
+    "anchorY": 96
+  },
+  "ride-teacups": {
+    "width": 144,
+    "height": 112,
+    "anchorX": 72,
+    "anchorY": 96
+  },
+  "ride-spinner": {
+    "width": 160,
+    "height": 192,
+    "anchorX": 80,
+    "anchorY": 176
+  },
+  "rider-red-se": {
+    "width": 20,
+    "height": 24,
+    "anchorX": 10,
+    "anchorY": 16
+  },
+  "rider-red-sw": {
+    "width": 20,
+    "height": 24,
+    "anchorX": 10,
+    "anchorY": 16
+  },
+  "rider-red-nw": {
+    "width": 20,
+    "height": 24,
+    "anchorX": 10,
+    "anchorY": 16
+  },
+  "rider-red-ne": {
+    "width": 20,
+    "height": 24,
+    "anchorX": 10,
+    "anchorY": 16
+  },
+  "rider-teal-se": {
+    "width": 20,
+    "height": 24,
+    "anchorX": 10,
+    "anchorY": 16
+  },
+  "rider-teal-sw": {
+    "width": 20,
+    "height": 24,
+    "anchorX": 10,
+    "anchorY": 16
+  },
+  "rider-teal-nw": {
+    "width": 20,
+    "height": 24,
+    "anchorX": 10,
+    "anchorY": 16
+  },
+  "rider-teal-ne": {
+    "width": 20,
+    "height": 24,
+    "anchorX": 10,
+    "anchorY": 16
+  },
+  "hand-balloon": {
+    "width": 16,
+    "height": 24,
+    "anchorX": 4,
+    "anchorY": 20
+  },
+  "hand-teddy": {
+    "width": 12,
+    "height": 16,
+    "anchorX": 6,
+    "anchorY": 11
+  }
+}
