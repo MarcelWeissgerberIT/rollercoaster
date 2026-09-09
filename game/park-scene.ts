@@ -1,5 +1,6 @@
 import { addDriveHardware } from "./track-hardware";
 import { addExitArrows } from "./path-markings";
+import { addAccessPods } from "./pod-model";
 import { createTransportRig } from "./transport-rig";
 import { createGuestModel, createCrowd } from "./guest-model";
 import { createAttractionRig } from "./attraction-rig";
@@ -38,6 +39,7 @@ export function populatePark(
   cone: THREE.BufferGeometry,
 ) {
   addExitArrows(scene, park);
+  addAccessPods(scene, park);
   const animations: ((t: number) => void)[] = [],
     sphere = new THREE.IcosahedronGeometry(1, 1);
   const trees = park.buildings.filter((b) => b.kind === "tree" || b.kind === "pine");

@@ -1,4 +1,5 @@
 import parkSpecs from "./park-sprites.json";
+import { podPort, podPose, podSlots, usesPods, type Pod, type PodRole } from "./pods";
 import { mapWidth, mapHeight, insideMap } from "./grid";
 import { transportPose, transportCarPose } from "./transit";
 import expansionSpecs from "./expansion-sprites.json";
@@ -12,13 +13,14 @@ import {
   isRide,
   connected,
   exitNetwork,
+  effectivePods,
   type Guest,
   type Park,
   type Point,
   type Kind,
   type Building,
 } from "./simulation";
-import type { Placement, Geometry } from "./construction";
+import { planPod, type Placement, type Geometry } from "./construction";
 import {
   advanceSpin,
   type TrainMotor,
@@ -28,6 +30,7 @@ import {
   type Spin,
 } from "./motion";
 export type View = {
+  podEdit?: { id: number; role: PodRole; clear?: boolean };
   zoom: number;
   panX: number;
   panY: number;
@@ -36,7 +39,8 @@ export type View = {
   tool: string;
   selected: number | null;
   draft: Point[];
-  trackCut?: Point[];
+  trackCuts?: Point[][];
+  cutConnections?: Point[][];
   cutColor?: string;
   hoveredId?: number | null;
   hitTargets?: HitTarget[];
@@ -52,7 +56,7 @@ export type View = {
   };
 };
 type HitTarget =
-  | { id: number; a: Point; b: Point }
+  | { id: number; a: Point; b: Point; pod?: PodRole }
   | {
       id: number;
       name: string;
@@ -100,6 +104,19 @@ export function hitBuildingAt(v: View, x: number, y: number): number | null {
       return hit.id;
   }
   return null;
+}
+export function hitAccessPodAt(v: View, x: number, y: number): PodRole | undefined {
+  const id = hitBuildingAt(v, x, y);
+  for (const hit of [...(v.hitTargets ?? [])].reverse())
+    if ("a" in hit && hit.pod && hit.id === id) {
+      const dx = hit.b.x - hit.a.x,
+        dy = hit.b.y - hit.a.y,
+        t = Math.max(
+          0,
+          Math.min(1, ((x - hit.a.x) * dx + (y - hit.a.y) * dy) / (dx * dx + dy * dy || 1)),
+        );
+      if (Math.hypot(x - hit.a.x - t * dx, y - hit.a.y - t * dy) < 6) return hit.pod;
+    }
 }
 type SpriteSpec = { width: number; height: number; anchorX: number; anchorY: number };
 /** Placement ghosts use the same renderer, with a complete, empty ride state. */
@@ -432,6 +449,36 @@ export function draw(
       );
   };
   const objects: Array<{ depth: number; draw: () => void; owner?: number }> = [];
+  const drawPod = (b: Building, role: PodRole, pod: Pod, ghost = false) => {
+    const q = podPose(b, CATALOG[b.kind].size, pod),
+      port = podPort(b, CATALOG[b.kind].size, pod),
+      color = role === "entry" ? "#367cb9" : "#c54e49";
+    const block = (z: number) =>
+      [
+        [-0.23, -0.23],
+        [0.23, -0.23],
+        [0.23, 0.23],
+        [-0.23, 0.23],
+      ].map(([x, y]) => project(q.x + x, q.y + y, z));
+    const base = block(0.04),
+      roof = block(0.62),
+      p = project(q.x, q.y);
+    ctx.save();
+    ctx.globalAlpha = ghost ? 0.55 : 1;
+    line(project(q.x, q.y), project(port.x, port.y), role === "entry" ? "#91caff" : "#f7aaa0", 5);
+    poly([base[1], base[2], roof[2], roof[1]], "#ded9b9", "#314f48");
+    poly([base[2], base[3], roof[3], roof[2]], "#faf0ce", "#314f48");
+    poly(roof, color, "#344e43");
+    const sign = project(q.x + 0.18, q.y + 0.18, 0.3);
+    ctx.fillStyle = color;
+    ctx.fillRect(sign.x - 4 * scale, sign.y - 6 * scale, 8 * scale, 9 * scale);
+    ctx.fillStyle = "#fff9df";
+    ctx.textAlign = "center";
+    ctx.font = `bold ${8 * scale}px sans-serif`;
+    ctx.fillText(role === "entry" ? "E" : "A", sign.x, sign.y + 1 * scale);
+    ctx.restore();
+    if (!ghost) v.hitTargets!.push({ id: b.id, a: p, b: project(q.x, q.y, 0.65), pod: role });
+  };
   const motor = (b: Building): Spin => {
     if (b.id < 0) return { angle: 0, velocity: 0 };
     const prev = motors.get(b) ?? { angle: (b.id % 5) * 0.3, velocity: 0, time: s.time };
@@ -906,6 +953,13 @@ export function draw(
       const n = CATALOG[b.kind].size;
       objects.push({ depth: b.x + b.y + 2 * (n - 1) + 0.05, draw: () => drawBuilding(b) });
     }
+    if (usesPods(b.kind)) {
+      const pods = effectivePods(s, b, net, exits);
+      for (const role of ["entry", "exit"] as const) {
+        const p = podPose(b, CATALOG[b.kind].size, pods[role]);
+        objects.push({ depth: p.x + p.y + 0.15, draw: () => drawPod(b, role, pods[role]) });
+      }
+    }
     if (isRide(b.kind) && (!b.open || !access(s, b, net)))
       objects.push({
         depth: 1000,
@@ -1120,11 +1174,41 @@ export function draw(
       o.draw();
     });
   hitOwner = undefined;
-  if (v.trackCut)
-    for (let i = 1; i < v.trackCut.length; i++) {
-      const a = v.trackCut[i - 1],
-        b = v.trackCut[i];
-      line(project(a.x, a.y, a.z), project(b.x, b.y, b.z), v.cutColor ?? "#ff634d", 7);
+  if (v.podEdit) {
+    const b = s.buildings.find((b) => b.id === v.podEdit!.id);
+    if (b) {
+      const size = CATALOG[b.kind].size;
+      for (const slot of podSlots(size)) {
+        const p = podPort(b, size, slot);
+        if (!insideMap(s, p.x, p.y)) continue;
+        const error = planPod(s, b, v.podEdit.role, slot, v.podEdit.clear).error;
+        tile(
+          p.x,
+          p.y,
+          error ? "#53625966" : v.podEdit.role === "entry" ? "#58a9f499" : "#ee786e99",
+          error ? "#7a8978" : "#fff5da",
+        );
+        const q = project(p.x, p.y);
+        ctx.fillStyle = "#fff";
+        ctx.textAlign = "center";
+        ctx.font = `bold ${10 * scale}px sans-serif`;
+        ctx.fillText(v.podEdit.role === "entry" ? "E" : "A", q.x, q.y + 3 * scale);
+        if (!error && v.hover?.x === p.x && v.hover?.y === p.y)
+          drawPod(b, v.podEdit.role, slot, true);
+      }
+    }
+  }
+  for (const segment of v.trackCuts ?? [])
+    for (let i = 1; i < segment.length; i++) {
+      const a = segment[i - 1],
+        b = segment[i];
+      line(project(a.x, a.y, a.z), project(b.x, b.y, b.z), v.cutColor ?? "#ff634d", 9);
+    }
+  for (const segment of v.cutConnections ?? [])
+    for (let i = 1; i < segment.length; i++) {
+      const a = segment[i - 1],
+        b = segment[i];
+      line(project(a.x, a.y, a.z), project(b.x, b.y, b.z), "#43d9d2", 4);
     }
 
   if (v.connection) for (const p of v.connection) tile(p.x, p.y, "#83e6c6aa", "#e5fff3");
@@ -1188,7 +1272,7 @@ export function draw(
     }
   }
   const hover = v.adjustment ? v.adjustment.geometry : v.hover;
-  if (hover && v.tool !== "select") {
+  if (hover && v.tool !== "select" && !v.tool.startsWith("pod-")) {
     const { x, y } = hover;
     if (x >= 0 && y >= 0 && x < mapWidth(s) && y < mapHeight(s)) {
       const d = CATALOG[v.tool as Kind],

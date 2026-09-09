@@ -10,7 +10,7 @@ import {
   decorative,
 } from "./simulation";
 import { planPlacement, releaseBuildingGuests } from "./construction";
-import { appendPiece, pieceError, precisionJoin, type Piece } from "./prefabs";
+import { appendPiece, closeTrack, pieceError, precisionJoin, type Piece } from "./prefabs";
 export type TrackEdit = {
   buildingId: number;
   prefix: Point[];
@@ -96,6 +96,77 @@ export function trackSections(track: Point[]) {
             ? "Kurve"
             : "Gerade",
   }));
+}
+/** Hardware boundaries are selectable even where a geometric prefab has no endpoint. */
+export function driveSections(track: Point[]) {
+  const geometry = trackSections(track),
+    marks = new Set(geometry.flatMap((p) => [p.start, p.end]));
+  for (let i = 1; i < track.length - 1; i++)
+    if (JSON.stringify(track[i - 1].drive) !== JSON.stringify(track[i].drive)) marks.add(i);
+  const sorted = [...marks].sort((a, b) => a - b);
+  return sorted
+    .slice(0, -1)
+    .map((start, i) => ({
+      start,
+      end: sorted[i + 1],
+      label: track[start].drive
+        ? track[start].drive!.kind === "boost"
+          ? "Beschleuniger"
+          : "Bremse"
+        : (geometry.find((p) => p.start <= start && p.end > start)?.label ?? "Gleis"),
+    }));
+}
+export function trackDriveGroups(b: Building) {
+  if (!b.track?.length) return [];
+  const track = editableTrack(b),
+    sections = driveSections(track);
+  const groups: { from: number; to: number; drive: TrackDrive; length: number }[] = [];
+  sections.forEach((part, i) => {
+    const drive = track[part.start]?.drive;
+    if (!drive) return;
+    let length = 0;
+    for (let j = part.start; j < part.end; j++)
+      length +=
+        Math.hypot(
+          track[j + 1].x - track[j].x,
+          track[j + 1].y - track[j].y,
+          (track[j + 1].z ?? 0) - (track[j].z ?? 0),
+        ) * 5;
+    const last = groups.at(-1);
+    if (last && last.to === i - 1 && JSON.stringify(last.drive) === JSON.stringify(drive)) {
+      last.to = i;
+      last.length += length;
+    } else groups.push({ from: i, to: i, drive: { ...drive }, length });
+  });
+  return groups;
+}
+export function pickTrackSection(
+  track: Point[],
+  sections: { start: number; end: number }[],
+  point: Point,
+  project: (x: number, y: number, z?: number) => Point,
+  limit = 35,
+) {
+  let found = -1,
+    best = limit;
+  sections.forEach((part, index) => {
+    for (let i = part.start; i < part.end; i++) {
+      const a = project(track[i].x, track[i].y, track[i].z),
+        b = project(track[i + 1].x, track[i + 1].y, track[i + 1].z),
+        dx = b.x - a.x,
+        dy = b.y - a.y;
+      const t = Math.max(
+        0,
+        Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / (dx * dx + dy * dy || 1)),
+      );
+      const distance = Math.hypot(point.x - a.x - t * dx, point.y - a.y - t * dy);
+      if (distance < best) {
+        best = distance;
+        found = index;
+      }
+    }
+  });
+  return found;
 }
 export function trackEditWorld(s: Park): Park {
   return s.trackEdit
@@ -254,9 +325,105 @@ export function commitTrackEdit(s: Park, track: Point[], clear = true): string |
   return null;
 }
 
+/** Group selected prefabs without spanning any unselected section. */
+export function selectionGroups(indices: number[], count: number) {
+  if (!indices.length || indices.some((i) => !Number.isInteger(i) || i < 0 || i >= count))
+    return null;
+  const groups: { from: number; to: number }[] = [];
+  for (const i of [...new Set(indices)].sort((a, b) => a - b)) {
+    const last = groups.at(-1);
+    if (last && i === last.to + 1) last.to = i;
+    else groups.push({ from: i, to: i });
+  }
+  return groups;
+}
+export type BatchRemovalPlan = {
+  track: Point[];
+  cost: number;
+  clearIds: number[];
+  error: string | null;
+  groups: { from: number; to: number }[];
+  connections: Point[][];
+};
+/** Plan all gaps on a copy. A late failed connector cannot leave half a demolished ride. */
+export function batchTrackRemovalPlan(
+  s: Park,
+  b: Building,
+  indices: number[],
+  clear = true,
+): BatchRemovalPlan {
+  const result: BatchRemovalPlan = {
+    track: b.track ?? [],
+    cost: 0,
+    clearIds: [],
+    error: null,
+    groups: [],
+    connections: [],
+  };
+  const fail = (error: string) => ({ ...result, error });
+  if (s.trackEdit || s.draft) return fail("Beende zuerst die offene Streckenbearbeitung.");
+  if (b.kind !== "coaster" || !b.track || !s.buildings.includes(b))
+    return fail("Wähle eine Achterbahn.");
+  const track = editableTrack(b),
+    sections = trackSections(track),
+    groups = selectionGroups(indices, sections.length);
+  if (!groups) return fail("Markiere mindestens einen gültigen Abschnitt.");
+  if (new Set(indices).size === sections.length)
+    return fail(
+      "Mindestens ein Gleisteil muss erhalten bleiben. Die ganze Bahn entfernst du mit Abreißen.",
+    );
+  if (track.length > 2048) return fail("Die Bahn ist zu komplex für den Streckenumbau.");
+  result.groups = groups;
+  const work = structuredClone(s),
+    copy = work.buildings.find((x) => x.id === b.id)!;
+  work.cash = Number.MAX_SAFE_INTEGER;
+  copy.track = track;
+  // Later gaps cannot change the indices of earlier, retained sections.
+  for (const group of [...groups].reverse()) {
+    const error = beginTrackEdit(work, copy, group.from, group.to);
+    if (error) return fail(error);
+    const cut = work.trackEdit!,
+      joined = closeTrack(trackEditWorld(work), cut.prefix, clear, cut.suffix);
+    if (!joined.track)
+      return fail(
+        `Abschnitte ${group.from + 1}–${group.to + 1}: ${joined.error ?? "Die offenen Enden lassen sich nicht verbinden."} Wähle einen größeren Bereich oder ersetze ihn mit Fertigteilen.`,
+      );
+    const plan = trackEditPlan(work, joined.track, clear);
+    if (plan.error) return fail(plan.error);
+    result.cost += plan.cost;
+    result.connections.push(
+      joined.track.slice(cut.prefix.length - 1, joined.track.length - cut.suffix.length + 1),
+    );
+    const commitError = commitTrackEdit(work, joined.track, clear);
+    if (commitError) return fail(commitError);
+  }
+  result.track = copy.track!;
+  const retained = new Set(work.buildings.map((x) => x.id));
+  result.clearIds = s.buildings.filter((x) => !retained.has(x.id)).map((x) => x.id);
+  if (s.cash < result.cost) result.error = "Das Parkbudget reicht für den gesamten Umbau nicht.";
+  return result;
+}
+export function removeTrackSections(
+  s: Park,
+  b: Building,
+  indices: number[],
+  clear = true,
+): string | null {
+  const plan = batchTrackRemovalPlan(s, b, indices, clear);
+  if (plan.error) return plan.error;
+  if (!spend(s, plan.cost)) return "Das Parkbudget reicht nicht.";
+  releaseBuildingGuests(s, b);
+  s.buildings = s.buildings.filter((x) => !plan.clearIds.includes(x.id));
+  b.track = plan.track;
+  b.tested = false;
+  b.open = false;
+  b.autoOpen = false;
+  return null;
+}
+
 export function trackDrivePlan(b: Building, from: number, to: number, drive: TrackDrive | null) {
   const dense = editableTrack(b),
-    sections = trackSections(dense);
+    sections = driveSections(dense);
   if (
     !b.track ||
     !sections[from] ||
@@ -270,21 +437,9 @@ export function trackDrivePlan(b: Building, from: number, to: number, drive: Tra
       changed: false,
       track: b.track ?? [],
     };
-  const first = dense[sections[from].start],
-    last = dense[sections[to].end],
-    same = (p: Point, q: Point) =>
-      Math.hypot(p.x - q.x, p.y - q.y, (p.z ?? 0) - (q.z ?? 0)) < 0.00001;
-  let original = b.track,
-    start = original.findIndex((p) => same(p, first)),
-    end =
-      sections[to].end === dense.length - 1
-        ? original.length - 1
-        : original.findIndex((p, i) => i > start && same(p, last));
-  if (start < 0 || end < 0) {
-    original = dense;
-    start = sections[from].start;
+  const original = dense,
+    start = sections[from].start,
     end = sections[to].end;
-  }
   if (original.length > 2048)
     return {
       error: "Die Bahn ist zu komplex für diese Modulmontage.",

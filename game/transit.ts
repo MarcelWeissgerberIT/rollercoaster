@@ -1,5 +1,6 @@
 import type { Park, Point, Building, Guest } from "./simulation";
-import { exitFromCells, exitNetwork } from "./walkways";
+import { connected, exitFromCells, exitNetwork } from "./walkways";
+import { podPort } from "./pods";
 import { pathRoute, insideMap } from "./grid";
 export type TransitKind = "train" | "shuttle";
 export type TransitLine = {
@@ -42,6 +43,13 @@ export function stopAccess(s: Park, b: Building) {
         .find(adjacent);
 }
 function stopExit(s: Park, b: Building) {
+  if (b.pods) {
+    const p = podPort(b, 1, b.pods.exit),
+      net = connected(s);
+    return s.tiles[p.y]?.[p.x] === "path" && net.has(`${p.x},${p.y}`)
+      ? [p]
+      : exitFromCells([p], exitNetwork(s, net));
+  }
   return exitFromCells(
     [
       [0, 1],
@@ -51,6 +59,13 @@ function stopExit(s: Park, b: Building) {
     ].map(([dx, dy]) => ({ x: b.x + dx, y: b.y + dy })),
     exitNetwork(s),
   );
+}
+export function stopEntrance(s: Park, b: Building) {
+  if (!b.pods) return stopAccess(s, b);
+  const p = podPort(b, 1, b.pods.entry);
+  return connected(s).has(`${p.x},${p.y}`) && ["path", "queue"].includes(s.tiles[p.y]?.[p.x])
+    ? p
+    : undefined;
 }
 export function transitPlan(s: Park, a: Building, b: Building) {
   if (!isTransport(a.kind) || b.kind !== a.kind || a.id === b.id)
@@ -324,8 +339,9 @@ export function chooseTransit(s: Park, g: Guest, goal: Point, walking: Point[]) 
     ]) {
       const from = s.buildings.find((b) => b.id === fromId)!,
         to = s.buildings.find((b) => b.id === toId)!,
-        a = stopAccess(s, from)!,
+        a = stopEntrance(s, from),
         b = stopAccess(s, to)!;
+      if (!a) continue;
       if (from.price > (g.wallet ?? 60) || from.queue.length >= 16) continue;
       const first = pathRoute(s, g, a, true),
         outgoing = stopExit(s, to),

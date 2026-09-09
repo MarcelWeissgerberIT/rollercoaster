@@ -1,6 +1,22 @@
 import { insideMap } from "./grid";
+import {
+  podPort,
+  podSlots,
+  samePod,
+  usesPods,
+  rotatePods,
+  type Pod,
+  type PodRole,
+  type AccessPods,
+} from "./pods";
 import { designStats, validDesign, type AttractionDesign } from "./designs";
-import { tickTransit, releaseTransit, cancelTransitDestination, type TransitLine } from "./transit";
+import {
+  tickTransit,
+  releaseTransit,
+  cancelTransitDestination,
+  isTransport,
+  type TransitLine,
+} from "./transit";
 import {
   rideDuration,
   CATALOG,
@@ -11,6 +27,7 @@ import {
   ENTRANCE,
   access,
   leaveBuilding,
+  effectivePods,
   build,
   paint,
   remove,
@@ -168,6 +185,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
       { x: b.x + n, y: b.y + i },
       { x: b.x + i, y: b.y - 1 },
     );
+  if (b.pods && usesPods(b.kind)) starts.splice(0, starts.length, podPort(b, n, b.pods.entry));
   const blocked = new Set<string>();
   for (const item of s.buildings)
     if (!clear || !decorative(item.kind))
@@ -208,7 +226,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   const price = (p: Point) =>
     (s.tiles[p.y][p.x] === "grass" ? (ride ? 18 : 12) : 0) + (occupant(s, p.x, p.y) ? 10 : 0);
   for (const p of starts)
-    if (passable(p) && (ride || s.tiles[p.y][p.x] !== "queue")) {
+    if (passable(p) && (ride || isTransport(b.kind) || s.tiles[p.y][p.x] !== "queue")) {
       const cost = price(p),
         key = `${p.x},${p.y}`;
       best.set(key, cost);
@@ -281,7 +299,7 @@ export function connectBuilding(s: Park, b: Building, clear = true): string | nu
   } else b.open = true;
   return null;
 }
-export type Geometry = Pick<Building, "x" | "y" | "track"> & { tested?: boolean };
+export type Geometry = Pick<Building, "x" | "y" | "track" | "pods"> & { tested?: boolean };
 export type AdjustmentPlan = Placement & {
   geometry: Geometry;
   changed: boolean;
@@ -292,9 +310,13 @@ const geometryOf = (b: Building): Geometry => ({
   y: b.y,
   track: b.track?.map((p) => ({ ...p })),
   tested: b.tested,
+  pods: b.pods ? structuredClone(b.pods) : undefined,
 });
 const sameGeometry = (a: Geometry, b: Geometry) =>
-  a.x === b.x && a.y === b.y && JSON.stringify(a.track) === JSON.stringify(b.track);
+  a.x === b.x &&
+  a.y === b.y &&
+  JSON.stringify(a.track) === JSON.stringify(b.track) &&
+  JSON.stringify(a.pods) === JSON.stringify(b.pods);
 export function stationPositions(b: Building): Point[] {
   if (b.kind !== "coaster" || !b.track) return [];
   const ring = b.track.slice(0, -1);
@@ -330,6 +352,20 @@ function withConnection(
       ],
       cash: s.cash - plan.cost,
     };
+  if (moved.pods && plan.changed) {
+    for (const role of ["entry", "exit"] as const) {
+      const pod = planPod(virtual, moved, role, moved.pods[role], clear);
+      if (pod.error)
+        return {
+          ...plan,
+          error: `${role === "entry" ? "Eingangspod" : "Ausgangspod"}: ${pod.error} Versetze zuerst den Pod oder wähle einen anderen Standort.`,
+        };
+      for (const id of pod.clearIds) if (!plan.clearIds.includes(id)) plan.clearIds.push(id);
+      plan.cost += pod.cost;
+      virtual.cash -= pod.cost;
+      virtual.buildings = virtual.buildings.filter((item) => !pod.clearIds.includes(item.id));
+    }
+  }
   return { ...plan, connection: planConnection(virtual, moved, clear) };
 }
 export function planStationMove(s: Park, b: Building, p: Point, clear = true): AdjustmentPlan {
@@ -350,7 +386,12 @@ export function planStationMove(s: Park, b: Building, p: Point, clear = true): A
   const ring = b.track.slice(0, -1),
     i = ring.findIndex((q) => q.x === p.x && q.y === p.y && (q.z ?? 0) === 0);
   const reordered = [...ring.slice(i), ...ring.slice(0, i)].map((q) => ({ ...q }));
-  const geometry = { x: p.x, y: p.y, track: [...reordered, { ...reordered[0] }] };
+  const geometry = {
+    x: p.x,
+    y: p.y,
+    track: [...reordered, { ...reordered[0] }],
+    pods: b.pods ? structuredClone(b.pods) : undefined,
+  };
   // A cyclic reorder preserves every segment and its clearance. Only the entrance changes.
   return withConnection(s, b, { ...empty, geometry, changed: true, error: null }, clear);
 }
@@ -365,6 +406,7 @@ export function planRelocation(
   const geometry: Geometry = {
     x: p.x,
     y: p.y,
+    pods: rotatePods(b.pods, CATALOG[b.kind].size, turns),
     track: b.track?.map((q) => {
       let x = q.x - b.x,
         y = q.y - b.y;
@@ -433,6 +475,14 @@ export function suggestStation(s: Park, b: Building, clear = true): Point | null
   return options[0]?.p ?? null;
 }
 export function releaseBuildingGuests(s: Park, b: Building) {
+  if (isTransport(b.kind)) {
+    for (const line of s.transitLines ?? []) {
+      if (line.a !== b.id && line.b !== b.id) continue;
+      for (const g of s.guests) if (g.transit?.line === line.id) releaseTransit(s, g, line);
+      line.passengers = [];
+      for (const stop of s.buildings) if (stop.id === line.a || stop.id === line.b) stop.queue = [];
+    }
+  }
   for (const g of s.guests)
     if (g.target === b.id) {
       if (cancelTransitDestination(s, g)) continue;
@@ -452,6 +502,59 @@ export function releaseBuildingGuests(s: Park, b: Building) {
   b.testDuration = undefined;
   b.autoOpen = false;
   b.open = false;
+}
+export function planPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = true): Placement {
+  const n = CATALOG[b.kind].size,
+    p = podPort(b, n, pod),
+    pods = effectivePods(s, b);
+  const plan: Placement = { points: [p], clearIds: [], cost: 0, error: null };
+  if (!usesPods(b.kind) || !podSlots(n).some((q) => samePod(q, pod)))
+    return { ...plan, error: "Wähle einen Pod-Platz am Rand der Attraktion." };
+  if (s.trackEdit?.buildingId === b.id)
+    return { ...plan, error: "Beende zuerst den Streckenumbau." };
+  if (!inside(s, p)) return { ...plan, error: "Das Anschlussfeld liegt außerhalb des Parks." };
+  if (samePod(pods[role === "entry" ? "exit" : "entry"], pod))
+    return { ...plan, error: "Eingang und Ausgang brauchen unterschiedliche Plätze." };
+  const item = occupant(s, p.x, p.y);
+  if (item) {
+    if (!clear || !decorative(item.kind))
+      return {
+        ...plan,
+        error:
+          item.id === b.id
+            ? "Hier verläuft die Bahn. Wähle eine freie Stationsseite."
+            : "Das Anschlussfeld ist bebaut.",
+      };
+    plan.clearIds = [item.id];
+    plan.cost = 10;
+  }
+  const tile = s.tiles[p.y][p.x];
+  if (
+    tile === "water" ||
+    (role === "entry" && tile === "exit") ||
+    (role === "exit" && tile === "queue")
+  )
+    plan.error =
+      role === "entry"
+        ? "Eingang: freie Wiese, blauer Eingangsweg oder Parkweg benötigt."
+        : "Ausgang: freie Wiese, roter Ausgangsweg oder Parkweg benötigt.";
+  if (plan.cost > s.cash) plan.error = "Das Budget reicht zum Freiräumen nicht.";
+  return plan;
+}
+export function setAccessPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = true) {
+  const plan = planPod(s, b, role, pod, clear);
+  if (plan.error) return plan.error;
+  const pods = structuredClone(effectivePods(s, b));
+  if (b.pods && samePod(pods[role], pod)) return null;
+  if (!isTransport(b.kind)) releaseBuildingGuests(s, b);
+  // A platform's pedestrian portal is independent of its vehicle dock and live passengers.
+  for (const g of s.guests)
+    if (g.transit?.from === b.id && g.state !== "ride") cancelTransitDestination(s, g);
+  if (plan.cost) spend(s, plan.cost);
+  s.buildings = s.buildings.filter((item) => !plan.clearIds.includes(item.id));
+  pods[role] = { ...pod };
+  b.pods = pods;
+  return null;
 }
 export function adjustBuilding(
   s: Park,
@@ -576,7 +679,15 @@ export function undoEdits(s: Park, records: EditRecord[]) {
     for (const old of record.geometry) {
       const b = s.buildings.find((b) => b.id === old.id);
       if (b) {
-        releaseBuildingGuests(s, b);
+        const portalOnly =
+          isTransport(b.kind) &&
+          b.x === old.before.x &&
+          b.y === old.before.y &&
+          JSON.stringify(b.track) === JSON.stringify(old.before.track);
+        if (portalOnly) {
+          for (const g of s.guests)
+            if (g.transit?.from === b.id && g.state !== "ride") cancelTransitDestination(s, g);
+        } else releaseBuildingGuests(s, b);
         Object.assign(b, structuredClone(old.before));
       }
     }

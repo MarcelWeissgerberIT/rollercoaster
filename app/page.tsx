@@ -1,6 +1,15 @@
 "use client";
 /* oxlint-disable next/no-img-element, react/react-compiler -- Native transparent sprite images and a mutable external simulation are intentional. */
 import ParkMenu from "@/components/park-menu";
+import {
+  podPort,
+  podSlots,
+  samePod,
+  usesPods,
+  POD_SIDES,
+  type Pod,
+  type PodRole,
+} from "@/game/pods";
 import { TrackPieceCatalog, TrackRangeMap } from "@/components/track-pieces";
 import { draftHistoryData, restoreDraftHistory } from "@/game/draft";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -67,6 +76,8 @@ import {
   tick,
   CATALOG,
   access,
+  effectivePods,
+  ensurePods,
   accessNeighbors,
   exitPath,
   exitNetwork,
@@ -81,10 +92,19 @@ import {
   type Point,
   type Building,
 } from "@/game/simulation";
-import { hitBuildingAt, draw, loadSprites, projection, type View } from "@/game/render";
+import {
+  hitBuildingAt,
+  hitAccessPodAt,
+  draw,
+  loadSprites,
+  projection,
+  type View,
+} from "@/game/render";
 import {
   planPlacement,
   place,
+  planPod,
+  setAccessPod,
   planConnection,
   connectBuilding,
   recordEdit,
@@ -114,6 +134,13 @@ import {
   installTrackDrive,
   editableTrack,
   trackSections,
+  selectionGroups,
+  batchTrackRemovalPlan,
+  removeTrackSections,
+  type BatchRemovalPlan,
+  driveSections,
+  trackDriveGroups,
+  pickTrackSection,
   beginTrackEdit,
   cancelTrackEdit,
   trackEditWorld,
@@ -204,11 +231,26 @@ export default function Home() {
   const [coasterType, setCoasterType] = useState<CoasterType>("steel");
   const [sectionMode, setSectionMode] = useState<"remove" | "drive">("remove");
   const [drive, setDrive] = useState<TrackDrive>({ kind: "boost", speed: 60, strength: 4 });
-  const [cut, setCut] = useState<{ id: number; from: number; to: number } | null>(null);
+  const [cut, setCut] = useState<{
+    id: number;
+    from: number;
+    to: number;
+    marked?: number[];
+    anchor?: number;
+  } | null>(null);
   useEffect(() => {
     panelRef.current?.scrollTo(0, 0);
     panelRef.current?.querySelector(".panelbody")?.scrollTo(0, 0);
   }, [!!cut]);
+  const [batchPreview, setBatchPreview] = useState<{ key: string; plan: BatchRemovalPlan } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (cut && (cut.id !== selected || tool !== "select" || category !== "detail")) {
+      setCut(null);
+      setBatchPreview(null);
+    }
+  }, [cut?.id, selected, tool, category]);
   const [piece, setPiece] = useState<Piece>("straight");
   const draftHistory = useRef<Point[][]>([]);
   const [ride, setRide] = useState<{ park: Park; building: Building } | null>(null);
@@ -286,9 +328,15 @@ export default function Home() {
     point: Point;
     rotation: number;
   } | null>(null);
+  const [podEdit, setPodEdit] = useState<{ id: number; role: PodRole } | null>(null);
+  useEffect(() => {
+    if (podEdit)
+      panelRef.current?.querySelector(".pod-position-picker")?.scrollIntoView({ block: "nearest" });
+  }, [podEdit?.id, podEdit?.role]);
   const [hoverInfo, setHoverInfo] = useState<{
     id: number | null;
     tile?: Point;
+    pod?: PodRole;
     x: number;
     y: number;
   } | null>(null);
@@ -456,6 +504,7 @@ export default function Home() {
       tool !== "select" &&
       tool !== "move" &&
       tool !== "station" &&
+      !tool.startsWith("pod-") &&
       hoverTile &&
       (tool !== "coaster" || blueprintMode)
         ? planPlacement(
@@ -628,6 +677,9 @@ export default function Home() {
   const pickTool = useCallback(
     (t: string, cat?: string) => {
       setTool(t);
+      setCut(null);
+      setBatchPreview(null);
+      setPodEdit(null);
       setSelected(null);
       if (cat) setCategory(cat);
 
@@ -639,9 +691,9 @@ export default function Home() {
             : t === "coaster"
               ? "Wähle einen Bahntyp. Unter Fertigteile findest du Looping, Kurven, Hügel und Steigungen."
               : t === "queue"
-                ? "Blau = Eingang. Verbinde die Warteschlange mit der Attraktion und einem Parkweg."
+                ? "Blau = Eingang. Verbinde das Feld vor dem blauen Eingangspod mit einem Parkweg."
                 : t === "exit"
-                  ? "Rot = Ausgang. Ziehe von einer anderen Seite der Attraktion bis zum beigen Parkweg. Pfeile zeigen die Laufrichtung."
+                  ? "Rot = Ausgang. Ziehe vom Feld vor dem roten Ausgangspod bis zum beigen Parkweg. Pfeile zeigen die Laufrichtung."
                   : t === "path"
                     ? "Klicke oder ziehe, um deinen Park mit Wegen zu verbinden."
                     : CATALOG[t as Kind]
@@ -734,6 +786,7 @@ export default function Home() {
   };
   const completeBuild = (id: number, kind: Kind, repeat = false) => {
     const built = park.current!.buildings.find((b) => b.id === id)!;
+    ensurePods(park.current!, built);
     if (kind === "coaster") {
       built.testing = rideDuration(built);
       built.testDuration = built.testing;
@@ -756,6 +809,8 @@ export default function Home() {
   const startAdjustment = (mode: "station" | "move", point?: Point) => {
     const b = park.current?.buildings.find((b) => b.id === selected);
     if (!b) return;
+    setCut(null);
+    setPodEdit(null);
     setAdjust({ id: b.id, mode, point: point ?? { x: b.x, y: b.y }, rotation: 0 });
     setTool(mode);
     setHoverTile(null);
@@ -770,9 +825,56 @@ export default function Home() {
     setTool("select");
     view.current.connection = undefined;
   };
-  const act = (p: Point, repeat = false, hitId?: number | null) => {
+  const applyPod = (building: Building, role: PodRole, pod: Pod) =>
+    edit("Pod versetzen", () => {
+      const live = park.current!.buildings.find((b) => b.id === building.id)!;
+      const error = setAccessPod(park.current!, live, role, pod, autoClear);
+      notify(
+        error ??
+          `${role === "entry" ? "Eingangs" : "Ausgangs"}pod versetzt. Verbinde das Feld vor dem Pod mit einem ${role === "entry" ? "blauen Eingangsweg" : "roten Ausgangsweg"}.`,
+      );
+      if (!error) {
+        setPodEdit(null);
+        setTool("select");
+        setWorldRevision((v) => v + 1);
+      }
+    });
+  const beginPod = (building: Building, role: PodRole) => {
+    setPodEdit({ id: building.id, role });
+    setCut(null);
+    setAdjust(null);
+    setTool(`pod-${role}`);
+    setMenuOpen(false);
+    notify(
+      "Wähle ein markiertes Anschlussfeld am Rand. Der Pod sitzt zwischen Attraktion und Weg.",
+    );
+  };
+  const act = (p: Point, repeat = false, hitId?: number | null, hitPod?: PodRole) => {
     const s = park.current;
     if (!s) return;
+    if (podEdit && tool.startsWith("pod-")) {
+      const building = s.buildings.find((b) => b.id === podEdit.id);
+      if (!building) return;
+      const slot = podSlots(CATALOG[building.kind].size).find((slot) => {
+        const q = podPort(building, CATALOG[building.kind].size, slot);
+        return q.x === p.x && q.y === p.y;
+      });
+      if (!slot) {
+        notify("Klicke auf ein markiertes Anschlussfeld neben der Attraktion.");
+        return;
+      }
+      applyPod(building, podEdit.role, slot);
+      return;
+    }
+    if (hitPod && (tool === "select" || tool === "erase")) {
+      const building = s.buildings.find((b) => b.id === hitId);
+      if (building) {
+        setSelected(building.id);
+        setCategory("detail");
+        beginPod(building, hitPod);
+        return;
+      }
+    }
     if (tool === "erase") {
       const target = s.buildings.find((b) => b.id === hitId) ?? occupant(s, p.x, p.y);
       if (target?.kind === "coaster") {
@@ -950,14 +1052,29 @@ export default function Home() {
   };
   const b = snapshot?.buildings.find((b) => b.id === selected);
   const cutTrack = useMemo(() => (b?.kind === "coaster" ? editableTrack(b) : []), [b?.track]);
-  const sections = useMemo(() => trackSections(cutTrack), [cutTrack]);
+  const sections = useMemo(
+    () => (sectionMode === "drive" ? driveSections(cutTrack) : trackSections(cutTrack)),
+    [cutTrack, sectionMode],
+  );
+  const driveGroups = useMemo(() => (b ? trackDriveGroups(b) : []), [b?.track]);
+  const marked =
+    cut && sectionMode === "remove"
+      ? (cut.marked ?? Array.from({ length: cut.to - cut.from + 1 }, (_, i) => cut.from + i))
+      : [];
+  const markedGroups = selectionGroups(marked, sections.length) ?? [];
+  const removalKey = JSON.stringify([cut, autoClear, b?.track, worldRevision]);
+  const removalPreview = batchPreview?.key === removalKey ? batchPreview.plan : null;
   useEffect(() => {
     view.current.cutColor = sectionMode === "drive" ? "#43d9d2" : "#ff634d";
-    view.current.trackCut =
+    view.current.trackCuts =
       cut && cut.id === b?.id
-        ? cutTrack.slice(sections[cut.from]?.start ?? 0, (sections[cut.to]?.end ?? 0) + 1)
+        ? (sectionMode === "drive" ? [{ from: cut.from, to: cut.to }] : markedGroups).map((group) =>
+            cutTrack.slice(sections[group.from]?.start ?? 0, (sections[group.to]?.end ?? 0) + 1),
+          )
         : undefined;
-  }, [cut, cutTrack, sections, b?.id, sectionMode]);
+    view.current.cutConnections =
+      removalPreview && !removalPreview.error ? removalPreview.connections : undefined;
+  }, [cut, cutTrack, sections, b?.id, sectionMode, removalPreview]);
   const resumeEdit = () => {
     const s = park.current;
     if (!s?.trackEdit) return;
@@ -976,7 +1093,9 @@ export default function Home() {
     setCategory("detail");
     setMenuOpen(false);
     setSectionMode("remove");
-    setCut({ id: building.id, from: 0, to: 0 });
+    setCut({ id: building.id, from: 0, to: 0, marked: [] });
+    setBatchPreview(null);
+    setPodEdit(null);
     setTool("select");
   };
   const chooseAnotherRange = () => {
@@ -1007,20 +1126,93 @@ export default function Home() {
     focus2D(s.trackEdit!.prefix);
     notify("Lücke vergrößert. Das gewählte Fertigteil wird am neuen Anschluss angezeigt.");
   };
+  const selectedDriveKey = JSON.stringify(cutTrack[sections[cut?.from ?? -1]?.start]?.drive);
   useEffect(() => {
     if (sectionMode === "drive" && cut) {
       const existing = cutTrack[sections[cut.from]?.start]?.drive;
       if (existing) setDrive({ ...existing });
     }
-  }, [cut?.id, cut?.from, cut?.to, sectionMode]);
-  const modulePlan = b && cut ? trackDrivePlan(b, cut.from, cut.to, drive) : null;
-  const removeModulePlan = b && cut ? trackDrivePlan(b, cut.from, cut.to, null) : null;
-  const mountDrive = (value: TrackDrive | null) => {
+  }, [cut?.id, cut?.from, cut?.to, sectionMode, selectedDriveKey]);
+  const selectRange = (index: number, extend: boolean, addOnly = false) => {
+    if (!b || !cut || index < 0 || index >= sections.length) return;
+    setCut((current) => {
+      if (!current || current.id !== b.id) return current;
+      if (sectionMode === "drive") {
+        const group = !extend
+          ? driveGroups.find((g) => g.from <= index && g.to >= index)
+          : undefined;
+        return {
+          id: b.id,
+          from: extend ? Math.min(current.from, index) : (group?.from ?? index),
+          to: extend ? Math.max(current.to, index) : (group?.to ?? index),
+        };
+      }
+      const indices = new Set(current.marked ?? []);
+      if (extend) {
+        const anchor = current.anchor ?? index;
+        for (let i = Math.min(anchor, index); i <= Math.max(anchor, index); i++) indices.add(i);
+      } else if (indices.has(index) && !addOnly) indices.delete(index);
+      else indices.add(index);
+      const sorted = [...indices].sort((a, b) => a - b);
+      return {
+        ...current,
+        marked: sorted,
+        anchor: index,
+        from: sorted[0] ?? 0,
+        to: sorted.at(-1) ?? 0,
+      };
+    });
+  };
+  const setContiguousRange = (from: number, to: number) => {
+    if (!cut) return;
+    setCut({
+      ...cut,
+      from,
+      to,
+      anchor: from,
+      marked:
+        sectionMode === "remove"
+          ? Array.from({ length: to - from + 1 }, (_, i) => from + i)
+          : undefined,
+    });
+  };
+  const previewRemoval = () => {
     const s = park.current,
-      live = s?.buildings.find((b) => b.id === cut?.id);
-    if (!s || !live || !cut) return;
+      live = s?.buildings.find((x) => x.id === cut?.id);
+    if (!s || !live) return;
+    setBatchPreview({ key: removalKey, plan: batchTrackRemovalPlan(s, live, marked, autoClear) });
+  };
+  const commitRemoval = () => {
+    const s = park.current,
+      live = s?.buildings.find((x) => x.id === cut?.id);
+    if (!s || !live || !removalPreview || removalPreview.error) return;
+    edit("Mehrere Gleisteile entfernen", () => {
+      const error = removeTrackSections(s, live, marked, autoClear);
+      if (error) {
+        notify(error);
+        setBatchPreview(null);
+        return;
+      }
+      notify(
+        `${marked.length} Gleisteile entfernt und ${markedGroups.length} Lücken verbunden. Teste die Bahn vor dem Öffnen.`,
+      );
+      setCut(null);
+      setBatchPreview(null);
+    });
+  };
+  useEffect(() => {
+    view.current.podEdit = podEdit ? { ...podEdit, clear: autoClear } : undefined;
+  }, [podEdit, autoClear]);
+  const modulePlan =
+    b && cut && sectionMode === "drive" ? trackDrivePlan(b, cut.from, cut.to, drive) : null;
+  const removeModulePlan =
+    b && cut && sectionMode === "drive" ? trackDrivePlan(b, cut.from, cut.to, null) : null;
+  const mountDrive = (value: TrackDrive | null, range = cut) => {
+    const s = park.current,
+      live = s?.buildings.find((b) => b.id === range?.id);
+    if (!s || !live || !range) return;
     edit(value ? "Streckenmodul" : "Modul entfernen", () => {
-      const error = installTrackDrive(s, live, cut.from, cut.to, value);
+      const error = installTrackDrive(s, live, range.from, range.to, value);
       notify(
         error ??
           (value
@@ -1033,8 +1225,8 @@ export default function Home() {
   const removeSections = () => {
     const s = park.current,
       live = s?.buildings.find((b) => b.id === cut?.id);
-    if (!s || !live || !cut) return;
-    const error = beginTrackEdit(s, live, cut.from, cut.to);
+    if (!s || !live || !cut || markedGroups.length !== 1) return;
+    const error = beginTrackEdit(s, live, markedGroups[0].from, markedGroups[0].to);
     if (error) {
       notify(error);
       return;
@@ -1185,7 +1377,12 @@ export default function Home() {
               px: view.current.panX,
               py: view.current.panY,
               moved: false,
-              pan: e.button === 2 || e.button === 1 || e.altKey || tool === "select",
+              pan:
+                e.button === 2 ||
+                e.button === 1 ||
+                e.altKey ||
+                (tool === "select" &&
+                  !(cut?.id === selected && category === "detail" && sectionMode === "remove")),
               tile: tileAt(e),
             };
             if (
@@ -1199,6 +1396,7 @@ export default function Home() {
                 tileAt(e),
                 false,
                 hitBuildingAt(view.current, e.clientX - rect.left, e.clientY - rect.top),
+                hitAccessPodAt(view.current, e.clientX - rect.left, e.clientY - rect.top),
               );
             }
           }}
@@ -1219,6 +1417,7 @@ export default function Home() {
                 ? {
                     id: hit ?? null,
                     tile: hit == null ? p : undefined,
+                    pod: hitAccessPodAt(view.current, px, py),
                     x: Math.min(rect.width - 224, px + 18),
                     y: Math.min(rect.height - 80, py + 18),
                   }
@@ -1239,6 +1438,24 @@ export default function Home() {
                 cameraTarget.current = null;
                 view.current.panX = d.px + dx;
                 view.current.panY = d.py + dy;
+              } else if (
+                d.moved &&
+                cut &&
+                cut.id === b?.id &&
+                category === "detail" &&
+                sectionMode === "remove"
+              ) {
+                const { project } = projection(rect.width, rect.height, view.current);
+                const index = pickTrackSection(cutTrack, sections, { x: px, y: py }, project, 18);
+                if (index >= 0) selectRange(index, false, true);
+                const start = pickTrackSection(
+                  cutTrack,
+                  sections,
+                  { x: d.x - rect.left, y: d.y - rect.top },
+                  project,
+                  18,
+                );
+                if (start >= 0) selectRange(start, false, true);
               } else if (d.moved && ["path", "queue", "exit", "water", "erase"].includes(tool)) {
                 const last = { ...d.tile };
                 while (last.x !== p.x || last.y !== p.y) {
@@ -1257,6 +1474,7 @@ export default function Home() {
             if (
               d &&
               !d.moved &&
+              !e.altKey &&
               e.button === 0 &&
               !["path", "queue", "exit", "water", "erase"].includes(tool)
             ) {
@@ -1265,30 +1483,15 @@ export default function Home() {
                   { project } = projection(rect.width, rect.height, view.current),
                   x = e.clientX - rect.left,
                   y = e.clientY - rect.top;
-                let index = 0,
-                  best = 35;
-                sections.forEach((part, i) => {
-                  for (const point of cutTrack.slice(part.start, part.end + 1)) {
-                    const p = project(point.x, point.y, point.z);
-                    const d = Math.hypot(x - p.x, y - p.y);
-                    if (d < best) {
-                      best = d;
-                      index = i;
-                    }
-                  }
-                });
-                if (best < 35)
-                  setCut({
-                    id: b.id,
-                    from: e.shiftKey ? Math.min(cut.from, index) : index,
-                    to: e.shiftKey ? Math.max(cut.to, index) : index,
-                  });
+                const index = pickTrackSection(cutTrack, sections, { x, y }, project);
+                if (index >= 0) selectRange(index, e.shiftKey);
               } else {
                 const rect = e.currentTarget.getBoundingClientRect();
                 act(
                   tileAt(e),
                   e.shiftKey,
                   hitBuildingAt(view.current, e.clientX - rect.left, e.clientY - rect.top),
+                  hitAccessPodAt(view.current, e.clientX - rect.left, e.clientY - rect.top),
                 );
               }
             }
@@ -1324,7 +1527,11 @@ export default function Home() {
                 style={{ left: hoverInfo.x, top: hoverInfo.y }}
                 role="tooltip"
               >
-                <strong>{object.name}</strong>
+                <strong>
+                  {hoverInfo.pod
+                    ? `${hoverInfo.pod === "entry" ? "Eingangs" : "Ausgangs"}pod · ${object.name}`
+                    : object.name}
+                </strong>
                 <span>
                   {CATALOG[object.kind].name}
                   {object.kind === "coaster"
@@ -1426,7 +1633,7 @@ export default function Home() {
         {category && category !== "erase" && category !== "select" && (
           <aside
             ref={panelRef}
-            className={`panel ${category === "coaster" ? "builder-panel" : ""} ${cut?.id === selected ? "editing-section" : ""}`}
+            className={`panel ${category === "coaster" ? "builder-panel" : ""} ${cut?.id === selected ? "editing-section" : ""} ${podEdit?.id === selected ? "pod-editing" : ""}`}
             aria-label="Bauauswahl"
           >
             <div className="panelhead">
@@ -1451,6 +1658,9 @@ export default function Home() {
                 onClick={() => {
                   setCategory("");
                   setTool("select");
+                  setCut(null);
+                  setPodEdit(null);
+                  setAdjust(null);
                 }}
               >
                 <X />
@@ -1572,14 +1782,14 @@ export default function Home() {
                     </span>
                   </button>
                   <p className="small">
-                    Klicke oder ziehe. Blau führt zur Attraktion, Rot von einer anderen Seite zurück
-                    auf einen beigen Parkweg. Pfeile auf Rot zeigen den Ausgang; ein Kreuz bedeutet,
-                    dass der Anschluss fehlt.
+                    Klicke oder ziehe. Blau verbindet das Feld vor dem Eingangspod, Rot das Feld vor
+                    dem Ausgangspod mit einem beigen Parkweg. Pfeile zeigen den Ausgang; ein Kreuz
+                    bedeutet, dass der Anschluss fehlt.
                   </p>
                   <div className="empty-note">
-                    Bei Achterbahnen beide Wege neben die Station setzen. Blaue Wege bieten vier
-                    Warteplätze pro Feld. Rote Wege sind nur zum Aussteigen. Ohne fertigen Ausgang
-                    nutzen Gäste weiterhin den bisherigen Zugang.
+                    Die Pod-Häuschen versetzt du in der Attraktionsverwaltung. Blaue Wege bieten
+                    vier Warteplätze pro Feld. Rote Wege sind nur zum Aussteigen. Ohne fertigen
+                    Ausgang nutzen Gäste weiterhin den bisherigen Zugang.
                   </div>
                   {catalog(["train", "shuttle"])}
                   <p className="small">
@@ -2116,65 +2326,106 @@ export default function Home() {
                               <p className="small">
                                 {sectionMode === "drive"
                                   ? "Wähle einen Gleisbereich. Beschleuniger sind türkis, Bremsen orange markiert."
-                                  : "Klicke auf die Schiene oder wähle den Bereich. Rot markierte Teile werden entfernt; die Station bleibt."}
+                                  : "Mehrfachauswahl: Klicken markiert oder löst ein Teil. Ziehen über die Bahn markiert mehrere; Umschalt + Klick ergänzt einen Bereich. Rechts ziehen verschiebt die Kamera."}
                               </p>
                               <TrackRangeMap
                                 track={cutTrack}
+                                sections={sections}
+                                selected={sectionMode === "remove" ? marked : undefined}
                                 from={cut.from}
                                 to={cut.to}
                                 color={sectionMode === "drive" ? "#35bcb5" : "#e35c42"}
-                                onSelect={(index, extend) =>
-                                  setCut({
-                                    id: b.id,
-                                    from: extend ? Math.min(cut.from, index) : index,
-                                    to: extend ? Math.max(cut.to, index) : index,
-                                  })
-                                }
+                                onSelect={selectRange}
                               />
-                              <label>
-                                Von Abschnitt
-                                <select
-                                  aria-label="Erster ausgewählter Abschnitt"
-                                  value={cut.from}
-                                  onChange={(e) =>
-                                    setCut({
-                                      ...cut,
-                                      from: +e.target.value,
-                                      to: Math.max(cut.to, +e.target.value),
-                                    })
-                                  }
-                                >
-                                  {sections.map((part, i) => (
-                                    <option key={i} value={i}>
-                                      {i + 1} · {part.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </label>
-                              <label>
-                                Bis Abschnitt
-                                <select
-                                  aria-label="Letzter ausgewählter Abschnitt"
-                                  value={cut.to}
-                                  onChange={(e) => setCut({ ...cut, to: +e.target.value })}
-                                >
-                                  {sections.map(
-                                    (part, i) =>
-                                      i >= cut.from && (
-                                        <option key={i} value={i}>
-                                          {i + 1} · {part.label}
-                                        </option>
-                                      ),
-                                  )}
-                                </select>
-                              </label>
+                              {sectionMode === "remove" && (
+                                <div className="selection-summary">
+                                  <strong aria-live="polite">
+                                    {marked.length}{" "}
+                                    {marked.length === 1 ? "Teil markiert" : "Teile markiert"} ·{" "}
+                                    {markedGroups.length}{" "}
+                                    {markedGroups.length === 1 ? "Bereich" : "Bereiche"}
+                                  </strong>
+                                  <button
+                                    className="secondary"
+                                    disabled={!marked.length}
+                                    onClick={() =>
+                                      setCut({
+                                        ...cut,
+                                        marked: [],
+                                        from: 0,
+                                        to: 0,
+                                        anchor: undefined,
+                                      })
+                                    }
+                                  >
+                                    Auswahl leeren
+                                  </button>
+                                </div>
+                              )}
+                              <details className="range-details">
+                                <summary>Abschnitte gezielt auswählen</summary>
+                                <label>
+                                  Von Abschnitt
+                                  <select
+                                    aria-label="Erster ausgewählter Abschnitt"
+                                    value={cut.from}
+                                    onChange={(e) =>
+                                      setContiguousRange(
+                                        +e.target.value,
+                                        Math.max(cut.to, +e.target.value),
+                                      )
+                                    }
+                                  >
+                                    {sections.map((part, i) => (
+                                      <option key={i} value={i}>
+                                        {i + 1} · {part.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label>
+                                  Bis Abschnitt
+                                  <select
+                                    aria-label="Letzter ausgewählter Abschnitt"
+                                    value={cut.to}
+                                    onChange={(e) => setContiguousRange(cut.from, +e.target.value)}
+                                  >
+                                    {sections.map(
+                                      (part, i) =>
+                                        i >= cut.from && (
+                                          <option key={i} value={i}>
+                                            {i + 1} · {part.label}
+                                          </option>
+                                        ),
+                                    )}
+                                  </select>
+                                </label>
+                                {sectionMode === "remove" && (
+                                  <div className="section-checklist">
+                                    {sections.map((part, i) => (
+                                      <label key={i}>
+                                        <input
+                                          type="checkbox"
+                                          checked={marked.includes(i)}
+                                          onChange={() => selectRange(i, false)}
+                                        />
+                                        {i + 1} · {part.label}
+                                      </label>
+                                    ))}
+                                  </div>
+                                )}
+                              </details>
                               {sectionMode === "drive" ? (
                                 <>
                                   <div className="build-modes">
                                     <button
                                       className={drive.kind === "boost" ? "active" : ""}
                                       onClick={() =>
-                                        setDrive({ ...drive, kind: "boost", speed: 60 })
+                                        setDrive({
+                                          ...drive,
+                                          kind: "boost",
+                                          speed: drive.kind === "boost" ? drive.speed : 60,
+                                        })
                                       }
                                     >
                                       <Zap size={16} /> Beschleuniger
@@ -2182,7 +2433,11 @@ export default function Home() {
                                     <button
                                       className={drive.kind === "brake" ? "active" : ""}
                                       onClick={() =>
-                                        setDrive({ ...drive, kind: "brake", speed: 15 })
+                                        setDrive({
+                                          ...drive,
+                                          kind: "brake",
+                                          speed: drive.kind === "brake" ? drive.speed : 15,
+                                        })
                                       }
                                     >
                                       <OctagonPause size={16} /> Bremse
@@ -2235,7 +2490,10 @@ export default function Home() {
                                     }
                                     onClick={() => mountDrive(drive)}
                                   >
-                                    Modul montieren · {EUR(modulePlan?.cost ?? 0)}
+                                    {removeModulePlan?.changed
+                                      ? "Änderungen übernehmen"
+                                      : "Modul montieren"}{" "}
+                                    · {EUR(modulePlan?.cost ?? 0)}
                                   </button>
                                   <button
                                     className="secondary"
@@ -2248,13 +2506,65 @@ export default function Home() {
                               ) : (
                                 <>
                                   <p className="small">
-                                    Danach öffnet sich der Fertigteil-Katalog mit Looping, Kurven,
-                                    Hügel und Steigungen. Die Station bleibt erhalten.
+                                    Rot: zu entfernende Teile. Die Vorschau zeigt neue Verbindungen
+                                    in Türkis. Nicht markierte Gleise und die Station bleiben
+                                    erhalten.
                                   </p>
-                                  <button className="primary cut-confirm" onClick={removeSections}>
-                                    <Eraser size={16} /> {cut.to - cut.from + 1} Abschnitt
-                                    {cut.to > cut.from ? "e" : ""} entfernen
+                                  <button
+                                    className="primary"
+                                    disabled={!marked.length}
+                                    onClick={previewRemoval}
+                                  >
+                                    Verbindungen vorschauen
                                   </button>
+                                  {removalPreview && (
+                                    <div
+                                      className={`removal-preview ${removalPreview.error ? "error" : ""}`}
+                                      role="status"
+                                    >
+                                      {removalPreview.error ? (
+                                        <p>{removalPreview.error}</p>
+                                      ) : (
+                                        <>
+                                          <strong>
+                                            {marked.length}{" "}
+                                            {marked.length === 1
+                                              ? "Teil entfernen"
+                                              : "Teile entfernen"}{" "}
+                                            · {EUR(removalPreview.cost)}
+                                          </strong>
+                                          <p>
+                                            {markedGroups.length}{" "}
+                                            {markedGroups.length === 1
+                                              ? "Lücke wird"
+                                              : "Lücken werden"}{" "}
+                                            mit neuen Gleisen geschlossen. Gerade Verbindungen
+                                            können dem bisherigen Verlauf entsprechen.
+                                          </p>
+                                          <button
+                                            className="primary cut-confirm"
+                                            disabled={removalPreview.cost > snapshot.cash}
+                                            onClick={commitRemoval}
+                                          >
+                                            <Eraser size={16} /> Entfernen & Lücken verbinden
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  )}
+                                  <button
+                                    className="secondary"
+                                    disabled={markedGroups.length !== 1}
+                                    onClick={removeSections}
+                                  >
+                                    Auswahl durch Fertigteile ersetzen
+                                  </button>
+                                  {markedGroups.length > 1 && (
+                                    <p className="small">
+                                      Für Loopings oder andere Fertigteile wählst du einen
+                                      zusammenhängenden Bereich.
+                                    </p>
+                                  )}
                                 </>
                               )}
                               <button className="secondary" onClick={() => setCut(null)}>
@@ -2272,8 +2582,12 @@ export default function Home() {
                                   setSectionMode("drive");
                                   setCut({
                                     id: b.id,
-                                    from: Math.min(1, sections.length - 1),
-                                    to: Math.min(1, sections.length - 1),
+                                    from:
+                                      driveGroups[0]?.from ??
+                                      Math.min(1, driveSections(cutTrack).length - 1),
+                                    to:
+                                      driveGroups[0]?.to ??
+                                      Math.min(1, driveSections(cutTrack).length - 1),
                                   });
                                   setTool("select");
                                 }}
@@ -2282,6 +2596,52 @@ export default function Home() {
                               </button>
                             </>
                           )}
+                        </div>
+                      )}
+                      {b.kind === "coaster" && !snapshot.trackEdit && !cut && (
+                        <div className="module-list">
+                          <h3>Montierte Module · {driveGroups.length}</h3>
+                          {!driveGroups.length && (
+                            <p className="small">
+                              Noch keine Module montiert. Unter „Beschleuniger & Bremsen“ wählst du
+                              ein Gleisstück.
+                            </p>
+                          )}
+                          {driveGroups.map((group, i) => (
+                            <div
+                              className={`module-card ${group.drive.kind}`}
+                              key={`${group.from}-${group.to}`}
+                            >
+                              <strong>
+                                {group.drive.kind === "boost" ? "Beschleuniger" : "Bremse"} {i + 1}
+                              </strong>
+                              <span>
+                                {group.drive.speed} km/h · {group.drive.strength} m/s² ·{" "}
+                                {Math.round(group.length)} m
+                              </span>
+                              <div>
+                                <button
+                                  className="secondary"
+                                  onClick={() => {
+                                    setSectionMode("drive");
+                                    setDrive({ ...group.drive });
+                                    setCut({ id: b.id, from: group.from, to: group.to });
+                                    setTool("select");
+                                  }}
+                                >
+                                  Bearbeiten
+                                </button>
+                                <button
+                                  className="secondary"
+                                  onClick={() =>
+                                    mountDrive(null, { id: b.id, from: group.from, to: group.to })
+                                  }
+                                >
+                                  Entfernen
+                                </button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
                       <div className="adjust-actions">
@@ -2309,38 +2669,109 @@ export default function Home() {
                           Warteschlange schafft mehr Platz.
                         </p>
                       )}
-                      {!decorative(b.kind) &&
+                      {usesPods(b.kind) &&
                         (() => {
+                          const pods = effectivePods(snapshot, b),
+                            size = CATALOG[b.kind].size;
                           const outgoing = exitPath(snapshot, b);
-                          const unfinished = accessNeighbors(b).some(
-                            (p) => snapshot.tiles[p.y]?.[p.x] === "exit",
-                          );
                           return (
-                            <div className="access-status">
-                              <span className="entrance">
-                                <LogIn size={15} /> Eingang:{" "}
-                                {reachable ? "verbunden" : "Anschluss fehlt"}
-                              </span>
-                              <span className="exit">
-                                <LogOut size={15} /> Ausgang:{" "}
-                                {outgoing.length
-                                  ? `verbunden · ${outgoing.length - 1} rote Felder`
-                                  : unfinished
-                                    ? "Parkweg fehlt"
-                                    : "über den bisherigen Zugang"}
-                              </span>
-                              {unfinished && !outgoing.length && (
-                                <small>
-                                  Rot bis zum verbundenen beigen Parkweg weiterbauen. Bis dahin
-                                  bleibt der bisherige Zugang nutzbar.
-                                </small>
+                            <div className="pod-controls">
+                              <h3>Ein- & Ausgangspods</h3>
+                              <p className="small">
+                                Die Häuschen sitzen am Rand. Verbinde das Feld direkt vor dem blauen
+                                Pod mit dem Eingangsweg und vor dem roten Pod mit dem Ausgangsweg.
+                              </p>
+                              {(["entry", "exit"] as const).map((role) => {
+                                const pod = pods[role],
+                                  port = podPort(b, size, pod),
+                                  ok = role === "entry" ? !!reachable : !!outgoing.length;
+                                return (
+                                  <div className={`pod-card ${role}`} key={role}>
+                                    <strong>
+                                      {role === "entry" ? (
+                                        <LogIn size={17} />
+                                      ) : (
+                                        <LogOut size={17} />
+                                      )}{" "}
+                                      {role === "entry" ? "Eingangspod" : "Ausgangspod"}
+                                    </strong>
+                                    <span>
+                                      {POD_SIDES[pod.side]} {size > 1 ? pod.offset + 1 : ""} ·
+                                      Anschluss ({port.x}, {port.y})
+                                    </span>
+                                    <small>
+                                      {ok
+                                        ? "Weg verbunden"
+                                        : role === "entry"
+                                          ? "Eingangsweg fehlt"
+                                          : "Ausgangsweg fehlt · bisheriger Zugang bleibt nutzbar"}
+                                    </small>
+                                    <div>
+                                      <button
+                                        className="secondary"
+                                        disabled={!!snapshot.trackEdit}
+                                        onClick={() => beginPod(b, role)}
+                                      >
+                                        Pod versetzen
+                                      </button>
+                                      <button
+                                        className="secondary"
+                                        onClick={() =>
+                                          pickTool(role === "entry" ? "queue" : "exit", "paths")
+                                        }
+                                      >
+                                        Weg bauen
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {podEdit?.id === b.id && (
+                                <div className="pod-position-picker">
+                                  <strong>
+                                    {podEdit.role === "entry" ? "Eingangs" : "Ausgangs"}pod
+                                    platzieren
+                                  </strong>
+                                  <p className="small">
+                                    Klicke ein markiertes Anschlussfeld im Park oder wähle hier eine
+                                    Randposition.
+                                  </p>
+                                  <div className="pod-slot-grid">
+                                    {podSlots(size).map((slot) => {
+                                      const plan = planPod(
+                                          snapshot,
+                                          b,
+                                          podEdit.role,
+                                          slot,
+                                          autoClear,
+                                        ),
+                                        port = podPort(b, size, slot);
+                                      return (
+                                        <button
+                                          key={`${slot.side}-${slot.offset}`}
+                                          className={
+                                            samePod(slot, pods[podEdit.role]) ? "active" : ""
+                                          }
+                                          disabled={!!plan.error}
+                                          title={plan.error ?? `Anschluss (${port.x}, ${port.y})`}
+                                          onClick={() => applyPod(b, podEdit.role, slot)}
+                                        >
+                                          {POD_SIDES[slot.side]} {size > 1 ? slot.offset + 1 : ""}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  <button
+                                    className="secondary"
+                                    onClick={() => {
+                                      setPodEdit(null);
+                                      setTool("select");
+                                    }}
+                                  >
+                                    Platzierung abbrechen
+                                  </button>
+                                </div>
                               )}
-                              <button
-                                className="secondary"
-                                onClick={() => pickTool("exit", "paths")}
-                              >
-                                <LogOut size={15} /> Ausgangsweg bauen
-                              </button>
                             </div>
                           );
                         })()}
@@ -2645,26 +3076,30 @@ export default function Home() {
           <div className={`build-status ${placement?.error ? "invalid" : ""}`} aria-live="polite">
             <div>
               <strong>
-                {placement?.error ??
-                  (adjust
-                    ? `${adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
-                    : placement
-                      ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? COASTER_TYPES[coasterType].name : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Eingangsweg (blau)" : tool === "exit" ? "Ausgangsweg (rot)" : "Wasser"))} · ${EUR(placement.cost)}`
-                      : "Bewege den Zeiger auf den Bauplatz")}
+                {podEdit
+                  ? `${podEdit.role === "entry" ? "Eingangs" : "Ausgangs"}pod versetzen`
+                  : (placement?.error ??
+                    (adjust
+                      ? `${adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
+                      : placement
+                        ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? COASTER_TYPES[coasterType].name : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Eingangsweg (blau)" : tool === "exit" ? "Ausgangsweg (rot)" : "Wasser"))} · ${EUR(placement.cost)}`
+                        : "Bewege den Zeiger auf den Bauplatz"))}
               </strong>
               <span>
-                {placement?.warning ??
-                  (adjust
-                    ? adjust.mode === "station"
-                      ? "Grünes Gleisfeld wählen · Klick übernimmt · Esc beendet"
-                      : "Klick übernimmt · R dreht · Esc beendet"
-                    : tool === "coaster" && blueprintMode
-                      ? "Klick baut · R dreht · Esc beendet"
-                      : ["path", "queue", "exit", "water", "erase"].includes(tool)
-                        ? "Ziehen baut mehrere Felder · Strg/⌘ Z nimmt den Bauzug zurück"
-                        : tool === "coaster"
-                          ? "Bauteil im Baufenster wählen · Klick ergänzt · Esc beendet"
-                          : "Klick baut · Shift für mehrere · Esc beendet")}
+                {podEdit
+                  ? "Farbiges Anschlussfeld am Rand wählen · Klick versetzt den Pod · Esc beendet"
+                  : (placement?.warning ??
+                    (adjust
+                      ? adjust.mode === "station"
+                        ? "Grünes Gleisfeld wählen · Klick übernimmt · Esc beendet"
+                        : "Klick übernimmt · R dreht · Esc beendet"
+                      : tool === "coaster" && blueprintMode
+                        ? "Klick baut · R dreht · Esc beendet"
+                        : ["path", "queue", "exit", "water", "erase"].includes(tool)
+                          ? "Ziehen baut mehrere Felder · Strg/⌘ Z nimmt den Bauzug zurück"
+                          : tool === "coaster"
+                            ? "Bauteil im Baufenster wählen · Klick ergänzt · Esc beendet"
+                            : "Klick baut · Shift für mehrere · Esc beendet"))}
               </span>
             </div>
             <label className="clear-toggle">

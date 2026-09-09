@@ -133,20 +133,24 @@ for (const legacy of [true, false]) {
     const { s, b } = fixture(legacy),
       old = b.track,
       prev = M.prepareRoute(old),
+      denseBefore = E.editableTrack(b),
       cash = s.cash;
     const plan = E.trackDrivePlan(b, 1, 2, drive);
     assert.equal(plan.error, null);
     assert.equal(E.installTrackDrive(s, b, 1, 2, drive), null);
     assert.equal(s.cash, cash - plan.cost);
     assert.deepEqual(
-      b.track.map(({ drive, ...p }) => p),
-      old.map(({ drive, ...p }) => p),
+      JSON.parse(JSON.stringify(b.track.map(({ drive, ...p }) => p))),
+      JSON.parse(JSON.stringify(denseBefore.map(({ drive, ...p }) => p))),
     );
     assert.deepEqual(b.track.at(-1), b.track[0]);
-    assert.deepEqual(
-      M.prepareRoute(b.track).points.map(({ drive, ...p }) => p),
-      prev.points.map(({ drive, ...p }) => p),
-    );
+    const next = M.prepareRoute(b.track);
+    assert(Math.abs(next.length - prev.length) < 1e-8);
+    for (let i = 0; i < 200; i++) {
+      const a = M.routePosition(prev, (prev.length * i) / 200),
+        p = M.routePosition(next, (next.length * i) / 200);
+      assert(Math.hypot(a.x - p.x, a.y - p.y, a.z - p.z) < 1e-8);
+    }
     assert(S.validSave(JSON.parse(JSON.stringify(s))));
     assert.equal(E.trackDrivePlan(b, 1, 2, { ...drive, speed: 10, strength: 12 }).cost, 0);
     assert.equal(E.installTrackDrive(s, b, 1, 2, null), null);

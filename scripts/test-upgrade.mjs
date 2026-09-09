@@ -58,7 +58,18 @@ test("Saved parks migrate without changing cash, geometry, guests or historical 
   assert(S.validSave(old));
   S.migratePark(old);
   assert.equal(old.cash, before.cash);
-  assert.deepEqual(old.buildings, before.buildings);
+  assert.deepEqual(
+    old.buildings.map(({ pods, ...b }) => b),
+    before.buildings.map(({ pods, ...b }) => b),
+  );
+  for (const b of old.buildings.filter((b) => b.pods))
+    assert.deepEqual(
+      S.access(old, b),
+      S.access(
+        before,
+        before.buildings.find((x) => x.id === b.id),
+      ),
+    );
   assert.deepEqual(
     old.guests.map((g) => [g.id, g.x, g.y, g.happiness]),
     before.guests.map((g) => [g.id, g.x, g.y, g.happiness]),

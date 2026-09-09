@@ -92,21 +92,29 @@ export function TrackRangeMap({
   to,
   onSelect,
   color = "#e35c42",
+  sections: suppliedSections,
+  selected,
 }: {
   track: Point[];
   from: number;
   to: number;
   onSelect: (index: number, extend: boolean) => void;
   color?: string;
+  sections?: ReturnType<typeof trackSections>;
+  selected?: number[];
 }) {
   if (track.length < 2) return null;
   const points = plot(track, 290, 150),
-    sections = trackSections(track);
+    sections = suppliedSections ?? trackSections(track);
   return (
     <svg
       viewBox="0 0 290 150"
       className="track-range-map"
-      aria-label="Gleisplan: Abschnitt anklicken, mit Umschalt den Bereich erweitern"
+      aria-label={
+        selected
+          ? "Gleisplan: Mehrfachauswahl, Klicken markiert oder löst, Umschalt ergänzt einen Bereich"
+          : "Gleisplan: Abschnitt anklicken, mit Umschalt den Bereich erweitern"
+      }
     >
       <path d={path(points)} fill="none" stroke="#d8e1ca" strokeWidth="9" strokeLinejoin="round" />
       {sections.map((part, i) => (
@@ -114,13 +122,21 @@ export function TrackRangeMap({
           key={i}
           d={path(points.slice(part.start, part.end + 1))}
           fill="none"
-          stroke={i >= from && i <= to ? color : "#37674e"}
+          stroke={
+            (selected ? selected.includes(i) : i >= from && i <= to)
+              ? color
+              : track[part.start]?.drive?.kind === "boost"
+                ? "#27b4ae"
+                : track[part.start]?.drive?.kind === "brake"
+                  ? "#e48c36"
+                  : "#37674e"
+          }
           strokeWidth="7"
           strokeLinecap="round"
           role="button"
           tabIndex={0}
           aria-label={`Abschnitt ${i + 1}: ${part.label}`}
-          aria-pressed={i >= from && i <= to}
+          aria-pressed={selected ? selected.includes(i) : i >= from && i <= to}
           onClick={(e) => onSelect(i, e.shiftKey)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {

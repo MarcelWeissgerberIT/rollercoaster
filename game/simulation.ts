@@ -1,4 +1,5 @@
 import { connected, exitNetwork, followExit, exitFromCells } from "./walkways";
+import { podPort, podSlots, samePod, usesPods, validPods, type AccessPods } from "./pods";
 export { connected, exitNetwork } from "./walkways";
 import { PARK_ENTRANCE } from "./grid";
 import { validDrive, driveCost, type TrackDrive } from "./drive";
@@ -13,6 +14,7 @@ import {
   tickTransit,
   releaseTransit,
   stopAccess,
+  stopEntrance,
   type TransitLine,
   type GuestTransit,
 } from "./transit";
@@ -80,6 +82,7 @@ export type Kind =
   | "bench";
 export type Tile = "grass" | "path" | "queue" | "exit" | "water";
 export type Building = {
+  pods?: AccessPods;
   id: number;
   kind: Kind;
   x: number;
@@ -308,6 +311,7 @@ export function migratePark(s: Park): Park {
   s.research ??= { completed: ["family", "thrill", "launch"], active: null, remaining: 0 };
   s.transitLines ??= [];
   s.landValue ??= 0;
+  for (const b of s.buildings) ensurePods(s, b);
   for (const g of s.guests) {
     g.name ??= guestName(g.id);
     g.profile ??= (["family", "thrill", "budget"] as const)[g.id % 3];
@@ -682,16 +686,82 @@ export function accessNeighbors(b: Building): Point[] {
     );
   return adjacent;
 }
+/** Old parks retain their working side; explicit pods stay fixed when nearby paths change. */
+export function effectivePods(
+  s: Park,
+  b: Building,
+  net = connected(s),
+  exits = exitNetwork(s, net),
+): AccessPods {
+  if (b.pods) return b.pods;
+  const size = CATALOG[b.kind].size,
+    slots = podSlots(size);
+  const port = (p: (typeof slots)[number]) => podPort(b, size, p);
+  const viable = (p: (typeof slots)[number]) => {
+    const q = port(p),
+      obstacle = occupant(s, q.x, q.y);
+    return (
+      inBounds(q.x, q.y, s) &&
+      s.tiles[q.y][q.x] !== "water" &&
+      (!obstacle || decorative(obstacle.kind))
+    );
+  };
+  const legacy = access(s, b, net);
+  const entry =
+    slots.find((p) => legacy && key(port(p)) === key(legacy)) ??
+    slots.find(
+      (p) => isRide(b.kind) && net.has(key(port(p))) && s.tiles[port(p).y][port(p).x] === "queue",
+    ) ??
+    slots.find((p) => net.has(key(port(p))) && s.tiles[port(p).y][port(p).x] === "path") ??
+    slots
+      .filter(viable)
+      .filter((p) => s.tiles[port(p).y][port(p).x] !== "exit")
+      .sort((a, b) => {
+        const distance = (p: typeof a) =>
+          net.size
+            ? Math.min(
+                ...[...net].map((k) => {
+                  const [x, y] = k.split(",").map(Number);
+                  return Math.abs(x - port(p).x) + Math.abs(y - port(p).y);
+                }),
+              )
+            : 0;
+        return distance(a) - distance(b);
+      })[0] ??
+    slots.find((p) => inBounds(port(p).x, port(p).y, s)) ??
+    slots[0];
+  const outgoing = exitFromCells(slots.filter((p) => !samePod(p, entry)).map(port), exits)[0];
+  const exit =
+    slots.find((p) => outgoing && key(port(p)) === key(outgoing)) ??
+    slots.find(
+      (p) => !samePod(p, entry) && viable(p) && s.tiles[port(p).y][port(p).x] !== "queue",
+    ) ??
+    slots.find((p) => !samePod(p, entry) && inBounds(port(p).x, port(p).y, s))!;
+  return { entry: { ...entry }, exit: { ...exit } };
+}
+export function ensurePods(s: Park, b: Building) {
+  if (usesPods(b.kind) && !b.pods) b.pods = effectivePods(s, b);
+}
 export function access(s: Park, b: Building, net = connected(s)) {
-  const reachable = accessNeighbors(b).filter((p) => inBounds(p.x, p.y, s) && net.has(key(p)));
+  const points =
+    usesPods(b.kind) && b.pods
+      ? [podPort(b, CATALOG[b.kind].size, b.pods.entry)]
+      : accessNeighbors(b);
+  const reachable = points.filter((p) => inBounds(p.x, p.y, s) && net.has(key(p)));
   // Prefer a dedicated queue, but a station can also board directly from a park path.
   return (
-    (isRide(b.kind) ? reachable.find((p) => s.tiles[p.y][p.x] === "queue") : undefined) ??
-    reachable.find((p) => s.tiles[p.y][p.x] === "path")
+    (isRide(b.kind) || isTransport(b.kind)
+      ? reachable.find((p) => s.tiles[p.y][p.x] === "queue")
+      : undefined) ?? reachable.find((p) => s.tiles[p.y][p.x] === "path")
   );
 }
 export function exitPath(s: Park, b: Building, net = connected(s), exits = exitNetwork(s, net)) {
-  return exitFromCells(accessNeighbors(b), exits);
+  const points =
+    usesPods(b.kind) && b.pods
+      ? [podPort(b, CATALOG[b.kind].size, b.pods.exit)]
+      : accessNeighbors(b);
+  const direct = b.pods && points.find((p) => net.has(key(p)) && s.tiles[p.y]?.[p.x] === "path");
+  return direct ? [direct] : exitFromCells(points, exits);
 }
 /** Riders use the finished exit; waiting guests and legacy parks keep their existing entrance. */
 export function leaveBuilding(
@@ -1469,7 +1539,7 @@ export function tick(s: Park, dt: number) {
     }
     if (g.transit) {
       const stop = s.buildings.find((b) => b.id === g.transit!.from);
-      const a = stop && stopAccess(s, stop);
+      const a = stop && stopEntrance(s, stop);
       if (stop?.open && a && Math.hypot(g.x - a.x, g.y - a.y) < 0.2) {
         if (!stop.queue.includes(g.id)) stop.queue.push(g.id);
         g.state = "queue";
@@ -1695,6 +1765,17 @@ export function validSave(v: unknown): v is Park {
         !b ||
         !Object.hasOwn(CATALOG, b.kind) ||
         !point(b) ||
+        (b.pods !== undefined &&
+          (!usesPods(b.kind) ||
+            !validPods(b.pods, CATALOG[b.kind].size) ||
+            Object.values(b.pods).some(
+              (p) =>
+                !inBounds(
+                  podPort(b, CATALOG[b.kind].size, p).x,
+                  podPort(b, CATALOG[b.kind].size, p).y,
+                  s,
+                ),
+            ))) ||
         (b.kind === "custom" && !validDesign(b.design)) ||
         (b.kind !== "custom" && b.design !== undefined) ||
         !Number.isInteger(b.id) ||
