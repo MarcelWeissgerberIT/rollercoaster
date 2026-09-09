@@ -45,6 +45,7 @@ import {
   welfare,
   zooAppeal,
   zooStats,
+  zooWages,
   validZoo,
   type Habitat,
   type ZooState,
@@ -2220,7 +2221,7 @@ export function tick(s: Park, dt: number) {
   if (Math.floor(s.time / 90) !== oldDay) {
     const cost =
       s.staff * 80 +
-      (s.zoo?.keepers ?? 0) * 90 +
+      zooWages(s) +
       operatorWages(s) +
       s.buildings
         .filter((b) => !decorative(b.kind))

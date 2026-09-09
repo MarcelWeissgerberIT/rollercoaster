@@ -1,3 +1,4 @@
+import zooV9Specs from "./zoo-v9-sprites.json";
 import { drawStationDirection } from "./station-direction";
 import { makeRidePath } from "./ride-path";
 import { photoHardwarePoints, isPhotoPoint } from "./coaster-photo";
@@ -8,7 +9,8 @@ import { bumperPose, balloonPose } from "./family-rides";
 import { FOOD, isFood, restPose, PATH_STYLES, pathStyleAt } from "./park-life";
 import zooSpecs from "./zoo-sprites.json";
 import { isHabitat } from "./zoo";
-import { animalPose } from "./zoo-motion";
+import { animalPose, animalSprite } from "./zoo-motion";
+import { habitatSceneryLayers } from "./zoo-canvas";
 import type { ParkIssue } from "./park-insights";
 import experienceSpecs from "./experience-sprites.json";
 import { vehicleFor, VEHICLES } from "./vehicles";
@@ -160,6 +162,7 @@ export function previewBuilding(kind: Kind, x: number, y: number): Building {
 const sprites: Record<string, HTMLImageElement> = {};
 // Every number is in logical screen pixels for a 48 × 24 ground tile.
 const specs: Record<string, SpriteSpec> = {
+  ...zooV9Specs,
   ...lifeSpecs,
   ...experienceSpecs,
   ...zooSpecs,
@@ -214,7 +217,7 @@ export function loadSprites(base = "/assets/pixel-v2") {
             resolve();
           };
           im.onerror = () => reject(Error(name));
-          im.src = `${name in lifeSpecs ? base.replace(/pixel-v2$/, "park-v8") : name in zooSpecs ? base.replace(/pixel-v2$/, "zoo-v7") : name in experienceSpecs ? base.replace(/pixel-v2$/, "experience-v6") : name in parkSpecs ? base.replace(/pixel-v2$/, "park-v5") : name in expansionSpecs ? base.replace(/pixel-v2$/, "expansion-v4") : name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
+          im.src = `${name in zooV9Specs ? base.replace(/pixel-v2$/, "zoo-v9") : name in lifeSpecs ? base.replace(/pixel-v2$/, "park-v8") : name in zooSpecs ? base.replace(/pixel-v2$/, "zoo-v7") : name in experienceSpecs ? base.replace(/pixel-v2$/, "experience-v6") : name in parkSpecs ? base.replace(/pixel-v2$/, "park-v5") : name in expansionSpecs ? base.replace(/pixel-v2$/, "expansion-v4") : name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
         }),
     ),
   );
@@ -642,78 +645,19 @@ export function draw(
     );
   };
   const habitatLayers = (b: Building, alpha = 1) => {
-    const n = CATALOG[b.kind].size,
-      layers: Array<{ depth: number; draw: () => void }> = [];
-    const corners = [
-      { x: b.x - 0.45, y: b.y - 0.45 },
-      { x: b.x + n - 0.55, y: b.y - 0.45 },
-      { x: b.x + n - 0.55, y: b.y + n - 0.55 },
-      { x: b.x - 0.45, y: b.y + n - 0.55 },
-    ];
-    layers.push({
-      depth: -100,
-      draw: () => {
-        ctx.save();
-        ctx.globalAlpha *= alpha;
-        poly(
-          corners.map((p) => project(p.x, p.y)),
-          b.kind === "penguin" ? "#c7c9b7" : b.kind === "flamingo" ? "#b7bb78" : "#afac65",
-        );
-        const water = project(b.x + n * 0.55, b.y + n * 0.45);
-        ctx.fillStyle = "#63b1bd";
-        ctx.beginPath();
-        ctx.ellipse(
-          water.x,
-          water.y,
-          n * (b.kind === "flamingo" || b.kind === "penguin" ? 10 : 4) * scale,
-          n * (b.kind === "flamingo" || b.kind === "penguin" ? 5 : 2) * scale,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        ctx.fill();
-        ctx.restore();
+    const layers = habitatSceneryLayers(b, {
+      ctx,
+      project,
+      scale,
+      alpha,
+      registerLine: (a, end) => {
+        if (hitOwner !== undefined) v.hitTargets!.push({ id: hitOwner, a, b: end });
       },
     });
-    for (let side = 0; side < 4; side++)
-      for (let i = 0; i < n; i++) {
-        const a = corners[side],
-          end = corners[(side + 1) % 4],
-          p = { x: a.x + ((end.x - a.x) * i) / n, y: a.y + ((end.y - a.y) * i) / n },
-          q = { x: a.x + ((end.x - a.x) * (i + 1)) / n, y: a.y + ((end.y - a.y) * (i + 1)) / n };
-        layers.push({
-          depth: (p.x + p.y + q.x + q.y) / 2 + 0.2,
-          draw: () => {
-            ctx.save();
-            ctx.globalAlpha *= alpha;
-            line(project(p.x, p.y), project(p.x, p.y, 0.6), "#715333", 3);
-            for (const z of [0.2, 0.48])
-              line(project(p.x, p.y, z), project(q.x, q.y, z), "#ac8250", 2);
-            ctx.restore();
-          },
-        });
-      }
-    for (const [name, x, y] of [
-      ["zoo-feeder", b.x + 0.5, b.y + 0.6],
-      ["zoo-trough", b.x + n - 1.1, b.y + 0.65],
-      ...(b.habitat?.shelter ? [["zoo-shelter", b.x + n - 1.2, b.y + 1.1]] : []),
-    ] as [string, number, number][])
-      layers.push({ depth: x + y, draw: () => frame(name, project(x, y), specs[name], alpha) });
-    if (b.habitat?.enrichment)
-      layers.push({
-        depth: b.x + b.y + n,
-        draw: () => {
-          const p = project(b.x + 1, b.y + n - 1);
-          ctx.fillStyle = "#e3aa4a";
-          ctx.beginPath();
-          ctx.arc(p.x, p.y - 4 * scale, 4 * scale, 0, Math.PI * 2);
-          ctx.fill();
-        },
-      });
     for (let i = 0; i < (b.habitat?.count ?? 0); i++) {
       const animal = animalPose(b, i, s.time),
         dir = heading(animal.dx, animal.dy),
-        name = `${b.kind}-${dir}`;
+        name = animalSprite(b.kind, i, dir);
       layers.push({
         depth: animal.x + animal.y + 0.1,
         draw: () => {
@@ -722,8 +666,8 @@ export function draw(
           ctx.beginPath();
           ctx.ellipse(p.x, p.y, 7 * scale, 3 * scale, 0, 0, Math.PI * 2);
           ctx.fill();
-          p.y -= animal.bob * 12 * scale;
-          frame(name, p, specs[name], alpha, animal.walk ? Math.sin(s.time * 3 + i) * 0.015 : 0);
+          p.y -= animal.bob * 4.8 * scale;
+          frame(name, p, specs[name], alpha);
         },
       });
     }

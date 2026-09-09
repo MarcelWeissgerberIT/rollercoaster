@@ -1,7 +1,15 @@
 /** Zoo simulation. dt is already speed-scaled; caller passes no positive dt while paused.
- * Capital/adoption and service costs are charged here. Wages (90/keeper/day) and
+ * Capital/adoption and service costs are charged here. Wages (90/keeper/day,
+ * 150/specialist/day) and
  * SPECIES.upkeep are charged ONLY by the caller's existing daily economy. */
 import type { Park, Building, Point } from "./simulation";
+import {
+  HABITAT_PROFILES,
+  SPECIALIST_ROLES,
+  type HabitatFeatureId,
+  type SpecialistRole,
+} from "./habitat-needs";
+export { SPECIALIST_ROLES, type SpecialistRole } from "./habitat-needs";
 
 export const SPECIES = {
   elephant: {
@@ -23,7 +31,8 @@ export const SPECIES = {
     adoption: 1300,
     capacity: 4,
     upkeep: 23,
-    description: "Vier Löwen mit Rückzugsmöglichkeiten und Beschäftigung.",
+    description:
+      "Ein Löwe und bis zu drei Löwinnen mit Felshöhlen, Beschäftigung und Raubtierpflege.",
     sprite: "lion-se",
   },
   panda: {
@@ -93,9 +102,12 @@ export type Habitat = {
   health: number;
   enrichment: boolean;
   shelter: boolean;
+  features?: HabitatFeatureId[];
+  safety?: { condition: number; electric: boolean; electricInstalled?: boolean };
 };
 export type Keeper = {
   id: number;
+  role?: SpecialistRole;
   x: number;
   y: number;
   homeId: number;
@@ -105,11 +117,19 @@ export type Keeper = {
   workLeft: number;
   retry: number;
 };
-export type ZooState = { keepers: number; workers: Keeper[]; nextId: number };
+export type ZooState = {
+  keepers: number;
+  workers: Keeper[];
+  nextId: number;
+  specialists?: Partial<Record<SpecialistRole, number>>;
+};
 export type ZooBuilding = Building & { habitat?: Habitat };
 export type ZooPark = Park & { zoo?: ZooState };
 export type ZooAccess = (s: Park, b: Building) => Point | null | undefined;
 export const KEEPER_WAGE = 90;
+export const ZOO_SPECIALIST_WAGE = 150;
+export const ELECTRIC_FENCE_COST = 800;
+export const HABITAT_INSPECTION_COST = 120;
 export const KEEPER_HUT_SIZE = 2;
 export const CARE_PER_ANIMAL = 8;
 export const isHabitat = (kind: string): kind is Species => Object.hasOwn(SPECIES, kind);
@@ -215,35 +235,42 @@ function reconcile(s: ZooPark, net: Set<string>, access?: ZooAccess): ZooState {
       const p = port(s, b, net, access);
       return p ? [{ b, p }] : [];
     });
-  z.workers = z.workers.slice(0, Math.max(0, Math.min(8, Math.floor(z.keepers))));
+  const roles: Array<SpecialistRole | undefined> = Array.from(
+    { length: z.keepers },
+    () => undefined,
+  );
+  for (const role of Object.keys(SPECIALIST_ROLES) as SpecialistRole[])
+    for (let i = 0; i < (z.specialists?.[role] ?? 0); i++) roles.push(role);
   if (!homes.length) {
     z.workers = [];
     return z;
   }
-  for (const w of z.workers) {
-    const home = homes.find((h) => h.b.id === w.homeId);
-    if (!home || !net.has(key(cell(w)))) {
-      const h = home ?? homes[(w.id - 1) % homes.length];
-      reset(w);
-      w.homeId = h.b.id;
-      w.x = h.p.x;
-      w.y = h.p.y;
+  const remaining = [...z.workers];
+  z.workers = roles.map((role, index) => {
+    const existing = remaining.findIndex((w) => w.role === role);
+    const w = existing >= 0 ? remaining.splice(existing, 1)[0] : undefined;
+    const home = homes.find((h) => h.b.id === w?.homeId) ?? homes[index % homes.length];
+    if (w) {
+      if (w.homeId !== home.b.id || !net.has(key(cell(w)))) {
+        reset(w);
+        w.homeId = home.b.id;
+        w.x = home.p.x;
+        w.y = home.p.y;
+      }
+      return w;
     }
-  }
-  while (z.workers.length < z.keepers) {
-    const id = z.nextId++,
-      home = homes[(id - 1) % homes.length];
-    z.workers.push({
-      id,
+    return {
+      id: z.nextId++,
+      ...(role ? { role } : {}),
       ...home.p,
       homeId: home.b.id,
       targetId: null,
       route: [],
-      mode: "idle",
+      mode: "idle" as const,
       workLeft: 0,
       retry: 0,
-    });
-  }
+    };
+  });
   return z;
 }
 /** Missing legacy state is optional and initializes empty; new habitats contain no animals. */
@@ -255,22 +282,23 @@ export function welfare(b: Building): number {
   if (!isHabitat(b.kind) || !h?.count) return 100;
   return Math.round(
     cap(
-      h.food * 0.2 +
-        h.water * 0.2 +
-        h.clean * 0.16 +
-        h.health * 0.32 +
-        (h.enrichment ? 6 : 0) +
-        (h.shelter ? 6 : 0),
+      h.food * 0.19 +
+        h.water * 0.19 +
+        h.clean * 0.15 +
+        h.health * 0.27 +
+        (20 * HABITAT_PROFILES[b.kind].features.filter((f) => habitatHasFeature(b, f.id)).length) /
+          HABITAT_PROFILES[b.kind].features.length,
     ),
   );
 }
 export function zooAppeal(b: Building, guestProfile?: Park["guests"][number]["profile"]): number {
   const h = (b as ZooBuilding).habitat;
-  if (!isHabitat(b.kind) || !h?.count || h.health < 30) return 0;
+  if (!isHabitat(b.kind) || !h?.count || h.health < 30 || habitatSafety(b).status === "closed")
+    return 0;
   return Math.max(
     0,
     ((3.8 +
-      (2 * h.count) / SPECIES[b.kind].capacity +
+      (b.kind === "panda" ? 1 : (2 * h.count) / SPECIES[b.kind].capacity) +
       (guestProfile === "family" ? 1.8 : guestProfile === "thrill" ? -0.6 : 0.5)) *
       welfare(b)) /
       100,
@@ -290,14 +318,174 @@ export function zooStats(s: Park, access?: ZooAccess) {
     healthyOpen: new Set(
       occupied
         .filter(
-          (b) => b.open && b.habitat!.health >= 55 && welfare(b) >= 55 && port(s, b, net, access),
+          (b) =>
+            b.open &&
+            b.habitat!.health >= 55 &&
+            welfare(b) >= 55 &&
+            habitatSafety(b).status !== "closed" &&
+            port(s, b, net, access),
         )
         .map((b) => b.kind),
     ).size,
     habitats: list.length,
     keepers: (s as ZooPark).zoo?.keepers ?? 0,
+    specialists: Object.values((s as ZooPark).zoo?.specialists ?? {}).reduce((a, n) => a + n, 0),
+    unsafe: occupied.filter((b) => habitatSafety(b).status !== "safe").length,
     working: (s as ZooPark).zoo?.workers.filter((w) => w.mode !== "idle").length ?? 0,
   };
+}
+/** Legacy generic upgrades map to the first matching species-specific feature. */
+export function habitatHasFeature(b: Building, id: HabitatFeatureId): boolean {
+  if (!isHabitat(b.kind)) return false;
+  const h = b.habitat;
+  if (!h) return false;
+  if (h.features?.includes(id)) return true;
+  const features = HABITAT_PROFILES[b.kind].features;
+  return (
+    (h.enrichment && features.find((f) => f.category === "enrichment")?.id === id) ||
+    (h.shelter && features.find((f) => f.id === "shelter")?.id === id)
+  );
+}
+export function habitatBarrier(b: Building) {
+  return isHabitat(b.kind) ? HABITAT_PROFILES[b.kind].barrier : "wood";
+}
+export function habitatHasElectric(b: Building): boolean {
+  return (
+    isHabitat(b.kind) &&
+    HABITAT_PROFILES[b.kind].electric &&
+    !!b.habitat?.safety?.electric &&
+    habitatSafety(b).status !== "closed"
+  );
+}
+export function habitatSafety(b: Building): {
+  score: number;
+  status: "closed" | "warning" | "safe";
+  label: string;
+} {
+  const condition = b.habitat?.safety?.condition ?? 100;
+  return {
+    score: Math.round(condition),
+    status: condition < 30 ? "closed" : condition < 60 ? "warning" : "safe",
+    label:
+      condition < 30
+        ? "Sicherheitsstopp · Anlage prüfen lassen"
+        : condition < 60
+          ? "Wartung der Barriere fällig"
+          : "Barriere & Schleuse betriebsbereit",
+  };
+}
+function qualified(w: Keeper, b: Building): boolean {
+  if (!isHabitat(b.kind)) return false;
+  const profile = HABITAT_PROFILES[b.kind];
+  return w.role === profile.careGroup || (!w.role && !profile.specialistRequired);
+}
+export function habitatCareStatus(s: Park, b: Building) {
+  if (!isHabitat(b.kind)) return { qualified: false, staffed: false, label: "Kein Tiergehege" };
+  const profile = HABITAT_PROFILES[b.kind],
+    net = network(s);
+  const workers = s.zoo?.workers ?? [];
+  const available = workers.filter((w) => {
+    const home = s.buildings.find((home) => home.id === w.homeId && home.kind === "keeperhut");
+    return home && port(s, home, net) && net.has(key(cell(w)));
+  });
+  const trained = available.some((w) => w.role === profile.careGroup);
+  const staffed = !!port(s, b, net) && available.some((w) => qualified(w, b));
+  return {
+    qualified: trained,
+    staffed,
+    label: staffed
+      ? trained
+        ? `${profile.careLabel} einsatzbereit`
+        : "Tierpflege einsatzbereit · Fachpflege verbessert die Betreuung"
+      : `${profile.specialistRequired ? profile.careLabel : "Tierpflege"} oder erreichbare Pflegerstation fehlt`,
+  };
+}
+export function habitatRequirements(s: Park, b: Building) {
+  if (!isHabitat(b.kind)) return [];
+  const profile = HABITAT_PROFILES[b.kind],
+    care = habitatCareStatus(s, b);
+  return [
+    {
+      label: "Erreichbarer Besucherweg",
+      met: !!port(s, b, network(s)),
+      detail: "Normale Parkwege am äußeren Gehegerand dienen Besuchern und Pflegepersonal.",
+    },
+    {
+      label: profile.specialistRequired ? profile.careLabel : "Tierpflege",
+      met: care.staffed,
+      detail: care.label,
+    },
+    {
+      label: profile.barrierLabel,
+      met: habitatSafety(b).status === "safe",
+      detail: habitatSafety(b).label,
+    },
+    ...profile.features.map((f) => ({
+      label: f.label,
+      met: habitatHasFeature(b, f.id),
+      detail: f.description,
+    })),
+  ];
+}
+export function zooWages(s: Park): number {
+  return (
+    (s.zoo?.keepers ?? 0) * KEEPER_WAGE +
+    Object.values(s.zoo?.specialists ?? {}).reduce((a, n) => a + n, 0) * ZOO_SPECIALIST_WAGE
+  );
+}
+export function setZooSpecialists(s: Park, role: SpecialistRole, count: number): string | null {
+  if (!Object.hasOwn(SPECIALIST_ROLES, role) || !Number.isInteger(count) || count < 0 || count > 4)
+    return "Ungültige Fachpersonal-Anzahl.";
+  const z = initZoo(s);
+  (z.specialists ??= {})[role] = count;
+  initZoo(s);
+  return null;
+}
+export function addHabitatFeature(s: Park, b: Building, id: HabitatFeatureId): string | null {
+  if (!s.buildings.includes(b) || !isHabitat(b.kind)) return "Wähle ein Tiergehege.";
+  const feature = HABITAT_PROFILES[b.kind].features.find((f) => f.id === id);
+  if (!feature) return "Diese Ausstattung passt nicht zu dieser Tierart.";
+  if (habitatHasFeature(b, id)) return "Diese Ausstattung ist bereits vorhanden.";
+  if (!charge(s, feature.cost)) return "Das Budget reicht für diese Ausstattung nicht.";
+  const h = ensureHabitat(b)!;
+  (h.features ??= []).push(id);
+  if (id === "foraging") h.enrichment = true;
+  if (id === "shelter") h.shelter = true;
+  return null;
+}
+export function setHabitatElectric(s: Park, b: Building, enabled: boolean): string | null {
+  if (!s.buildings.includes(b) || !isHabitat(b.kind)) return "Wähle ein Tiergehege.";
+  if (!HABITAT_PROFILES[b.kind].electric)
+    return "Diese Tierart benötigt eine andere Absicherung; ein Elektrozaun ist hier nicht vorgesehen.";
+  const h = ensureHabitat(b)!;
+  if (!!h.safety?.electric === enabled) return "Die Sicherung ist bereits so eingestellt.";
+  if (
+    enabled &&
+    !s.zoo?.workers.some((w) => {
+      const home = s.buildings.find((h) => h.id === w.homeId && h.kind === "keeperhut");
+      return w.role === "technical" && home && port(s, home, network(s));
+    })
+  )
+    return "Stelle zuerst Zaun- & Anlagentechnik mit erreichbarer Pflegerstation ein.";
+  if (enabled && !port(s, b, network(s)))
+    return "Für die Installation fehlt ein erreichbarer Parkweg am Gehege.";
+  if (enabled && !h.safety?.electricInstalled && !charge(s, ELECTRIC_FENCE_COST))
+    return "Das Budget reicht für die Elektro-Zusatzsicherung nicht.";
+  h.safety ??= { condition: 100, electric: false };
+  h.safety.electric = enabled;
+  if (enabled) h.safety.electricInstalled = true;
+  return null;
+}
+export function inspectHabitat(s: Park, b: Building): string | null {
+  if (!s.buildings.includes(b) || !isHabitat(b.kind)) return "Wähle ein Tiergehege.";
+  if (!port(s, b, network(s))) return "Für die Sicherheitsprüfung fehlt ein erreichbarer Parkweg.";
+  if ((b.habitat?.safety?.condition ?? 100) >= 100)
+    return "Die Anlage ist bereits vollständig gewartet.";
+  if (!charge(s, HABITAT_INSPECTION_COST, true))
+    return "Das Budget reicht für den Fachservice nicht.";
+  b.habitat!.safety ??= { condition: 100, electric: false };
+  b.habitat!.safety.condition = 100;
+  return null;
 }
 function charge(s: Park, amount: number, operating = false): boolean {
   if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(s.cash) || s.cash < amount)
@@ -352,6 +540,8 @@ export function careHabitat(s: Park, b: Building, access?: ZooAccess): string | 
   if (!s.buildings.includes(b) || !isHabitat(b.kind)) return "Wähle ein Tiergehege.";
   if (!port(s, b, network(s), access))
     return "Baue einen erreichbaren normalen Parkweg an den Gehegezaun.";
+  if (HABITAT_PROFILES[b.kind].specialistRequired && !habitatCareStatus(s, b).staffed)
+    return `Für diese Tierart brauchst du ${HABITAT_PROFILES[b.kind].careLabel} mit erreichbarer Pflegerstation.`;
   return applyCare(s, ensureHabitat(b)!);
 }
 type Job = { b: ZooBuilding; p: Point };
@@ -390,6 +580,11 @@ function routeToJob(
   }
   return undefined;
 }
+function needsWorker(w: Keeper, b: ZooBuilding): boolean {
+  return w.role === "technical"
+    ? (b.habitat?.safety?.condition ?? 100) < 80
+    : qualified(w, b) && needsCare(b.habitat!);
+}
 function step(s: ZooPark, dt: number, access: ZooAccess) {
   const net = network(s),
     z = reconcile(s, net, access),
@@ -397,7 +592,12 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
     ports = new Map<number, Point>();
   for (const b of list) {
     const h = ensureHabitat(b)!;
+    const p = port(s, b, net, access);
+    if (p) ports.set(b.id, p);
     if (!h.count) continue;
+    h.safety ??= { condition: 100, electric: false };
+    h.safety.condition = cap(h.safety.condition - dt * (h.safety.electric ? 0.016 : 0.004));
+    if (h.safety.condition < 30) b.open = false;
     const load = 0.55 + (0.45 * h.count) / SPECIES[b.kind as Species].capacity;
     h.food = cap(h.food - dt * 0.11 * load);
     h.water = cap(h.water - dt * 0.13 * load * ((b.kind as string) === "penguin" ? 1.15 : 1));
@@ -406,8 +606,6 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
     if (vital < 35)
       h.health = cap(h.health - dt * (0.06 + (35 - vital) * 0.002) * (h.shelter ? 0.8 : 1));
     else if (vital > 65) h.health = cap(h.health + dt * 0.006);
-    const p = port(s, b, net, access);
-    if (p) ports.set(b.id, p);
   }
   const reserved = new Set(z.workers.flatMap((w) => (w.targetId === null ? [] : [w.targetId])));
   for (const w of z.workers) {
@@ -421,7 +619,7 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
       w.targetId !== null &&
       (!target ||
         !goal ||
-        !needsCare(target.habitat!) ||
+        !needsWorker(w, target) ||
         (w.route.length && !equal(w.route.at(-1)!, goal)))
     )
       clear();
@@ -461,7 +659,10 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
       w.mode = "care";
       w.workLeft = Math.max(0, w.workLeft - dt);
       if (w.workLeft === 0) {
-        const error = applyCare(s, target.habitat!);
+        const error =
+          w.role === "technical" ? inspectHabitat(s, target) : applyCare(s, target.habitat!);
+        if (!error && w.role && w.role !== "technical")
+          target.habitat!.health = cap(target.habitat!.health + 7);
         clear(error ? 5 : 1);
       }
       continue;
@@ -472,8 +673,8 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
       .filter(
         (b) =>
           !reserved.has(b.id) &&
-          needsCare(b.habitat!) &&
-          s.cash >= serviceCost(b.habitat!) &&
+          needsWorker(w, b) &&
+          s.cash >= (w.role === "technical" ? HABITAT_INSPECTION_COST : serviceCost(b.habitat!)) &&
           ports.has(b.id),
       )
       .sort(
@@ -522,7 +723,23 @@ export function validZoo(s: Park): boolean {
           return num(v) && v >= 0 && v <= 100;
         }) ||
         typeof h.enrichment !== "boolean" ||
-        typeof h.shelter !== "boolean"
+        typeof h.shelter !== "boolean" ||
+        (h.features !== undefined &&
+          (!Array.isArray(h.features) ||
+            h.features.length > 8 ||
+            new Set(h.features).size !== h.features.length ||
+            !h.features.every((id) =>
+              HABITAT_PROFILES[b.kind as Species].features.some((f) => f.id === id),
+            ))) ||
+        (h.safety !== undefined &&
+          (!h.safety ||
+            !num(h.safety.condition) ||
+            h.safety.condition < 0 ||
+            h.safety.condition > 100 ||
+            typeof h.safety.electric !== "boolean" ||
+            (h.safety.electricInstalled !== undefined &&
+              typeof h.safety.electricInstalled !== "boolean") ||
+            (h.safety.electric && !HABITAT_PROFILES[b.kind as Species].electric)))
       )
         return false;
     }
@@ -535,7 +752,14 @@ export function validZoo(s: Park): boolean {
       !int(z.nextId) ||
       z.nextId < 1 ||
       !Array.isArray(z.workers) ||
-      z.workers.length > 8
+      z.workers.length > 28 ||
+      (z.specialists !== undefined &&
+        (!z.specialists ||
+          typeof z.specialists !== "object" ||
+          Array.isArray(z.specialists) ||
+          !Object.entries(z.specialists).every(
+            ([role, count]) => Object.hasOwn(SPECIALIST_ROLES, role) && int(count) && count <= 4,
+          )))
     )
       return false;
     const ids = new Set<number>();
@@ -543,6 +767,7 @@ export function validZoo(s: Park): boolean {
       if (
         !w ||
         !pos(w) ||
+        (w.role !== undefined && !Object.hasOwn(SPECIALIST_ROLES, w.role)) ||
         !int(w.id) ||
         w.id < 1 ||
         ids.has(w.id) ||

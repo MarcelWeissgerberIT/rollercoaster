@@ -1,11 +1,12 @@
 import * as THREE from "three";
 import type { Building } from "./simulation";
 import { SPECIES, type Species } from "./zoo";
-import { animalPose } from "./zoo-motion";
+import { animalPose, animalSex } from "./zoo-motion";
+import { createHabitatScenery } from "./zoo-scenery";
 
 /** Recognizable species geometry with articulated legs/flippers and a shared habitat layout. */
 export function createHabitatModel(b: Building) {
-  const root = new THREE.Group(),
+  const root = createHabitatScenery(b),
     species = b.kind as Species,
     n = SPECIES[species].size;
   const mats = new Map<string, THREE.MeshStandardMaterial>();
@@ -49,106 +50,73 @@ export function createHabitatModel(b: Building) {
     parent.add(m);
     return m;
   };
-  const span = n * 5,
-    cx = (b.x + (n - 1) / 2) * 5,
-    cz = (b.y + (n - 1) / 2) * 5;
-  root.position.set(cx, 0, cz);
-  mesh(
-    root,
-    box,
-    species === "penguin"
-      ? "#c5c6bd"
-      : species === "flamingo"
-        ? "#b7bc83"
-        : species === "panda"
-          ? "#8ba769"
-          : species === "elephant"
-            ? "#b9aa81"
-            : "#b7b46a",
-    0,
-    0.09,
-    0,
-    span - 0.3,
-    0.12,
-    span - 0.3,
-  );
-  const water = species === "penguin" || species === "flamingo";
-  mesh(
-    root,
-    ball,
-    "#66bbc5",
-    span * 0.15,
-    0.12,
-    span * 0.08,
-    water ? span * 0.29 : 1.4,
-    0.13,
-    water ? span * 0.25 : 1.05,
-  );
-  for (let side = 0; side < 4; side++)
-    for (let i = 0; i < n; i++) {
-      const a = -span / 2 + i * 5,
-        edge = span / 2;
-      const x = side % 2 ? a : side === 0 ? -edge : edge,
-        z = side % 2 ? (side === 1 ? -edge : edge) : a;
-      mesh(root, pole, "#735b39", x, 0.9, z, 0.15, 1.8, 0.15);
-      for (const height of [0.55, 1.25])
-        mesh(
-          root,
-          box,
-          "#9c7c4e",
-          side % 2 ? x + 2.5 : x,
-          height,
-          side % 2 ? z : z + 2.5,
-          side % 2 ? 5 : 0.12,
-          0.13,
-          side % 2 ? 0.12 : 5,
-        );
-    }
-  mesh(root, box, "#745132", -span * 0.28, 0.35, -span * 0.3, 2.8, 0.7, 1.5);
-  mesh(root, ball, "#c6bb64", -span * 0.28, 0.76, -span * 0.3, 1.2, 0.22, 0.6);
-  if (b.habitat?.shelter) {
-    for (const x of [-2, 2])
-      for (const z of [-1.5, 1.5])
-        mesh(root, pole, "#6a573e", x + span * 0.24, 1.8, z - span * 0.27, 0.15, 3.6, 0.15);
-    mesh(root, box, "#ad6847", span * 0.24, 3.65, -span * 0.27, 5, 0.35, 4);
-  }
-  if (b.habitat?.enrichment) {
-    mesh(root, ball, "#e4b044", -span * 0.17, 0.65, span * 0.3, 0.65, 0.65, 0.65);
-    mesh(root, pole, "#665538", span * 0.27, 0.4, span * 0.3, 0.65, 0.8, 0.65);
-  }
-  if (species === "panda") {
-    for (let j = 0; j < 7; j++) {
-      const x = -span * 0.31 + (j % 3) * 0.55,
-        z = -span * 0.3 + Math.floor(j / 3) * 0.48;
-      mesh(root, pole, "#527942", x, 1.45, z, 0.07, 2.9, 0.07);
-      for (const height of [0.75, 1.5, 2.25]) {
-        mesh(root, pole, "#b4c485", x, height, z, 0.085, 0.1, 0.085);
-        const leaf = mesh(
-          root,
-          ball,
-          "#4f8342",
-          x + (j % 2 ? 0.27 : -0.27),
-          height + 0.15,
-          z,
-          0.39,
-          0.08,
-          0.14,
-        );
-        leaf.rotation.z = j % 2 ? 0.35 : -0.35;
-      }
-    }
-  } else if (species === "elephant") {
-    mesh(root, ball, "#8b8164", -span * 0.25, 0.18, span * 0.28, 2.1, 0.13, 1.55);
-    for (let j = 0; j < 3; j++)
-      mesh(root, ball, "#99988a", span * 0.31 + j * 0.45, 0.4, -span * 0.3, 0.8, 0.65, 0.7);
-  } else if (species === "lion") {
-    mesh(root, ball, "#b59f7d", -span * 0.27, 0.4, -span * 0.24, 2.1, 0.6, 1.4);
-    mesh(root, ball, "#c4b18d", -span * 0.29, 0.75, -span * 0.25, 1.3, 0.3, 1.05);
-  }
+  const cx = root.position.x,
+    cz = root.position.z;
   const animals = Array.from({ length: b.habitat?.count ?? 0 }, (_, i) => {
     const a = new THREE.Group();
     root.add(a);
-    const limbs: THREE.Mesh[] = [];
+    const limbs: THREE.Object3D[] = [];
+    const legs: Array<{
+      hip: THREE.Group;
+      knee: THREE.Group;
+      foot: THREE.Group;
+      upper: number;
+      lower: number;
+      top: number;
+      ground: number;
+      phase: number;
+    }> = [];
+    /** Hip and knee pivots carry every lower leg and foot. Targets are solved in local space.
+     * During stance the foot moves backwards by exactly the distance the body advances. */
+    const leg = (
+      x: number,
+      z: number,
+      top: number,
+      _length: number,
+      width: number,
+      color: string,
+      footColor = color,
+    ) => {
+      const hip = new THREE.Group(),
+        knee = new THREE.Group(),
+        foot = new THREE.Group();
+      hip.name = `leg:hip:${legs.length}`;
+      knee.name = `leg:knee:${legs.length}`;
+      foot.name = `leg:foot:${legs.length}`;
+      hip.position.set(x, top, z);
+      a.add(hip);
+      const ground =
+        species === "flamingo" ? 0.035 : species === "penguin" ? 0.07 : Math.min(0.11, width * 0.5);
+      const segment = species === "penguin" ? 0.65 : 0.57;
+      const upper = (top - ground) * segment,
+        lower = (top - ground) * segment;
+      mesh(hip, pole, color, 0, -upper / 2, 0, width, upper, width);
+      knee.position.y = -upper;
+      hip.add(knee);
+      mesh(knee, pole, color, 0, -lower / 2, 0, width * 0.8, lower, width * 0.8);
+      foot.position.y = -lower;
+      knee.add(foot);
+      mesh(
+        foot,
+        ball,
+        footColor,
+        0,
+        0,
+        -0.045,
+        width * (species === "penguin" ? 1.75 : 1.15),
+        ground,
+        width * (species === "penguin" ? 2.5 : 1.4),
+      );
+      const phase =
+        species === "flamingo" || species === "penguin"
+          ? x > 0
+            ? 0.5
+            : 0
+          : (x > 0 ? 0.5 : 0) + (z > 0 ? 0.25 : 0);
+      legs.push({ hip, knee, foot, upper, lower, top, ground, phase });
+      return foot;
+    };
+    a.userData.sex = animalSex(species, i);
     let animate: ((pose: ReturnType<typeof animalPose>, time: number) => void) | undefined;
     a.name = `animal:${species}:${i}`;
     if (species === "zebra" || species === "giraffe") {
@@ -158,11 +126,13 @@ export function createHabitatModel(b: Building) {
       mesh(a, zebraBody ?? ball, giraffe ? color : "#ffffff", 0, 1.35 * tall, 0, 0.65, 0.68, 1.14);
       for (const x of [-0.4, 0.4])
         for (const z of [-0.72, 0.72]) {
-          limbs.push(mesh(a, pole, color, x, 0.69 * tall, z, 0.12, 1.35 * tall, 0.12));
-          mesh(a, box, "#333731", x, 0.09, z, 0.22, 0.18, 0.27);
+          leg(x, z, 1.35 * tall, 1.35 * tall, 0.12, color, "#333731");
         }
+      const head = new THREE.Group();
+      head.position.set(0, 1.35 * tall, -0.72);
+      a.add(head);
       const neck = mesh(
-        a,
+        head,
         pole,
         color,
         0,
@@ -173,13 +143,29 @@ export function createHabitatModel(b: Building) {
         0.25,
       );
       neck.rotation.x = -0.18;
-      mesh(a, ball, color, 0, giraffe ? 4.55 : 2.38, giraffe ? -1.22 : -1.07, 0.34, 0.35, 0.56);
-      mesh(a, ball, "#675348", 0, giraffe ? 4.44 : 2.24, giraffe ? -1.66 : -1.49, 0.29, 0.2, 0.23);
+      mesh(head, ball, color, 0, giraffe ? 4.55 : 2.38, giraffe ? -1.22 : -1.07, 0.34, 0.35, 0.56);
+      mesh(
+        head,
+        ball,
+        "#675348",
+        0,
+        giraffe ? 4.44 : 2.24,
+        giraffe ? -1.66 : -1.49,
+        0.29,
+        0.2,
+        0.23,
+      );
       for (const x of [-0.28, 0.28]) {
-        mesh(a, ball, color, x, giraffe ? 4.8 : 2.74, -1.03, 0.14, 0.26, 0.11);
-        mesh(a, ball, "#172521", x * 0.95, giraffe ? 4.62 : 2.43, -1.39, 0.047, 0.05, 0.04);
-        if (giraffe) mesh(a, pole, "#725334", x * 0.6, 5.04, -1.13, 0.055, 0.35, 0.055);
+        mesh(head, ball, color, x, giraffe ? 4.8 : 2.74, -1.03, 0.14, 0.26, 0.11);
+        mesh(head, ball, "#172521", x * 0.95, giraffe ? 4.62 : 2.43, -1.39, 0.047, 0.05, 0.04);
+        if (giraffe) mesh(head, pole, "#725334", x * 0.6, 5.04, -1.13, 0.055, 0.35, 0.055);
       }
+      for (const part of head.children) part.position.sub(head.position);
+      animate = (p, time) => {
+        const eating = p.activity === "eat" || p.activity === "drink";
+        head.rotation.x = -(eating ? 0.32 : 0) * p.action + Math.sin(time * 0.43 + i) * 0.018;
+        head.rotation.y = Math.sin(time * 0.31 + i) * 0.035 * (1 - p.strideWeight);
+      };
       if (giraffe)
         for (let j = 0; j < 24; j++) {
           const ang = j * 2.399,
@@ -189,35 +175,6 @@ export function createHabitatModel(b: Building) {
       const tail = mesh(a, pole, "#4a4034", 0, 1.12 * tall, 1.26, 0.05, 0.85, 0.05);
       tail.rotation.x = -0.3;
     } else if (species === "elephant" || species === "lion" || species === "panda") {
-      // Individual hip pivots carry their feet; nothing is created during update().
-      const hips: Array<{ joint: THREE.Group; phase: number }> = [];
-      const leg = (
-        x: number,
-        z: number,
-        top: number,
-        length: number,
-        width: number,
-        color: string,
-      ) => {
-        const joint = new THREE.Group();
-        joint.position.set(x, top, z);
-        a.add(joint);
-        mesh(joint, pole, color, 0, -length / 2, 0, width, length, width);
-        const foot = mesh(
-          joint,
-          ball,
-          color,
-          0,
-          -length + width * 0.33,
-          -0.045,
-          width * 1.12,
-          width * 0.5,
-          width * 1.24,
-        );
-        foot.name = "paw";
-        hips.push({ joint, phase: x * z < 0 ? Math.PI : 0 });
-        return joint;
-      };
       const head = new THREE.Group(),
         tail = new THREE.Group();
       a.add(head, tail);
@@ -230,7 +187,7 @@ export function createHabitatModel(b: Building) {
           for (const z of [-0.98, 0.96]) {
             const joint = leg(x, z, 1.47, 1.29, 0.29, "#858f86");
             for (const toe of [-1, 0, 1])
-              mesh(joint, ball, "#cec9b3", toe * 0.13, -1.2, -0.27, 0.075, 0.08, 0.045);
+              mesh(joint, ball, "#cec9b3", toe * 0.13, 0.025, -0.27, 0.075, 0.08, 0.045);
           }
         head.position.set(0, 2.28, -1.29);
         mesh(head, ball, "#a0a69d", 0, 0.1, 0, 0.74, 0.83, 0.73);
@@ -273,25 +230,30 @@ export function createHabitatModel(b: Building) {
           for (const z of [-0.74, 0.85]) {
             const joint = leg(x, z, 1.11, 0.99, 0.19, "#c9944f");
             for (const toe of [-1, 0, 1])
-              mesh(joint, ball, "#ac773e", toe * 0.08, -0.94, -0.22, 0.035, 0.025, 0.04);
+              mesh(joint, ball, "#ac773e", toe * 0.08, 0.025, -0.22, 0.035, 0.025, 0.04);
           }
         head.position.set(0, 1.62, -0.96);
-        mesh(head, ball, "#714828", 0, -0.05, 0.02, 0.86, 0.89, 0.61);
-        // Interleaved low-poly tufts, all attached to the animated head/mane.
-        for (let j = 0; j < 14; j++) {
-          const angle = (j * Math.PI * 2) / 14;
-          const tuft = mesh(
-            head,
-            ball,
-            j % 2 ? "#94602d" : "#80512a",
-            Math.cos(angle) * 0.71,
-            Math.sin(angle) * 0.77 - 0.02,
-            -0.02,
-            0.24,
-            0.34,
-            0.29,
-          );
-          tuft.rotation.z = angle - Math.PI / 2;
+        if (animalSex(species, i) === "male") {
+          const mane = new THREE.Group();
+          mane.name = "lion-mane";
+          head.add(mane);
+          mesh(mane, ball, "#714828", 0, -0.05, 0.02, 0.86, 0.89, 0.61);
+          // Interleaved low-poly tufts, all attached to the animated head/mane.
+          for (let j = 0; j < 14; j++) {
+            const angle = (j * Math.PI * 2) / 14;
+            const tuft = mesh(
+              mane,
+              ball,
+              j % 2 ? "#94602d" : "#80512a",
+              Math.cos(angle) * 0.71,
+              Math.sin(angle) * 0.77 - 0.02,
+              -0.02,
+              0.24,
+              0.34,
+              0.29,
+            );
+            tuft.rotation.z = angle - Math.PI / 2;
+          }
         }
         mesh(head, ball, "#d6a157", 0, 0.05, -0.39, 0.5, 0.52, 0.5);
         for (const side of [-1, 1]) {
@@ -345,22 +307,19 @@ export function createHabitatModel(b: Building) {
         mesh(tail, ball, "#e5e4d9", 0, 0, 0, 0.17, 0.17, 0.19);
       }
       animate = (p, time) => {
-        const heavy = species === "elephant",
-          resting = !p.walk;
-        const beat = time * (heavy ? 2.3 : species === "lion" ? 3.5 : 3.1) + i * 1.7;
-        hips.forEach(({ joint, phase }) => {
-          joint.rotation.x = p.walk ? Math.sin(beat + phase) * (heavy ? 0.15 : 0.23) : 0;
-        });
-        a.rotation.z = species === "panda" && p.walk ? Math.sin(beat) * 0.035 : 0;
-        head.rotation.y = Math.sin(time * (resting ? 0.7 : 0.35) + i) * (resting ? 0.17 : 0.035);
-        head.rotation.x = (resting ? 0.07 : 0) + Math.sin(beat * 0.5) * (heavy ? 0.025 : 0.04);
+        const heavy = species === "elephant";
+        const beat = p.gait;
+        const feeding = p.activity === "eat" || p.activity === "drink";
+        head.rotation.y = Math.sin(time * 0.35 + i) * (0.035 + 0.1 * (1 - p.strideWeight));
+        head.rotation.x =
+          -(feeding ? 0.25 * p.action : 0) +
+          Math.sin(beat * 0.5) * (heavy ? 0.015 : 0.022) * p.strideWeight;
         tail.rotation.y = Math.sin(time * 1.1 + i) * (heavy ? 0.15 : 0.29);
         ears.forEach((ear, side) => {
           ear.rotation.y = (side ? 1 : -1) * (0.08 + Math.sin(time * 1.2 + i) * 0.11);
         });
         trunk.forEach((part, j) => {
-          part.rotation.x =
-            -0.11 + Math.sin(time * 0.8 + i + j * 0.8) * 0.11 - (resting ? j * 0.16 : 0);
+          part.rotation.x = -0.11 + Math.sin(time * 0.8 + i + j * 0.8) * 0.11 - j * 0.16 * p.action;
           part.rotation.z = Math.sin(time * 0.6 + i + j * 0.5) * 0.05;
         });
       };
@@ -370,15 +329,17 @@ export function createHabitatModel(b: Building) {
       mesh(a, ball, "#233746", 0, 1.24, -0.08, 0.3, 0.28, 0.27);
       mesh(a, box, "#e5a743", 0, 1.15, -0.36, 0.2, 0.12, 0.3);
       for (const side of [-1, 1]) {
-        const wing = mesh(a, ball, "#233746", side * 0.43, 0.64, 0, 0.11, 0.43, 0.2);
+        const wing = new THREE.Group();
+        wing.position.set(side * 0.36, 0.96, 0);
+        a.add(wing);
+        mesh(wing, ball, "#233746", side * 0.07, -0.3, 0, 0.11, 0.43, 0.2);
         limbs.push(wing);
-        mesh(a, ball, "#e5a743", side * 0.2, 0.09, -0.17, 0.16, 0.09, 0.24);
+        leg(side * 0.2, -0.12, 0.28, 0.22, 0.075, "#e5a743");
         mesh(a, ball, "#faf6e2", side * 0.18, 1.31, -0.26, 0.047, 0.052, 0.035);
       }
     } else {
       mesh(a, ball, "#ef97a3", 0, 0.99, 0, 0.34, 0.36, 0.56);
-      for (const side of [-1, 1])
-        limbs.push(mesh(a, pole, "#a66064", side * 0.12, 0.43, 0, 0.032, 0.86, 0.032));
+      for (const side of [-1, 1]) leg(side * 0.12, 0, 0.9, 0.86, 0.032, "#a66064");
       const curve = new THREE.CatmullRomCurve3([
         new THREE.Vector3(0, 1.05, -0.35),
         new THREE.Vector3(0, 1.48, -0.53),
@@ -392,20 +353,55 @@ export function createHabitatModel(b: Building) {
       for (const side of [-1, 1])
         mesh(a, ball, "#26252b", side * 0.12, 2.07, -0.68, 0.023, 0.024, 0.02);
     }
-    return { a, limbs, i, animate };
+    return { a, limbs, legs, i, animate };
   });
   return {
     root,
     update: (time: number) =>
-      animals.forEach(({ a, limbs, i, animate }) => {
+      animals.forEach(({ a, limbs, legs, i, animate }) => {
         const p = animalPose(b, i, time);
         a.position.set(p.x * 5 - cx, p.bob, p.y * 5 - cz);
         a.rotation.y = Math.atan2(-p.dx, -p.dy);
         animate?.(p, time);
-        limbs.forEach((leg, j) => {
-          if (species === "penguin")
-            leg.rotation.z = (j ? 1 : -1) * (0.12 + Math.sin(time * 4 + i) * 0.16);
-          else leg.rotation.x = p.walk ? Math.sin(time * 4 + i + j * Math.PI) * 0.15 : 0;
+        for (const limb of legs) {
+          const q = (((p.gait / (Math.PI * 2) + limb.phase) % 1) + 1) % 1,
+            duty = 0.64;
+          // Local +Z is backwards. Linear stance cancels forward root displacement.
+          const span = p.stride;
+          const swing = Math.max(0, (q - duty) / (1 - duty));
+          const footZ = q < duty ? (q - duty / 2) * span : (0.5 - swing) * duty * span;
+          const lift =
+            (species === "elephant"
+              ? 0.07
+              : species === "penguin"
+                ? 0.05
+                : species === "flamingo"
+                  ? 0.12
+                  : 0.11) *
+            Math.sin(Math.PI * swing) *
+            p.strideWeight;
+          const targetY = limb.ground - limb.top - p.bob + lift,
+            targetZ = footZ;
+          const reach = Math.min(
+            limb.upper + limb.lower - 0.0001,
+            Math.max(0.001, Math.hypot(targetY, targetZ)),
+          );
+          const base = Math.atan2(-targetZ, -targetY);
+          const clamp = (v: number) => Math.max(-1, Math.min(1, v));
+          const alpha = Math.acos(
+            clamp((limb.upper ** 2 + reach ** 2 - limb.lower ** 2) / (2 * limb.upper * reach)),
+          );
+          const bend = Math.acos(
+            clamp((reach ** 2 - limb.upper ** 2 - limb.lower ** 2) / (2 * limb.upper * limb.lower)),
+          );
+          limb.hip.rotation.x = base - alpha;
+          limb.knee.rotation.x = bend;
+          limb.foot.rotation.x = -limb.hip.rotation.x - bend;
+          limb.foot.userData.stance = q < duty;
+          limb.foot.userData.gait = q;
+        }
+        limbs.forEach((wing, j) => {
+          wing.rotation.z = (j ? 1 : -1) * (0.08 + Math.sin(p.gait) * 0.1 * p.strideWeight);
         });
       }),
   };

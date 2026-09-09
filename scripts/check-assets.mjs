@@ -102,7 +102,9 @@ for (const [name, spec] of Object.entries(zoo)) {
 }
 console.log("PASS: 24 OpenArt zoo sprites, dimensions, anchors and source hashes");
 
-const life = JSON.parse(readFileSync(new URL("../game/life-sprites.json", import.meta.url), "utf8"));
+const life = JSON.parse(
+  readFileSync(new URL("../game/life-sprites.json", import.meta.url), "utf8"),
+);
 const lifeManifest = JSON.parse(
   readFileSync(new URL("../art/park-v8/manifest.json", import.meta.url), "utf8"),
 );
@@ -120,3 +122,14 @@ for (const [name, spec] of Object.entries(life)) {
   assert.equal(createHash("sha256").update(bytes).digest("hex"), source.sha256);
 }
 console.log("PASS: 27 OpenArt park expansion sprites, dimensions, anchors and source hashes");
+
+const zooV9Manifest = JSON.parse(
+  readFileSync(new URL("../art/zoo-v9/manifest.json", import.meta.url), "utf8"),
+);
+for (const entry of zooV9Manifest.assets) {
+  const bytes = readFileSync(new URL(`../public/assets/zoo-v9/${entry.name}.png`, import.meta.url));
+  assert.equal(bytes.readUInt32BE(16), 160);
+  assert.equal(bytes.readUInt32BE(20), 128);
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), entry.sha256);
+}
+console.log("Zoo v9: four genuine OpenArt lioness views verified.");

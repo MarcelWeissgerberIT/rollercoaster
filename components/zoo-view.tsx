@@ -4,7 +4,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { Volume2, VolumeX } from "lucide-react";
 import { createWorld } from "../game/scene-world";
 import { SPECIES, welfare, type Species } from "../game/zoo";
-import { animalPose, ANIMAL_NAMES } from "../game/zoo-motion";
+import { animalPose, animalName, animalSex } from "../game/zoo-motion";
 import type { ParkAudio } from "../game/audio";
 import type { Park, Building } from "../game/simulation";
 
@@ -195,9 +195,14 @@ export default function ZooView({
             }}
           >
             <option value={-1}>Ganzes Gehege</option>
-            {ANIMAL_NAMES[species].slice(0, count).map((name, i) => (
+            {Array.from({ length: count }, (_, i) => i).map((i) => (
               <option key={i} value={i}>
-                {name}
+                {animalName(species, i)}
+                {species === "lion"
+                  ? animalSex(species, i) === "male"
+                    ? " · Löwe"
+                    : " · Löwin"
+                  : ""}
               </option>
             ))}
           </select>

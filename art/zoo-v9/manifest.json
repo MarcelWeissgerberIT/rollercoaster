@@ -1,0 +1,110 @@
+{
+  "provider": "OpenArt MCP",
+  "historyId": "9qiv9qr2yLz4uaXmLRvX",
+  "model": "gpt-image-2",
+  "sourceDimensions": [
+    1360,
+    1360
+  ],
+  "fileScale": 4,
+  "processing": "Pure chroma-key, four atlas crops, shared species scale and nearest-neighbor normalization. No pixels repainted.",
+  "sourceSha256": "1fce10594eebee264c784332d25b33cd269136b732cd17a548ed2514cfef1c36",
+  "assets": [
+    {
+      "name": "lioness-se",
+      "bounds": [
+        62,
+        106,
+        591,
+        532
+      ],
+      "sourceCell": [
+        0,
+        0,
+        680,
+        680
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "sha256": "fe6a21932d084095a4a204fb7e636962b11ef6433162f50229b776dd1c7d4d1e"
+    },
+    {
+      "name": "lioness-sw",
+      "bounds": [
+        91,
+        106,
+        631,
+        535
+      ],
+      "sourceCell": [
+        680,
+        0,
+        1360,
+        680
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "sha256": "1d7c37ff3e14a0b69603dc2b6d6e5e098b4ac549ef87c8183c34581750659ea6"
+    },
+    {
+      "name": "lioness-ne",
+      "bounds": [
+        40,
+        62,
+        603,
+        520
+      ],
+      "sourceCell": [
+        0,
+        680,
+        680,
+        1360
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "sha256": "5b430b268ca08fe0d85f70155920f9eb536b2cc52f25067ed55abf0048e1b1e6"
+    },
+    {
+      "name": "lioness-nw",
+      "bounds": [
+        78,
+        64,
+        648,
+        520
+      ],
+      "sourceCell": [
+        680,
+        680,
+        1360,
+        1360
+      ],
+      "logicalPivot": [
+        20,
+        28
+      ],
+      "logicalCanvas": [
+        40,
+        32
+      ],
+      "sha256": "35681710b663c0eb88ce9a8d35a2a394f24dcc12e5665b9f9fc4415e78088420"
+    }
+  ]
+}

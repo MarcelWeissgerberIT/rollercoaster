@@ -1,0 +1,26 @@
+{
+  "lioness-se": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "lioness-sw": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "lioness-ne": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  },
+  "lioness-nw": {
+    "width": 40,
+    "height": 32,
+    "anchorX": 20,
+    "anchorY": 28
+  }
+}

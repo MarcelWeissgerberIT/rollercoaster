@@ -1,3 +1,4 @@
+import type { HabitatFeatureId } from "../game/habitat-needs";
 import {
   planStationReverse,
   commitStationReverse,
@@ -22,6 +23,11 @@ import {
   adoptAnimal,
   careHabitat,
   upgradeHabitat,
+  addHabitatFeature,
+  setZooSpecialists,
+  setHabitatElectric,
+  inspectHabitat,
+  habitatSafety,
 } from "../game/zoo";
 import {
   condition,
@@ -770,7 +776,7 @@ export default function Home() {
       setBatchPreview(null);
       setPodEdit(null);
       setSelected(null);
-      if (cat) setCategory(cat);
+      setCategory((current) => cat ?? (current === "detail" ? "" : current));
 
       notify(
         t === "select"
@@ -993,6 +999,8 @@ export default function Home() {
       if (b) {
         setCategory("detail");
         setMenuOpen(false);
+      } else {
+        setCategory((current) => (current === "detail" ? "" : current));
       }
       return;
     }
@@ -1778,1915 +1786,1987 @@ export default function Home() {
           </div>
           <span className="status">{snapshot?.open ? "Geöffnet" : "Geschlossen"}</span>
         </div>
-        {category && category !== "erase" && category !== "select" && (
-          <aside
-            ref={panelRef}
-            className={`panel ${category === "coaster" ? "builder-panel" : ""} ${cut?.id === selected ? "editing-section" : ""} ${podEdit?.id === selected ? "pod-editing" : ""}`}
-            data-menu-group={
-              isHabitat(b?.kind ?? "")
-                ? "zoo"
-                : parkMenuGroup(category === "detail" ? "rides" : category)
-            }
-            aria-label="Bauauswahl"
-          >
-            <div className="panelhead">
-              <h2>
-                {
-                  (
-                    {
-                      rides: "Einsteigen & staunen",
-                      coaster: snapshot?.trackEdit ? "Strecke umbauen" : "Deine Achterbahn",
-                      paths: "Neue Verbindungen",
-                      shops: "Für kleine Pausen",
-                      nature: "Ein bisschen Grün",
-                      zoo: "Zoo & Tierpflege",
-                      detail: b?.name,
-                      guests: "Stimmen aus dem Park",
-                      analysis: "Parkanalyse & Sauberkeit",
-                    } as Record<string, string | undefined>
-                  )[category]
-                }
-              </h2>
-              <button
-                className="iconbtn"
-                aria-label="Baufenster schließen"
-                onClick={() => {
-                  setCategory("");
-                  setTool("select");
-                  setCut(null);
-                  setPodEdit(null);
-                  setAdjust(null);
-                }}
-              >
-                <X />
-              </button>
-            </div>
-            <div className="panelbody">
-              {category === "zoo" && snapshot && (
-                <>
-                  {catalog([
-                    "zebra",
-                    "giraffe",
-                    "elephant",
-                    "lion",
-                    "flamingo",
-                    "penguin",
-                    "panda",
-                    "keeperhut",
-                  ])}
-                  <ZooOverview
-                    park={snapshot}
-                    onBuild={(k) => pickTool(k, "zoo")}
-                    onKeepers={(n) => {
-                      initZoo(park.current!);
-                      park.current!.zoo!.keepers = n;
-                      initZoo(park.current!);
-                      sync();
-                    }}
-                  />
-                  <button
-                    className="secondary"
-                    onClick={() => {
-                      setTab("research");
-                      setSettings(true);
-                    }}
-                  >
-                    Tierarten erforschen
-                  </button>
-                </>
-              )}
-              {category === "rides" && (
-                <>
-                  {catalog([
-                    "wheel",
-                    "carousel",
-                    "bumper",
-                    "balloonride",
-                    "swing",
-                    "drop",
-                    "pirate",
-                    "teacups",
-                    "spinner",
-                  ])}
-                  <button
-                    className="secondary"
-                    style={{ marginTop: 12, width: "100%" }}
-                    onClick={() => {
-                      if (snapshot && isUnlocked(snapshot, "custom")) setWorkshop(true);
-                      else {
-                        setTab("research");
-                        setSettings(true);
-                      }
-                    }}
-                  >
-                    <Sparkles size={18} />{" "}
-                    {snapshot && isUnlocked(snapshot, "custom")
-                      ? "Eigene Attraktion entwickeln"
-                      : "Werkstatt erforschen"}
-                  </button>
-                  {customDesign && (
-                    <button
-                      className="primary"
-                      style={{ marginTop: 8 }}
-                      onClick={() => pickTool("custom", "rides")}
-                    >
-                      {customDesign.name} platzieren · {EUR(designStats(customDesign).cost)}
-                    </button>
-                  )}
-                  <button
-                    className="primary"
-                    style={{ marginTop: 12 }}
-                    onClick={() => pickTool("coaster", "coaster")}
-                  >
-                    <RollerCoaster size={18} /> Eigene Achterbahn bauen
-                  </button>
-                  <div className="hintbox">
-                    <Info />
-                    <span>
-                      Platziere die Attraktion. Danach legt „Anschließen & öffnen“ den Weg für dich
-                      an.
-                    </span>
-                  </div>
-                </>
-              )}
-              {category === "shops" && (
-                <>
-                  {catalog([
-                    "burger",
-                    "hotdog",
-                    "icecream",
-                    "popcorn",
-                    "drink",
-                    "coffee",
-                    "toilet",
-                    "balloon",
-                    "plush",
-                    "bin",
-                  ])}
-                  <div className="hintbox">
-                    <Info />
-                    <span>Geschäfte stehen direkt an normalen Parkwegen.</span>
-                  </div>
-                </>
-              )}
-              {category === "nature" && (
-                <>
-                  {catalog(["tree", "pine", "flowers", "bench", "picnic", "playground", "bin"])}
-                  <button
-                    className="secondary"
-                    style={{ marginTop: 12 }}
-                    onClick={() => {
-                      setTab("land");
-                      setSettings(true);
-                    }}
-                  >
-                    Parkgelände erweitern
-                  </button>
-                  <button
-                    className={`secondary ${tool === "water" ? "active" : ""}`}
-                    style={{ width: "100%", marginTop: 12 }}
-                    onClick={() => pickTool("water")}
-                  >
-                    Teich anlegen · 35 € / Feld
-                  </button>
-                  <div className="hintbox">
-                    <Trees />
-                    <span>Ein grüner Park verbessert die Stimmung deiner Besucher.</span>
-                  </div>
-                </>
-              )}
-              {category === "paths" && (
-                <div className="stack">
-                  <button
-                    className={`path-tool public ${tool === "path" ? "active" : ""}`}
-                    aria-pressed={tool === "path"}
-                    onClick={() => pickTool("path")}
-                  >
-                    <Route />
-                    <span>
-                      <strong>Parkweg · 12 €</strong>
-                      <small>Gemeinsam durch den Park</small>
-                    </span>
-                  </button>
-                  <div className="path-swatches" aria-label="Wegbelag">
-                    {Object.entries(PATH_STYLES).map(([id, style]) => (
-                      <button
-                        key={id}
-                        className={pathStyle === id ? "active" : ""}
-                        aria-pressed={pathStyle === id}
-                        title={style.description}
-                        onClick={() => {
-                          setPathStyle(id as PathStyle);
-                          pickTool("path");
-                        }}
-                      >
-                        <i style={{ background: style.color, borderColor: style.edge }} />
-                        <span>{style.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <p className="small">
-                    Neue Wege: 12 € · vorhandene Wege umgestalten: 6 € pro Feld.
-                  </p>
-                  <button
-                    className={`path-tool entrance ${tool === "queue" ? "active" : ""}`}
-                    aria-pressed={tool === "queue"}
-                    onClick={() => pickTool("queue")}
-                  >
-                    <LogIn />
-                    <span>
-                      <strong>Eingangsweg · 18 €</strong>
-                      <small>Blau · anstellen & einsteigen</small>
-                    </span>
-                  </button>
-                  <button
-                    className={`path-tool exit ${tool === "exit" ? "active" : ""}`}
-                    aria-pressed={tool === "exit"}
-                    onClick={() => pickTool("exit")}
-                  >
-                    <LogOut />
-                    <span>
-                      <strong>Ausgangsweg · 18 €</strong>
-                      <small>Rot · aussteigen & weitergehen</small>
-                    </span>
-                  </button>
-                  <p className="small">
-                    Klicke oder ziehe. Blau verbindet das Feld vor dem Eingangspod, Rot das Feld vor
-                    dem Ausgangspod mit einem beigen Parkweg. Pfeile zeigen den Ausgang; ein Kreuz
-                    bedeutet, dass der Anschluss fehlt.
-                  </p>
-                  <div className="empty-note">
-                    Die Pod-Häuschen versetzt du in der Attraktionsverwaltung. Blaue Wege bieten
-                    vier Warteplätze pro Feld. Rote Wege sind nur zum Aussteigen. Ohne fertigen
-                    Ausgang nutzen Gäste weiterhin den bisherigen Zugang.
-                  </div>
-                  {catalog(["train", "shuttle"])}
-                  <p className="small">
-                    Zwei Halte desselben Typs an Parkwege setzen und zu einer Linie verbinden.
-                    Fahrzeuge bleiben auf Parkwegen; rote Wege leiten aussteigende Fahrgäste weiter.
-                  </p>
-                </div>
-              )}
-              {category === "coaster" && (
-                <>
-                  <div className="builder-view-options">
+        {[
+          "rides",
+          "coaster",
+          "paths",
+          "shops",
+          "nature",
+          "zoo",
+          "detail",
+          "guests",
+          "analysis",
+        ].includes(category) &&
+          (category !== "detail" || (b && snapshot)) && (
+            <aside
+              ref={panelRef}
+              className={`panel ${category === "coaster" ? "builder-panel" : ""} ${cut?.id === selected ? "editing-section" : ""} ${podEdit?.id === selected ? "pod-editing" : ""}`}
+              data-menu-group={
+                isHabitat(b?.kind ?? "")
+                  ? "zoo"
+                  : parkMenuGroup(category === "detail" ? "rides" : category)
+              }
+              aria-label="Bauauswahl"
+            >
+              <div className="panelhead">
+                <h2>
+                  {
+                    (
+                      {
+                        rides: "Einsteigen & staunen",
+                        coaster: snapshot?.trackEdit ? "Strecke umbauen" : "Deine Achterbahn",
+                        paths: "Neue Verbindungen",
+                        shops: "Für kleine Pausen",
+                        nature: "Ein bisschen Grün",
+                        zoo: "Zoo & Tierpflege",
+                        detail: b?.name,
+                        guests: "Stimmen aus dem Park",
+                        analysis: "Parkanalyse & Sauberkeit",
+                      } as Record<string, string | undefined>
+                    )[category]
+                  }
+                </h2>
+                <button
+                  className="iconbtn"
+                  aria-label="Baufenster schließen"
+                  onClick={() => {
+                    setCategory("");
+                    setTool("select");
+                    setCut(null);
+                    setPodEdit(null);
+                    setAdjust(null);
+                  }}
+                >
+                  <X />
+                </button>
+              </div>
+              <div className="panelbody">
+                {category === "zoo" && snapshot && (
+                  <>
+                    {catalog([
+                      "zebra",
+                      "giraffe",
+                      "elephant",
+                      "lion",
+                      "flamingo",
+                      "penguin",
+                      "panda",
+                      "keeperhut",
+                    ])}
+                    <ZooOverview
+                      park={snapshot}
+                      onSpecialists={(role, count) => {
+                        const error = setZooSpecialists(park.current!, role, count);
+                        sync();
+                        return error;
+                      }}
+                      onBuild={(k) => pickTool(k, "zoo")}
+                      onKeepers={(n) => {
+                        initZoo(park.current!);
+                        park.current!.zoo!.keepers = n;
+                        initZoo(park.current!);
+                        sync();
+                      }}
+                    />
                     <button
                       className="secondary"
                       onClick={() => {
-                        if (buildWorld) setBuildWorld(null);
+                        setTab("research");
+                        setSettings(true);
+                      }}
+                    >
+                      Tierarten erforschen
+                    </button>
+                  </>
+                )}
+                {category === "rides" && (
+                  <>
+                    {catalog([
+                      "wheel",
+                      "carousel",
+                      "bumper",
+                      "balloonride",
+                      "swing",
+                      "drop",
+                      "pirate",
+                      "teacups",
+                      "spinner",
+                    ])}
+                    <button
+                      className="secondary"
+                      style={{ marginTop: 12, width: "100%" }}
+                      onClick={() => {
+                        if (snapshot && isUnlocked(snapshot, "custom")) setWorkshop(true);
                         else {
-                          setBlueprintMode(false);
-                          setBuildWorld(structuredClone(park.current!));
+                          setTab("research");
+                          setSettings(true);
                         }
                       }}
                     >
-                      {buildWorld ? "2D-Parkansicht" : "3D-Bauinspektor"}
+                      <Sparkles size={18} />{" "}
+                      {snapshot && isUnlocked(snapshot, "custom")
+                        ? "Eigene Attraktion entwickeln"
+                        : "Werkstatt erforschen"}
                     </button>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={autoFocus}
-                        onChange={(e) => {
-                          setAutoFocus(e.target.checked);
-                          if (!e.target.checked) cameraTarget.current = null;
-                        }}
-                      />{" "}
-                      Anschluss folgen
-                    </label>
-                  </div>
-                  {!snapshot?.trackEdit && (
-                    <>
-                      <div className="coaster-types" role="group" aria-label="Achterbahntyp">
-                        {(Object.keys(COASTER_TYPES) as CoasterType[]).map((type) => (
-                          <button
-                            key={type}
-                            className={coasterType === type ? "active" : ""}
-                            disabled={
-                              (!blueprintMode && draft.length > 0) ||
-                              (!!snapshot && !isUnlocked(snapshot, "coaster", type))
-                            }
-                            onClick={() => {
-                              setCoasterType(type);
-                              if (type === "wood" && invertingPiece(piece)) setPiece("straight");
-                            }}
-                          >
-                            <img src={assetUrl(`car-${type}-se`)} alt="" />
-                            <strong>{COASTER_TYPES[type].name}</strong>
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="build-modes" role="group" aria-label="Achterbahn-Bauweise">
-                        <button
-                          className={blueprintMode ? "active" : ""}
-                          aria-pressed={blueprintMode}
-                          disabled={!!snapshot?.trackEdit}
-                          onClick={() => {
-                            setBlueprintMode(true);
-                          }}
-                        >
-                          Schnellbau
-                        </button>
-                        <button
-                          className={!blueprintMode ? "active" : ""}
-                          aria-pressed={!blueprintMode}
-                          onClick={() => {
-                            setBlueprintMode(false);
-                            if (draft[0]?.style) setCoasterType(draft[0].style);
-                          }}
-                        >
-                          Fertigteile
-                        </button>
-                      </div>
-                    </>
-                  )}
-                  {blueprintMode ? (
-                    <>
-                      <img
-                        className="blueprint-art"
-                        src={assetUrl(`station-${coasterType}`)}
-                        alt=""
-                      />
-                      <h3 className="blueprint-title">{COASTER_TYPES[coasterType].name}</h3>
-                      <p className="small">
-                        {coasterType === "launch"
-                          ? "Launch-Geraden und ein 20 m hoher Looping."
-                          : coasterType === "wood"
-                            ? "Weiche Kurven und zwei Hügel auf einem Holztragwerk."
-                            : "Ein Rundkurs mit Kettenlift, Abfahrt und weiten Kurven."}{" "}
-                        Klicke auf freie Wiese zum Bauen.
-                      </p>
-                      <div className="draftstats">
-                        <span>
-                          {trackStats(prefabBlueprint({ x: 0, y: 0 }, 0, coasterType)).length} m
-                          Strecke
-                        </span>
-                        <b>{EUR(trackCost(prefabBlueprint({ x: 0, y: 0 }, 0, coasterType)))}</b>
-                      </div>
-                      <button
-                        className="secondary"
-                        style={{ width: "100%" }}
-                        onClick={() => setRotation((r) => (r + 1) % 4)}
-                      >
-                        <RotateCw size={16} /> Vorlage drehen <kbd>R</kbd>
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="small builder-instruction">
-                        {draft.length
-                          ? "Bauteil wählen → Vorschau prüfen → anfügen."
-                          : "Klicke auf freie Wiese, um die Station zu setzen."}
-                      </p>
-                      {!draft.length && (
-                        <button
-                          className="secondary"
-                          onClick={() => setRotation((r) => (r + 1) % 4)}
-                        >
-                          <RotateCw size={16} /> Startrichtung drehen ·{" "}
-                          {["Südost", "Südwest", "Nordwest", "Nordost"][rotation % 4]}
-                        </button>
-                      )}
-                      <div className="draftstats">
-                        <span>
-                          {draft.length ? trackStats(draft).length : 0} m ·{" "}
-                          {Math.round((draft.at(-1)?.z ?? 0) * 5)} m Höhe
-                        </span>
-                        <b>
-                          {snapshot?.trackEdit
-                            ? draftPlan?.error
-                              ? "Umbauentwurf"
-                              : EUR(draftPlan?.cost ?? 0)
-                            : EUR(trackCost(draft))}
-                        </b>
-                      </div>
-                      {snapshot?.trackEdit && (
-                        <details className="track-edit-notice">
-                          <summary>
-                            {editRange
-                              ? `Abschnitt ${editRange.from + 1}–${editRange.to + 1}`
-                              : "Offene Lücke"}{" "}
-                            · Lücke vergrößern
-                          </summary>
-                          <p>
-                            Fertigteil auswählen, Vorschau prüfen und einsetzen. Passende Enden
-                            verbinden sich sofort.
-                          </p>
-                          {editRange && (
-                            <div className="gap-actions">
-                              <button
-                                className="secondary"
-                                disabled={editRange.from === 0}
-                                onClick={() => resizeGap(editRange.from - 1, editRange.to)}
-                              >
-                                ← Weiteres Gleis davor entfernen
-                              </button>
-                              <button
-                                className="secondary"
-                                disabled={editRange.to === editRange.sections.length - 1}
-                                onClick={() => resizeGap(editRange.from, editRange.to + 1)}
-                              >
-                                Weiteres Gleis danach entfernen →
-                              </button>
-                            </div>
-                          )}
-                          <button className="secondary" onClick={chooseAnotherRange}>
-                            Anderen Gleisbereich auswählen
-                          </button>
-                          {draftHistory.current.length > 0 && (
-                            <small>Vergrößern setzt die neuen Teile im Entwurf zurück.</small>
-                          )}
-                        </details>
-                      )}
-                      <h3 className="prefab-heading">Fertigteile · auswählen und einsetzen</h3>
-                      <TrackPieceCatalog
-                        selected={piece}
-                        wood={!COASTER_TYPES[coasterType].loop}
-                        onSelect={(id) => {
-                          setPiece(id);
-                          if (park.current?.draft) park.current.draft.piece = id;
-                        }}
-                      />
-                      <div
-                        className={`candidate-status ${candidateError && !isClosedTrack(draft) ? "invalid" : ""}`}
-                        role="status"
-                      >
-                        {candidateError ??
-                          (draft.length
-                            ? `${PIECES[piece].name}: Anschluss frei · ${EUR(trackCost(candidate) - trackCost(draft))}`
-                            : "Setze die Station auf die Wiese.")}
-                      </div>
-                      {snapshot?.trackEdit && !isClosedTrack(draft) && (
-                        <TrackFitAssistant
-                          ref={fitAssistant}
-                          park={snapshot}
-                          draft={draft}
-                          piece={piece}
-                          clear={autoClear}
-                          revision={worldRevision}
-                          onPreview={setFitPreview}
-                          onApply={acceptTrackFit}
-                        />
-                      )}
-                      {fittingCut && (
-                        <button
-                          className="fit-gap"
-                          onClick={() => resizeGap(fittingCut.from, fittingCut.to)}
-                        >
-                          Platz für {PIECES[piece].name} schaffen · {fittingCut.extra} weitere
-                          Abschnitte entfernen
-                        </button>
-                      )}
-                      <div className="builder-actions">
-                        <div className="builder-row">
-                          <button
-                            className="primary"
-                            disabled={!draft.length || !!candidateError}
-                            onClick={() => addPiece(piece)}
-                          >
-                            <Plus size={16} /> {PIECES[piece].name} einsetzen
-                          </button>
-                          <button
-                            className="secondary"
-                            aria-label="Letztes Bauteil entfernen"
-                            title="Letztes Bauteil entfernen · Strg/⌘ Z"
-                            disabled={!draftHistory.current.length}
-                            onClick={() =>
-                              setDraft(
-                                draftHistory.current.pop() ?? park.current?.trackEdit?.prefix ?? [],
-                              )
-                            }
-                          >
-                            <Undo2 size={16} />
-                          </button>
-                        </div>
-                        <button
-                          className="secondary"
-                          disabled={
-                            isClosedTrack(draft) || draft.length < (snapshot?.trackEdit ? 1 : 2)
-                          }
-                          onClick={autoClose}
-                        >
-                          <Route size={16} />{" "}
-                          {snapshot?.trackEdit ? "Offene Enden verbinden" : "Zur Station verbinden"}
-                        </button>
-                        <button
-                          className="primary"
-                          disabled={!draftPlan || !!draftPlan.error}
-                          title={draftPlan?.error ?? "Strecke bauen"}
-                          onClick={coasterBuild}
-                        >
-                          <Check size={16} />{" "}
-                          {snapshot?.trackEdit ? "Umbau übernehmen" : "Strecke bauen"}
-                          {(!snapshot?.trackEdit || (draftPlan && !draftPlan.error)) && (
-                            <> · {EUR(draftPlan?.cost ?? trackCost(draft))}</>
-                          )}
-                        </button>
-                        <div className="builder-options">
-                          <label>
-                            <input
-                              type="checkbox"
-                              checked={autoClear}
-                              onChange={(e) => setAutoClear(e.target.checked)}
-                            />{" "}
-                            Deko freiräumen
-                          </label>
-                          <button
-                            className="text-action"
-                            disabled={!draft.length}
-                            onClick={() => {
-                              draftHistory.current = [];
-                              if (park.current?.trackEdit) {
-                                cancelTrackEdit(park.current);
-                                setWorldRevision((v) => v + 1);
-                                sync();
-                              }
-                              setDraft([]);
-                            }}
-                          >
-                            {snapshot?.trackEdit ? "Umbau abbrechen" : "Verwerfen"}
-                          </button>
-                        </div>
-                      </div>
-                      <p className="buildnote">
-                        {fitPreview
-                          ? "Prüfe die Vorschau und wähle „Lösung übernehmen“. Rückgängig stellt die ursprüngliche Bahn wieder her."
-                          : (draftPlan?.error ??
-                            "Baustand gespeichert · Werkzeugwechsel jederzeit möglich.")}
-                      </p>
-                    </>
-                  )}
-                </>
-              )}
-              {category === "detail" && b && snapshot && (
-                <>
-                  {adjust ? (
-                    <div className="adjust-panel">
-                      <div className="adjust-heading">
-                        {adjust.mode === "station" ? <MapPin /> : <Move />}
-                        <h3>
-                          {adjust.mode === "station" ? "Station versetzen" : "Position anpassen"}
-                        </h3>
-                      </div>
-                      <p className="small">
-                        {adjust.mode === "station"
-                          ? "Wähle ein grün markiertes Gleisfeld. Die Station braucht einen geraden, ebenen Abschnitt am Boden."
-                          : "Bewege die Bahn über den Park. Ihre Station ist der Ankerpunkt. Die bisherige Position bleibt bis zur Bestätigung bestehen."}
-                      </p>
-                      {adjust.mode === "move" && b.kind === "coaster" && (
-                        <button
-                          className="secondary"
-                          onClick={() =>
-                            setAdjust((a) => (a ? { ...a, rotation: (a.rotation + 1) % 4 } : a))
-                          }
-                        >
-                          <RotateCw size={16} /> Um 90° drehen <kbd>R</kbd>
-                        </button>
-                      )}
-                      {adjust.mode === "station" && recommendedStation && (
-                        <button
-                          className="secondary"
-                          onClick={() =>
-                            setAdjust((a) => (a ? { ...a, point: recommendedStation } : a))
-                          }
-                        >
-                          <Sparkles size={16} /> Geeigneten Platz vorschlagen
-                        </button>
-                      )}
-                      <div
-                        className={`statebadge ${adjustmentPlan?.error || adjustmentPlan?.connection?.error ? "warn" : ""}`}
-                      >
-                        {adjustmentPlan?.error ??
-                          (adjustmentPlan?.connection?.error
-                            ? "Hier ist noch kein Anschluss möglich."
-                            : adjustmentPlan?.connection?.points.length
-                              ? `Anschluss möglich · ${EUR(adjustmentPlan.connection.cost)} zusätzliche Wegkosten`
-                              : "Direkt an erreichbarem Weg")}
-                      </div>
-                      <div className="controlrow">
-                        <span>Versetzen</span>
-                        <strong>{EUR(adjustmentPlan?.cost ?? 0)}</strong>
-                      </div>
-                      <p className="small">
-                        {adjustmentPlan?.warning ??
-                          "Die Strecke bleibt erhalten. Versetzen ist kostenlos."}
-                      </p>
+                    {customDesign && (
                       <button
                         className="primary"
-                        disabled={!!adjustmentPlan?.error || !adjustmentPlan?.changed}
-                        onClick={() => act(adjust.point)}
+                        style={{ marginTop: 8 }}
+                        onClick={() => pickTool("custom", "rides")}
                       >
-                        <Check size={16} /> Position übernehmen
+                        {customDesign.name} platzieren · {EUR(designStats(customDesign).cost)}
                       </button>
-                      <button className="secondary" onClick={cancelAdjustment}>
-                        <X size={16} /> Abbrechen
-                      </button>
-                      <p className="buildnote">
-                        Beim Übernehmen wird der Betrieb gestoppt. Namen, Fahrpreise und Einnahmen
-                        bleiben erhalten. Strg/⌘ Z macht den Umbau rückgängig.
-                      </p>
+                    )}
+                    <button
+                      className="primary"
+                      style={{ marginTop: 12 }}
+                      onClick={() => pickTool("coaster", "coaster")}
+                    >
+                      <RollerCoaster size={18} /> Eigene Achterbahn bauen
+                    </button>
+                    <div className="hintbox">
+                      <Info />
+                      <span>
+                        Platziere die Attraktion. Danach legt „Anschließen & öffnen“ den Weg für
+                        dich an.
+                      </span>
                     </div>
-                  ) : (
-                    <>
-                      {b.kind === "coaster" ? (
-                        <CarPreview className="detailhero" vehicle={vehicleFor(b)} />
-                      ) : (
-                        <img
-                          className="detailhero"
-                          src={assetUrl(CATALOG[b.kind].sprite)}
-                          alt={b.name}
-                        />
-                      )}
-                      <div
-                        className={`statebadge ${(!reachable && !decorative(b.kind)) || !b.open ? "warn" : ""}`}
-                      >
-                        {!hasOperator(b)
-                          ? "Geschlossen · Bedienpersonal fehlt"
-                          : broken(b)
-                            ? "Außer Betrieb · Reparatur nötig"
-                            : isHabitat(b.kind) && !b.habitat?.count
-                              ? "Leeres Gehege · Tiere aufnehmen"
-                              : b.kind === "bin"
-                                ? `Mülleimer · ${b.binFill ?? 0} / 16 gefüllt · ${snapshot.staff} Reinigungskräfte`
-                                : decorative(b.kind)
-                                  ? "Eine schöne Ecke für deine Besucher."
-                                  : snapshot.trackEdit?.buildingId === b.id
-                                    ? "Baustelle · Strecke unterbrochen"
-                                    : !reachable
-                                      ? isRide(b.kind)
-                                        ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
-                                        : isHabitat(b.kind)
-                                          ? "Ein normaler Besucherweg am Zaun fehlt."
-                                          : "Ein erreichbarer Parkweg fehlt."
-                                      : b.testing
-                                        ? "Testfahrt läuft …"
-                                        : !b.tested
-                                          ? "Bereit für die Testfahrt."
-                                          : b.open
-                                            ? isHabitat(b.kind)
-                                              ? "Geöffnet · Tiere vom Besucherweg beobachten."
-                                              : "Geöffnet · Besucher sind willkommen."
-                                            : "Geschlossen · Bereit zur Eröffnung."}
-                      </div>
-                      {(isAttraction(b.kind) ||
-                        (isTransport(b.kind) &&
-                          snapshot.transitLines?.some((l) => l.a === b.id || l.b === b.id))) && (
+                  </>
+                )}
+                {category === "shops" && (
+                  <>
+                    {catalog([
+                      "burger",
+                      "hotdog",
+                      "icecream",
+                      "popcorn",
+                      "drink",
+                      "coffee",
+                      "toilet",
+                      "balloon",
+                      "plush",
+                      "bin",
+                    ])}
+                    <div className="hintbox">
+                      <Info />
+                      <span>Geschäfte stehen direkt an normalen Parkwegen.</span>
+                    </div>
+                  </>
+                )}
+                {category === "nature" && (
+                  <>
+                    {catalog(["tree", "pine", "flowers", "bench", "picnic", "playground", "bin"])}
+                    <button
+                      className="secondary"
+                      style={{ marginTop: 12 }}
+                      onClick={() => {
+                        setTab("land");
+                        setSettings(true);
+                      }}
+                    >
+                      Parkgelände erweitern
+                    </button>
+                    <button
+                      className={`secondary ${tool === "water" ? "active" : ""}`}
+                      style={{ width: "100%", marginTop: 12 }}
+                      onClick={() => pickTool("water")}
+                    >
+                      Teich anlegen · 35 € / Feld
+                    </button>
+                    <div className="hintbox">
+                      <Trees />
+                      <span>Ein grüner Park verbessert die Stimmung deiner Besucher.</span>
+                    </div>
+                  </>
+                )}
+                {category === "paths" && (
+                  <div className="stack">
+                    <button
+                      className={`path-tool public ${tool === "path" ? "active" : ""}`}
+                      aria-pressed={tool === "path"}
+                      onClick={() => pickTool("path")}
+                    >
+                      <Route />
+                      <span>
+                        <strong>Parkweg · 12 €</strong>
+                        <small>Gemeinsam durch den Park</small>
+                      </span>
+                    </button>
+                    <div className="path-swatches" aria-label="Wegbelag">
+                      {Object.entries(PATH_STYLES).map(([id, style]) => (
                         <button
-                          className="primary ride-launch"
-                          disabled={snapshot.trackEdit?.buildingId === b.id}
+                          key={id}
+                          className={pathStyle === id ? "active" : ""}
+                          aria-pressed={pathStyle === id}
+                          title={style.description}
                           onClick={() => {
-                            const copy = structuredClone(park.current!);
-                            rideActive.current = true;
-                            setRide({
-                              park: copy,
-                              building: copy.buildings.find((x) => x.id === b.id)!,
-                            });
+                            setPathStyle(id as PathStyle);
+                            pickTool("path");
                           }}
                         >
-                          <Play size={18} />{" "}
-                          {isHabitat(b.kind) ? "Tiere in 3D beobachten" : "3D-Mitfahren"}
+                          <i style={{ background: style.color, borderColor: style.edge }} />
+                          <span>{style.name}</span>
                         </button>
-                      )}
-                      {isRide(b.kind) && (
-                        <RideOperationsPanel
-                          building={b}
-                          onStaffed={(v) => staffRide(b.id, v)}
-                          onRounds={(n) =>
-                            edit("Fahrtprogramm ändern", () => {
-                              const live = park.current!.buildings.find((x) => x.id === b.id)!;
-                              const error = setRideRounds(live, n);
-                              if (error) notify(error);
-                            })
+                      ))}
+                    </div>
+                    <p className="small">
+                      Neue Wege: 12 € · vorhandene Wege umgestalten: 6 € pro Feld.
+                    </p>
+                    <button
+                      className={`path-tool entrance ${tool === "queue" ? "active" : ""}`}
+                      aria-pressed={tool === "queue"}
+                      onClick={() => pickTool("queue")}
+                    >
+                      <LogIn />
+                      <span>
+                        <strong>Eingangsweg · 18 €</strong>
+                        <small>Blau · anstellen & einsteigen</small>
+                      </span>
+                    </button>
+                    <button
+                      className={`path-tool exit ${tool === "exit" ? "active" : ""}`}
+                      aria-pressed={tool === "exit"}
+                      onClick={() => pickTool("exit")}
+                    >
+                      <LogOut />
+                      <span>
+                        <strong>Ausgangsweg · 18 €</strong>
+                        <small>Rot · aussteigen & weitergehen</small>
+                      </span>
+                    </button>
+                    <p className="small">
+                      Klicke oder ziehe. Blau verbindet das Feld vor dem Eingangspod, Rot das Feld
+                      vor dem Ausgangspod mit einem beigen Parkweg. Pfeile zeigen den Ausgang; ein
+                      Kreuz bedeutet, dass der Anschluss fehlt.
+                    </p>
+                    <div className="empty-note">
+                      Die Pod-Häuschen versetzt du in der Attraktionsverwaltung. Blaue Wege bieten
+                      vier Warteplätze pro Feld. Rote Wege sind nur zum Aussteigen. Ohne fertigen
+                      Ausgang nutzen Gäste weiterhin den bisherigen Zugang.
+                    </div>
+                    {catalog(["train", "shuttle"])}
+                    <p className="small">
+                      Zwei Halte desselben Typs an Parkwege setzen und zu einer Linie verbinden.
+                      Fahrzeuge bleiben auf Parkwegen; rote Wege leiten aussteigende Fahrgäste
+                      weiter.
+                    </p>
+                  </div>
+                )}
+                {category === "coaster" && (
+                  <>
+                    <div className="builder-view-options">
+                      <button
+                        className="secondary"
+                        onClick={() => {
+                          if (buildWorld) setBuildWorld(null);
+                          else {
+                            setBlueprintMode(false);
+                            setBuildWorld(structuredClone(park.current!));
                           }
-                        />
-                      )}
-                      {isAmenity(b.kind) && (
-                        <section className="amenity-detail">
-                          <h3>
-                            {b.kind === "playground" ? "Spielen & Entdecken" : "Eine Pause im Park"}
-                          </h3>
-                          <p>{CATALOG[b.kind].description}</p>
-                          <div className="controlrow">
-                            <span>Gerade zu Besuch</span>
-                            <strong>
-                              {
-                                snapshot.guests.filter(
-                                  (g) => g.target === b.id && g.state === "rest",
-                                ).length
+                        }}
+                      >
+                        {buildWorld ? "2D-Parkansicht" : "3D-Bauinspektor"}
+                      </button>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={autoFocus}
+                          onChange={(e) => {
+                            setAutoFocus(e.target.checked);
+                            if (!e.target.checked) cameraTarget.current = null;
+                          }}
+                        />{" "}
+                        Anschluss folgen
+                      </label>
+                    </div>
+                    {!snapshot?.trackEdit && (
+                      <>
+                        <div className="coaster-types" role="group" aria-label="Achterbahntyp">
+                          {(Object.keys(COASTER_TYPES) as CoasterType[]).map((type) => (
+                            <button
+                              key={type}
+                              className={coasterType === type ? "active" : ""}
+                              disabled={
+                                (!blueprintMode && draft.length > 0) ||
+                                (!!snapshot && !isUnlocked(snapshot, "coaster", type))
                               }
-                            </strong>
-                          </div>
-                          <p className="small">
-                            {reachable
-                              ? "Erreichbar über den Parkweg. Pausen verbessern Energie und Laune."
-                              : "Baue einen normalen Parkweg direkt daneben."}
-                          </p>
-                        </section>
-                      )}
-                      {isHabitat(b.kind) && (
-                        <HabitatPanel
-                          park={snapshot}
-                          building={b}
-                          onAction={(action) => {
-                            const live = park.current!.buildings.find((x) => x.id === b.id)!;
-                            let error: string | null = null;
-                            if (action === "adopt") error = adoptAnimal(park.current!, live);
-                            else if (action === "care")
-                              error = careHabitat(park.current!, live, (s, b) => access(s, b));
-                            else if (action === "rehome") {
-                              if (live.habitat && live.habitat.count > 0) live.habitat.count--;
-                              if (!live.habitat?.count) live.open = false;
-                            } else error = upgradeHabitat(park.current!, live, action);
-                            notify(
-                              error ??
-                                (action === "adopt"
-                                  ? "Ein neues Tier zieht ein. Prüfe Zugang und Tierpflege."
-                                  : action === "rehome"
-                                    ? "Ein Partnerzoo hat das Tier aufgenommen."
-                                    : "Gehegeversorgung aktualisiert."),
-                            );
-                            sync();
-                          }}
+                              onClick={() => {
+                                setCoasterType(type);
+                                if (type === "wood" && invertingPiece(piece)) setPiece("straight");
+                              }}
+                            >
+                              <img src={assetUrl(`car-${type}-se`)} alt="" />
+                              <strong>{COASTER_TYPES[type].name}</strong>
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="build-modes" role="group" aria-label="Achterbahn-Bauweise">
+                          <button
+                            className={blueprintMode ? "active" : ""}
+                            aria-pressed={blueprintMode}
+                            disabled={!!snapshot?.trackEdit}
+                            onClick={() => {
+                              setBlueprintMode(true);
+                            }}
+                          >
+                            Schnellbau
+                          </button>
+                          <button
+                            className={!blueprintMode ? "active" : ""}
+                            aria-pressed={!blueprintMode}
+                            onClick={() => {
+                              setBlueprintMode(false);
+                              if (draft[0]?.style) setCoasterType(draft[0].style);
+                            }}
+                          >
+                            Fertigteile
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {blueprintMode ? (
+                      <>
+                        <img
+                          className="blueprint-art"
+                          src={assetUrl(`station-${coasterType}`)}
+                          alt=""
                         />
-                      )}
-                      {b.kind === "keeperhut" && (
-                        <ZooOverview
-                          park={snapshot}
-                          onBuild={(k) => pickTool(k, "zoo")}
-                          onKeepers={(n) => {
-                            initZoo(park.current!);
-                            park.current!.zoo!.keepers = n;
-                            initZoo(park.current!);
-                            sync();
-                          }}
-                        />
-                      )}
-                      {isRide(b.kind) && (
-                        <div className="maintenance-card">
-                          <strong>Zustand · {Math.round(condition(b))}%</strong>
-                          <progress max="100" value={condition(b)} />
-                          {broken(b) && (
+                        <h3 className="blueprint-title">{COASTER_TYPES[coasterType].name}</h3>
+                        <p className="small">
+                          {coasterType === "launch"
+                            ? "Launch-Geraden und ein 20 m hoher Looping."
+                            : coasterType === "wood"
+                              ? "Weiche Kurven und zwei Hügel auf einem Holztragwerk."
+                              : "Ein Rundkurs mit Kettenlift, Abfahrt und weiten Kurven."}{" "}
+                          Klicke auf freie Wiese zum Bauen.
+                        </p>
+                        <div className="draftstats">
+                          <span>
+                            {trackStats(prefabBlueprint({ x: 0, y: 0 }, 0, coasterType)).length} m
+                            Strecke
+                          </span>
+                          <b>{EUR(trackCost(prefabBlueprint({ x: 0, y: 0 }, 0, coasterType)))}</b>
+                        </div>
+                        <button
+                          className="secondary"
+                          style={{ width: "100%" }}
+                          onClick={() => setRotation((r) => (r + 1) % 4)}
+                        >
+                          <RotateCw size={16} /> Vorlage drehen <kbd>R</kbd>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="small builder-instruction">
+                          {draft.length
+                            ? "Bauteil wählen → Vorschau prüfen → anfügen."
+                            : "Klicke auf freie Wiese, um die Station zu setzen."}
+                        </p>
+                        {!draft.length && (
+                          <button
+                            className="secondary"
+                            onClick={() => setRotation((r) => (r + 1) % 4)}
+                          >
+                            <RotateCw size={16} /> Startrichtung drehen ·{" "}
+                            {["Südost", "Südwest", "Nordwest", "Nordost"][rotation % 4]}
+                          </button>
+                        )}
+                        <div className="draftstats">
+                          <span>
+                            {draft.length ? trackStats(draft).length : 0} m ·{" "}
+                            {Math.round((draft.at(-1)?.z ?? 0) * 5)} m Höhe
+                          </span>
+                          <b>
+                            {snapshot?.trackEdit
+                              ? draftPlan?.error
+                                ? "Umbauentwurf"
+                                : EUR(draftPlan?.cost ?? 0)
+                              : EUR(trackCost(draft))}
+                          </b>
+                        </div>
+                        {snapshot?.trackEdit && (
+                          <details className="track-edit-notice">
+                            <summary>
+                              {editRange
+                                ? `Abschnitt ${editRange.from + 1}–${editRange.to + 1}`
+                                : "Offene Lücke"}{" "}
+                              · Lücke vergrößern
+                            </summary>
                             <p>
-                              Außer Betrieb. Repariere die Attraktion, bevor sie wieder öffnen kann.
+                              Fertigteil auswählen, Vorschau prüfen und einsetzen. Passende Enden
+                              verbinden sich sofort.
                             </p>
-                          )}
+                            {editRange && (
+                              <div className="gap-actions">
+                                <button
+                                  className="secondary"
+                                  disabled={editRange.from === 0}
+                                  onClick={() => resizeGap(editRange.from - 1, editRange.to)}
+                                >
+                                  ← Weiteres Gleis davor entfernen
+                                </button>
+                                <button
+                                  className="secondary"
+                                  disabled={editRange.to === editRange.sections.length - 1}
+                                  onClick={() => resizeGap(editRange.from, editRange.to + 1)}
+                                >
+                                  Weiteres Gleis danach entfernen →
+                                </button>
+                              </div>
+                            )}
+                            <button className="secondary" onClick={chooseAnotherRange}>
+                              Anderen Gleisbereich auswählen
+                            </button>
+                            {draftHistory.current.length > 0 && (
+                              <small>Vergrößern setzt die neuen Teile im Entwurf zurück.</small>
+                            )}
+                          </details>
+                        )}
+                        <h3 className="prefab-heading">Fertigteile · auswählen und einsetzen</h3>
+                        <TrackPieceCatalog
+                          selected={piece}
+                          wood={!COASTER_TYPES[coasterType].loop}
+                          onSelect={(id) => {
+                            setPiece(id);
+                            if (park.current?.draft) park.current.draft.piece = id;
+                          }}
+                        />
+                        <div
+                          className={`candidate-status ${candidateError && !isClosedTrack(draft) ? "invalid" : ""}`}
+                          role="status"
+                        >
+                          {candidateError ??
+                            (draft.length
+                              ? `${PIECES[piece].name}: Anschluss frei · ${EUR(trackCost(candidate) - trackCost(draft))}`
+                              : "Setze die Station auf die Wiese.")}
+                        </div>
+                        {snapshot?.trackEdit && !isClosedTrack(draft) && (
+                          <TrackFitAssistant
+                            ref={fitAssistant}
+                            park={snapshot}
+                            draft={draft}
+                            piece={piece}
+                            clear={autoClear}
+                            revision={worldRevision}
+                            onPreview={setFitPreview}
+                            onApply={acceptTrackFit}
+                          />
+                        )}
+                        {fittingCut && (
+                          <button
+                            className="fit-gap"
+                            onClick={() => resizeGap(fittingCut.from, fittingCut.to)}
+                          >
+                            Platz für {PIECES[piece].name} schaffen · {fittingCut.extra} weitere
+                            Abschnitte entfernen
+                          </button>
+                        )}
+                        <div className="builder-actions">
+                          <div className="builder-row">
+                            <button
+                              className="primary"
+                              disabled={!draft.length || !!candidateError}
+                              onClick={() => addPiece(piece)}
+                            >
+                              <Plus size={16} /> {PIECES[piece].name} einsetzen
+                            </button>
+                            <button
+                              className="secondary"
+                              aria-label="Letztes Bauteil entfernen"
+                              title="Letztes Bauteil entfernen · Strg/⌘ Z"
+                              disabled={!draftHistory.current.length}
+                              onClick={() =>
+                                setDraft(
+                                  draftHistory.current.pop() ??
+                                    park.current?.trackEdit?.prefix ??
+                                    [],
+                                )
+                              }
+                            >
+                              <Undo2 size={16} />
+                            </button>
+                          </div>
                           <button
                             className="secondary"
                             disabled={
-                              condition(b) >= 99.99 ||
-                              snapshot.cash < repairCost(b, CATALOG[b.kind].cost)
+                              isClosedTrack(draft) || draft.length < (snapshot?.trackEdit ? 1 : 2)
                             }
+                            onClick={autoClose}
+                          >
+                            <Route size={16} />{" "}
+                            {snapshot?.trackEdit
+                              ? "Offene Enden verbinden"
+                              : "Zur Station verbinden"}
+                          </button>
+                          <button
+                            className="primary"
+                            disabled={!draftPlan || !!draftPlan.error}
+                            title={draftPlan?.error ?? "Strecke bauen"}
+                            onClick={coasterBuild}
+                          >
+                            <Check size={16} />{" "}
+                            {snapshot?.trackEdit ? "Umbau übernehmen" : "Strecke bauen"}
+                            {(!snapshot?.trackEdit || (draftPlan && !draftPlan.error)) && (
+                              <> · {EUR(draftPlan?.cost ?? trackCost(draft))}</>
+                            )}
+                          </button>
+                          <div className="builder-options">
+                            <label>
+                              <input
+                                type="checkbox"
+                                checked={autoClear}
+                                onChange={(e) => setAutoClear(e.target.checked)}
+                              />{" "}
+                              Deko freiräumen
+                            </label>
+                            <button
+                              className="text-action"
+                              disabled={!draft.length}
+                              onClick={() => {
+                                draftHistory.current = [];
+                                if (park.current?.trackEdit) {
+                                  cancelTrackEdit(park.current);
+                                  setWorldRevision((v) => v + 1);
+                                  sync();
+                                }
+                                setDraft([]);
+                              }}
+                            >
+                              {snapshot?.trackEdit ? "Umbau abbrechen" : "Verwerfen"}
+                            </button>
+                          </div>
+                        </div>
+                        <p className="buildnote">
+                          {fitPreview
+                            ? "Prüfe die Vorschau und wähle „Lösung übernehmen“. Rückgängig stellt die ursprüngliche Bahn wieder her."
+                            : (draftPlan?.error ??
+                              "Baustand gespeichert · Werkzeugwechsel jederzeit möglich.")}
+                        </p>
+                      </>
+                    )}
+                  </>
+                )}
+                {category === "detail" && b && snapshot && (
+                  <>
+                    {adjust ? (
+                      <div className="adjust-panel">
+                        <div className="adjust-heading">
+                          {adjust.mode === "station" ? <MapPin /> : <Move />}
+                          <h3>
+                            {adjust.mode === "station" ? "Station versetzen" : "Position anpassen"}
+                          </h3>
+                        </div>
+                        <p className="small">
+                          {adjust.mode === "station"
+                            ? "Wähle ein grün markiertes Gleisfeld. Die Station braucht einen geraden, ebenen Abschnitt am Boden."
+                            : "Bewege die Bahn über den Park. Ihre Station ist der Ankerpunkt. Die bisherige Position bleibt bis zur Bestätigung bestehen."}
+                        </p>
+                        {adjust.mode === "move" && b.kind === "coaster" && (
+                          <button
+                            className="secondary"
+                            onClick={() =>
+                              setAdjust((a) => (a ? { ...a, rotation: (a.rotation + 1) % 4 } : a))
+                            }
+                          >
+                            <RotateCw size={16} /> Um 90° drehen <kbd>R</kbd>
+                          </button>
+                        )}
+                        {adjust.mode === "station" && recommendedStation && (
+                          <button
+                            className="secondary"
+                            onClick={() =>
+                              setAdjust((a) => (a ? { ...a, point: recommendedStation } : a))
+                            }
+                          >
+                            <Sparkles size={16} /> Geeigneten Platz vorschlagen
+                          </button>
+                        )}
+                        <div
+                          className={`statebadge ${adjustmentPlan?.error || adjustmentPlan?.connection?.error ? "warn" : ""}`}
+                        >
+                          {adjustmentPlan?.error ??
+                            (adjustmentPlan?.connection?.error
+                              ? "Hier ist noch kein Anschluss möglich."
+                              : adjustmentPlan?.connection?.points.length
+                                ? `Anschluss möglich · ${EUR(adjustmentPlan.connection.cost)} zusätzliche Wegkosten`
+                                : "Direkt an erreichbarem Weg")}
+                        </div>
+                        <div className="controlrow">
+                          <span>Versetzen</span>
+                          <strong>{EUR(adjustmentPlan?.cost ?? 0)}</strong>
+                        </div>
+                        <p className="small">
+                          {adjustmentPlan?.warning ??
+                            "Die Strecke bleibt erhalten. Versetzen ist kostenlos."}
+                        </p>
+                        <button
+                          className="primary"
+                          disabled={!!adjustmentPlan?.error || !adjustmentPlan?.changed}
+                          onClick={() => act(adjust.point)}
+                        >
+                          <Check size={16} /> Position übernehmen
+                        </button>
+                        <button className="secondary" onClick={cancelAdjustment}>
+                          <X size={16} /> Abbrechen
+                        </button>
+                        <p className="buildnote">
+                          Beim Übernehmen wird der Betrieb gestoppt. Namen, Fahrpreise und Einnahmen
+                          bleiben erhalten. Strg/⌘ Z macht den Umbau rückgängig.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        {b.kind === "coaster" ? (
+                          <CarPreview className="detailhero" vehicle={vehicleFor(b)} />
+                        ) : (
+                          <img
+                            className="detailhero"
+                            src={assetUrl(CATALOG[b.kind].sprite)}
+                            alt={b.name}
+                          />
+                        )}
+                        <div
+                          className={`statebadge ${(!reachable && !decorative(b.kind)) || !b.open ? "warn" : ""}`}
+                        >
+                          {!hasOperator(b)
+                            ? "Geschlossen · Bedienpersonal fehlt"
+                            : broken(b)
+                              ? "Außer Betrieb · Reparatur nötig"
+                              : isHabitat(b.kind) && habitatSafety(b).status === "closed"
+                                ? "Sicherheitsstopp · Gehegebarriere warten lassen"
+                                : isHabitat(b.kind) && !b.habitat?.count
+                                  ? "Leeres Gehege · Tiere aufnehmen"
+                                  : b.kind === "bin"
+                                    ? `Mülleimer · ${b.binFill ?? 0} / 16 gefüllt · ${snapshot.staff} Reinigungskräfte`
+                                    : b.kind === "keeperhut"
+                                      ? reachable
+                                        ? "Tierpflegerstation · Zoo-Team und Fachpersonal verwalten."
+                                        : "Tierpflegerstation · Ein erreichbarer Parkweg fehlt."
+                                      : decorative(b.kind)
+                                        ? "Eine schöne Ecke für deine Besucher."
+                                        : snapshot.trackEdit?.buildingId === b.id
+                                          ? "Baustelle · Strecke unterbrochen"
+                                          : !reachable
+                                            ? isRide(b.kind)
+                                              ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
+                                              : isHabitat(b.kind)
+                                                ? "Ein normaler Besucherweg am Zaun fehlt."
+                                                : "Ein erreichbarer Parkweg fehlt."
+                                            : b.testing
+                                              ? "Testfahrt läuft …"
+                                              : !b.tested
+                                                ? "Bereit für die Testfahrt."
+                                                : b.open
+                                                  ? isHabitat(b.kind)
+                                                    ? "Geöffnet · Tiere vom Besucherweg beobachten."
+                                                    : "Geöffnet · Besucher sind willkommen."
+                                                  : "Geschlossen · Bereit zur Eröffnung."}
+                        </div>
+                        {(isAttraction(b.kind) ||
+                          (isTransport(b.kind) &&
+                            snapshot.transitLines?.some((l) => l.a === b.id || l.b === b.id))) && (
+                          <button
+                            className="primary ride-launch"
+                            disabled={snapshot.trackEdit?.buildingId === b.id}
                             onClick={() => {
-                              const live = park.current!.buildings.find((x) => x.id === b.id)!;
-                              const error = repairAttraction(
-                                park.current!,
-                                live,
-                                CATALOG[b.kind].cost,
-                              );
-                              notify(
-                                error ?? "Attraktion repariert. Du kannst sie wieder eröffnen.",
-                              );
-                              sync();
+                              const copy = structuredClone(park.current!);
+                              rideActive.current = true;
+                              setRide({
+                                park: copy,
+                                building: copy.buildings.find((x) => x.id === b.id)!,
+                              });
                             }}
                           >
-                            Reparieren · {EUR(repairCost(b, CATALOG[b.kind].cost))}
+                            <Play size={18} />{" "}
+                            {isHabitat(b.kind) ? "Tiere in 3D beobachten" : "3D-Mitfahren"}
                           </button>
-                        </div>
-                      )}
-                      {isTransport(b.kind) && (
-                        <div className="transit-box">
-                          <strong>
-                            {b.kind === "train" ? "Parkbahnlinie" : "Shuttle-Verbindung"}
-                          </strong>
-                          {(() => {
-                            const line = snapshot.transitLines?.find(
-                              (l) => l.a === b.id || l.b === b.id,
-                            );
-                            if (line)
+                        )}
+                        {isRide(b.kind) && (
+                          <RideOperationsPanel
+                            building={b}
+                            onStaffed={(v) => staffRide(b.id, v)}
+                            onRounds={(n) =>
+                              edit("Fahrtprogramm ändern", () => {
+                                const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                                const error = setRideRounds(live, n);
+                                if (error) notify(error);
+                              })
+                            }
+                          />
+                        )}
+                        {isAmenity(b.kind) && (
+                          <section className="amenity-detail">
+                            <h3>
+                              {b.kind === "playground"
+                                ? "Spielen & Entdecken"
+                                : "Eine Pause im Park"}
+                            </h3>
+                            <p>{CATALOG[b.kind].description}</p>
+                            <div className="controlrow">
+                              <span>Gerade zu Besuch</span>
+                              <strong>
+                                {
+                                  snapshot.guests.filter(
+                                    (g) => g.target === b.id && g.state === "rest",
+                                  ).length
+                                }
+                              </strong>
+                            </div>
+                            <p className="small">
+                              {reachable
+                                ? "Erreichbar über den Parkweg. Pausen verbessern Energie und Laune."
+                                : "Baue einen normalen Parkweg direkt daneben."}
+                            </p>
+                          </section>
+                        )}
+                        {isHabitat(b.kind) && (
+                          <HabitatPanel
+                            onManageStaff={() => {
+                              setTab("personal");
+                              setSettings(true);
+                            }}
+                            park={snapshot}
+                            building={b}
+                            onAction={(action) => {
+                              const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                              let error: string | null = null;
+                              if (action === "adopt") error = adoptAnimal(park.current!, live);
+                              else if (action === "care")
+                                error = careHabitat(park.current!, live, (s, b) => access(s, b));
+                              else if (action === "rehome") {
+                                if (live.habitat && live.habitat.count > 0) live.habitat.count--;
+                                if (!live.habitat?.count) live.open = false;
+                              } else if (action.startsWith("feature:")) {
+                                error = addHabitatFeature(
+                                  park.current!,
+                                  live,
+                                  action.slice(8) as HabitatFeatureId,
+                                );
+                              } else if (action === "electric-on" || action === "electric-off") {
+                                error = setHabitatElectric(
+                                  park.current!,
+                                  live,
+                                  action === "electric-on",
+                                );
+                              } else if (action === "inspect") {
+                                error = inspectHabitat(park.current!, live);
+                              } else if (action === "enrichment" || action === "shelter") {
+                                error = upgradeHabitat(park.current!, live, action);
+                              }
+                              notify(
+                                error ??
+                                  (action === "adopt"
+                                    ? "Ein neues Tier zieht ein. Prüfe Zugang und Tierpflege."
+                                    : action === "rehome"
+                                      ? "Ein Partnerzoo hat das Tier aufgenommen."
+                                      : action.startsWith("feature:")
+                                        ? "Neue Ausstattung eingebaut. Die Tiere können sie jetzt nutzen."
+                                        : "Gehegeversorgung aktualisiert."),
+                              );
+                              sync();
+                              return error;
+                            }}
+                          />
+                        )}
+                        {b.kind === "keeperhut" && (
+                          <ZooOverview
+                            park={snapshot}
+                            onSpecialists={(role, count) => {
+                              const error = setZooSpecialists(park.current!, role, count);
+                              sync();
+                              return error;
+                            }}
+                            onBuild={(k) => pickTool(k, "zoo")}
+                            onKeepers={(n) => {
+                              initZoo(park.current!);
+                              park.current!.zoo!.keepers = n;
+                              initZoo(park.current!);
+                              sync();
+                            }}
+                          />
+                        )}
+                        {isRide(b.kind) && (
+                          <div className="maintenance-card">
+                            <strong>Zustand · {Math.round(condition(b))}%</strong>
+                            <progress max="100" value={condition(b)} />
+                            {broken(b) && (
+                              <p>
+                                Außer Betrieb. Repariere die Attraktion, bevor sie wieder öffnen
+                                kann.
+                              </p>
+                            )}
+                            <button
+                              className="secondary"
+                              disabled={
+                                condition(b) >= 99.99 ||
+                                snapshot.cash < repairCost(b, CATALOG[b.kind].cost)
+                              }
+                              onClick={() => {
+                                const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                                const error = repairAttraction(
+                                  park.current!,
+                                  live,
+                                  CATALOG[b.kind].cost,
+                                );
+                                notify(
+                                  error ?? "Attraktion repariert. Du kannst sie wieder eröffnen.",
+                                );
+                                sync();
+                              }}
+                            >
+                              Reparieren · {EUR(repairCost(b, CATALOG[b.kind].cost))}
+                            </button>
+                          </div>
+                        )}
+                        {isTransport(b.kind) && (
+                          <div className="transit-box">
+                            <strong>
+                              {b.kind === "train" ? "Parkbahnlinie" : "Shuttle-Verbindung"}
+                            </strong>
+                            {(() => {
+                              const line = snapshot.transitLines?.find(
+                                (l) => l.a === b.id || l.b === b.id,
+                              );
+                              if (line)
+                                return (
+                                  <>
+                                    <span>
+                                      {snapshot.buildings.find((x) => x.id === line.a)?.name} ↔{" "}
+                                      {snapshot.buildings.find((x) => x.id === line.b)?.name}
+                                    </span>
+                                    <span>
+                                      {Math.round((line.route.length - 1) * 5)} m ·{" "}
+                                      {line.passengers.length}/{transportCapacity(line.kind)} an
+                                      Bord · {line.served} Fahrgäste
+                                    </span>
+                                    <span>
+                                      {line.fault ??
+                                        (line.wait > 0
+                                          ? "Halt · Ein- und Aussteigen"
+                                          : "Fahrzeug unterwegs")}
+                                    </span>
+                                    <button
+                                      className="secondary"
+                                      onClick={() =>
+                                        edit("Linienbetrieb", () => {
+                                          const live = park.current!.transitLines!.find(
+                                            (l) => l.id === line.id,
+                                          )!;
+                                          live.enabled = !live.enabled;
+                                          tickTransit(park.current!, 0);
+                                        })
+                                      }
+                                    >
+                                      {line.enabled ? "Linie pausieren" : "Linie fortsetzen"}
+                                    </button>
+                                    <button
+                                      className="secondary"
+                                      disabled={!!repairTransitPlan(snapshot, line).error}
+                                      onClick={() =>
+                                        edit("Linie neu verbinden", () => {
+                                          const live = park.current!.transitLines!.find(
+                                            (l) => l.id === line.id,
+                                          )!;
+                                          notify(
+                                            repairTransit(park.current!, live) ??
+                                              "Verbindung neu berechnet. Die Fahrt beginnt am ersten Halt.",
+                                          );
+                                        })
+                                      }
+                                    >
+                                      Route neu verbinden ·{" "}
+                                      {EUR(repairTransitPlan(snapshot, line).cost)}
+                                    </button>
+                                    {repairTransitPlan(snapshot, line).error && (
+                                      <span>{repairTransitPlan(snapshot, line).error}</span>
+                                    )}
+                                  </>
+                                );
+                              const stops = snapshot.buildings.filter(
+                                (x) =>
+                                  x.id !== b.id &&
+                                  x.kind === b.kind &&
+                                  !snapshot.transitLines?.some((l) => l.a === x.id || l.b === x.id),
+                              );
                               return (
                                 <>
-                                  <span>
-                                    {snapshot.buildings.find((x) => x.id === line.a)?.name} ↔{" "}
-                                    {snapshot.buildings.find((x) => x.id === line.b)?.name}
-                                  </span>
-                                  <span>
-                                    {Math.round((line.route.length - 1) * 5)} m ·{" "}
-                                    {line.passengers.length}/{transportCapacity(line.kind)} an Bord
-                                    · {line.served} Fahrgäste
-                                  </span>
-                                  <span>
-                                    {line.fault ??
-                                      (line.wait > 0
-                                        ? "Halt · Ein- und Aussteigen"
-                                        : "Fahrzeug unterwegs")}
-                                  </span>
-                                  <button
-                                    className="secondary"
-                                    onClick={() =>
-                                      edit("Linienbetrieb", () => {
-                                        const live = park.current!.transitLines!.find(
-                                          (l) => l.id === line.id,
-                                        )!;
-                                        live.enabled = !live.enabled;
-                                        tickTransit(park.current!, 0);
-                                      })
-                                    }
-                                  >
-                                    {line.enabled ? "Linie pausieren" : "Linie fortsetzen"}
-                                  </button>
-                                  <button
-                                    className="secondary"
-                                    disabled={!!repairTransitPlan(snapshot, line).error}
-                                    onClick={() =>
-                                      edit("Linie neu verbinden", () => {
-                                        const live = park.current!.transitLines!.find(
-                                          (l) => l.id === line.id,
-                                        )!;
-                                        notify(
-                                          repairTransit(park.current!, live) ??
-                                            "Verbindung neu berechnet. Die Fahrt beginnt am ersten Halt.",
-                                        );
-                                      })
-                                    }
-                                  >
-                                    Route neu verbinden ·{" "}
-                                    {EUR(repairTransitPlan(snapshot, line).cost)}
-                                  </button>
-                                  {repairTransitPlan(snapshot, line).error && (
-                                    <span>{repairTransitPlan(snapshot, line).error}</span>
-                                  )}
+                                  <p className="small">
+                                    {stops.length
+                                      ? "Wähle den zweiten Halt. Fahrzeuge benutzen die eingezeichneten Parkwege und halten an beiden Enden."
+                                      : "Setze einen zweiten Halt dieses Typs mindestens fünf Wegfelder entfernt."}
+                                  </p>
+                                  {stops.map((stop) => {
+                                    const plan = transitPlan(snapshot, b, stop);
+                                    return (
+                                      <div key={stop.id}>
+                                        <button
+                                          className="secondary"
+                                          disabled={!!plan.error}
+                                          onMouseEnter={() =>
+                                            (view.current.connection = plan.route)
+                                          }
+                                          onMouseLeave={() => (view.current.connection = undefined)}
+                                          onClick={() =>
+                                            edit("Transportlinie", () => {
+                                              const error = createTransitLine(
+                                                park.current!,
+                                                park.current!.buildings.find((x) => x.id === b.id)!,
+                                                park.current!.buildings.find(
+                                                  (x) => x.id === stop.id,
+                                                )!,
+                                              );
+                                              notify(
+                                                error ??
+                                                  "Linie eröffnet. Gäste nutzen sie, wenn sie schneller als der Fußweg ist.",
+                                              );
+                                            })
+                                          }
+                                        >
+                                          Mit {stop.name} ({stop.x}, {stop.y}) verbinden ·{" "}
+                                          {EUR(plan.cost)}
+                                        </button>
+                                        {plan.error && <p className="small">{plan.error}</p>}
+                                      </div>
+                                    );
+                                  })}
                                 </>
                               );
-                            const stops = snapshot.buildings.filter(
-                              (x) =>
-                                x.id !== b.id &&
-                                x.kind === b.kind &&
-                                !snapshot.transitLines?.some((l) => l.a === x.id || l.b === x.id),
-                            );
-                            return (
+                            })()}
+                          </div>
+                        )}
+                        {b.kind === "coaster" && (
+                          <VehicleCustomizer
+                            building={b}
+                            onApply={(vehicle) =>
+                              edit("Wagendesign", () => {
+                                const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                                live.vehicle = { ...vehicle };
+                                notify(
+                                  "Wagendesign übernommen. Farben gelten auch für die 3D-Mitfahrt.",
+                                );
+                              })
+                            }
+                          />
+                        )}
+                        {b.kind === "coaster" && (
+                          <div className="track-edit-controls">
+                            {snapshot.trackEdit ? (
                               <>
-                                <p className="small">
-                                  {stops.length
-                                    ? "Wähle den zweiten Halt. Fahrzeuge benutzen die eingezeichneten Parkwege und halten an beiden Enden."
-                                    : "Setze einen zweiten Halt dieses Typs mindestens fünf Wegfelder entfernt."}
+                                <p className="track-edit-notice">
+                                  Eine Bahn ist im Umbau. Offene Gleise bleiben geschlossen.
                                 </p>
-                                {stops.map((stop) => {
-                                  const plan = transitPlan(snapshot, b, stop);
-                                  return (
-                                    <div key={stop.id}>
+                                <button className="primary" onClick={resumeEdit}>
+                                  Baustelle fortsetzen
+                                </button>
+                              </>
+                            ) : cut?.id === b.id ? (
+                              <>
+                                <h3>
+                                  {sectionMode === "drive"
+                                    ? "Streckenmodule"
+                                    : sectionMode === "profile"
+                                      ? "Fahrt spannender machen"
+                                      : "Abschnitte entfernen"}
+                                </h3>
+                                <p className="small">
+                                  {sectionMode === "drive"
+                                    ? "Wähle einen Gleisbereich. Beschleuniger sind türkis, Bremsen orange markiert."
+                                    : sectionMode === "profile"
+                                      ? "Wähle einen Abschnitt. Umschalt + Klick erweitert ihn. Fertigprofile und Assistent zeigen die Wirkung vor dem Umbau."
+                                      : "Mehrfachauswahl: Klicken markiert oder löst ein Teil. Ziehen über die Bahn markiert mehrere; Umschalt + Klick ergänzt einen Bereich. Rechts ziehen verschiebt die Kamera."}
+                                </p>
+                                <TrackRangeMap
+                                  track={cutTrack}
+                                  sections={sections}
+                                  selected={sectionMode === "remove" ? marked : undefined}
+                                  from={cut.from}
+                                  to={cut.to}
+                                  color={sectionMode === "drive" ? "#35bcb5" : "#e35c42"}
+                                  onSelect={selectRange}
+                                />
+                                {sectionMode === "remove" && (
+                                  <div className="selection-summary">
+                                    <strong aria-live="polite">
+                                      {marked.length}{" "}
+                                      {marked.length === 1 ? "Teil markiert" : "Teile markiert"} ·{" "}
+                                      {markedGroups.length}{" "}
+                                      {markedGroups.length === 1 ? "Bereich" : "Bereiche"}
+                                    </strong>
+                                    <button
+                                      className="secondary"
+                                      disabled={!marked.length}
+                                      onClick={() =>
+                                        setCut({
+                                          ...cut,
+                                          marked: [],
+                                          from: 0,
+                                          to: 0,
+                                          anchor: undefined,
+                                        })
+                                      }
+                                    >
+                                      Auswahl leeren
+                                    </button>
+                                  </div>
+                                )}
+                                <details className="range-details">
+                                  <summary>Abschnitte gezielt auswählen</summary>
+                                  <label>
+                                    Von Abschnitt
+                                    <select
+                                      aria-label="Erster ausgewählter Abschnitt"
+                                      value={cut.from}
+                                      onChange={(e) =>
+                                        setContiguousRange(
+                                          +e.target.value,
+                                          Math.max(cut.to, +e.target.value),
+                                        )
+                                      }
+                                    >
+                                      {sections.map((part, i) => (
+                                        <option key={i} value={i}>
+                                          {i + 1} · {part.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                  <label>
+                                    Bis Abschnitt
+                                    <select
+                                      aria-label="Letzter ausgewählter Abschnitt"
+                                      value={cut.to}
+                                      onChange={(e) =>
+                                        setContiguousRange(cut.from, +e.target.value)
+                                      }
+                                    >
+                                      {sections.map(
+                                        (part, i) =>
+                                          i >= cut.from && (
+                                            <option key={i} value={i}>
+                                              {i + 1} · {part.label}
+                                            </option>
+                                          ),
+                                      )}
+                                    </select>
+                                  </label>
+                                  {sectionMode === "remove" && (
+                                    <div className="section-checklist">
+                                      {sections.map((part, i) => (
+                                        <label key={i}>
+                                          <input
+                                            type="checkbox"
+                                            checked={marked.includes(i)}
+                                            onChange={() => selectRange(i, false)}
+                                          />
+                                          {i + 1} · {part.label}
+                                        </label>
+                                      ))}
+                                    </div>
+                                  )}
+                                </details>
+                                {sectionMode === "profile" ? (
+                                  <RideProfileAssistant
+                                    park={snapshot}
+                                    id={b.id}
+                                    from={cut.from}
+                                    to={cut.to}
+                                    revision={worldRevision}
+                                    clear={autoClear}
+                                    onPreview={setProfilePreview}
+                                    onApply={(plan) => {
+                                      let commitError: string | null = null;
+                                      edit("Fahrprofil verbessern", () => {
+                                        const error = (commitError = commitRideProfile(
+                                          park.current!,
+                                          plan,
+                                          autoClear,
+                                        ));
+                                        if (error) {
+                                          notify(error);
+                                          setProfilePreview(null);
+                                          return;
+                                        }
+                                        setCut(null);
+                                        setProfilePreview(null);
+                                        notify(
+                                          "Fahrprofil übernommen. Starte eine Testfahrt und öffne die Bahn wieder.",
+                                        );
+                                      });
+                                      return commitError;
+                                    }}
+                                  />
+                                ) : sectionMode === "drive" ? (
+                                  <>
+                                    <div className="build-modes">
                                       <button
-                                        className="secondary"
-                                        disabled={!!plan.error}
-                                        onMouseEnter={() => (view.current.connection = plan.route)}
-                                        onMouseLeave={() => (view.current.connection = undefined)}
+                                        className={drive.kind === "boost" ? "active" : ""}
                                         onClick={() =>
-                                          edit("Transportlinie", () => {
-                                            const error = createTransitLine(
-                                              park.current!,
-                                              park.current!.buildings.find((x) => x.id === b.id)!,
-                                              park.current!.buildings.find(
-                                                (x) => x.id === stop.id,
-                                              )!,
-                                            );
-                                            notify(
-                                              error ??
-                                                "Linie eröffnet. Gäste nutzen sie, wenn sie schneller als der Fußweg ist.",
-                                            );
+                                          setDrive({
+                                            ...drive,
+                                            kind: "boost",
+                                            speed: drive.kind === "boost" ? drive.speed : 60,
                                           })
                                         }
                                       >
-                                        Mit {stop.name} ({stop.x}, {stop.y}) verbinden ·{" "}
-                                        {EUR(plan.cost)}
+                                        <Zap size={16} /> Beschleuniger
                                       </button>
-                                      {plan.error && <p className="small">{plan.error}</p>}
+                                      <button
+                                        className={drive.kind === "brake" ? "active" : ""}
+                                        onClick={() =>
+                                          setDrive({
+                                            ...drive,
+                                            kind: "brake",
+                                            speed: drive.kind === "brake" ? drive.speed : 15,
+                                          })
+                                        }
+                                      >
+                                        <OctagonPause size={16} /> Bremse
+                                      </button>
                                     </div>
-                                  );
-                                })}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-                      {b.kind === "coaster" && (
-                        <VehicleCustomizer
-                          building={b}
-                          onApply={(vehicle) =>
-                            edit("Wagendesign", () => {
-                              const live = park.current!.buildings.find((x) => x.id === b.id)!;
-                              live.vehicle = { ...vehicle };
-                              notify(
-                                "Wagendesign übernommen. Farben gelten auch für die 3D-Mitfahrt.",
-                              );
-                            })
-                          }
-                        />
-                      )}
-                      {b.kind === "coaster" && (
-                        <div className="track-edit-controls">
-                          {snapshot.trackEdit ? (
-                            <>
-                              <p className="track-edit-notice">
-                                Eine Bahn ist im Umbau. Offene Gleise bleiben geschlossen.
-                              </p>
-                              <button className="primary" onClick={resumeEdit}>
-                                Baustelle fortsetzen
-                              </button>
-                            </>
-                          ) : cut?.id === b.id ? (
-                            <>
-                              <h3>
-                                {sectionMode === "drive"
-                                  ? "Streckenmodule"
-                                  : sectionMode === "profile"
-                                    ? "Fahrt spannender machen"
-                                    : "Abschnitte entfernen"}
-                              </h3>
-                              <p className="small">
-                                {sectionMode === "drive"
-                                  ? "Wähle einen Gleisbereich. Beschleuniger sind türkis, Bremsen orange markiert."
-                                  : sectionMode === "profile"
-                                    ? "Wähle einen Abschnitt. Umschalt + Klick erweitert ihn. Fertigprofile und Assistent zeigen die Wirkung vor dem Umbau."
-                                    : "Mehrfachauswahl: Klicken markiert oder löst ein Teil. Ziehen über die Bahn markiert mehrere; Umschalt + Klick ergänzt einen Bereich. Rechts ziehen verschiebt die Kamera."}
-                              </p>
-                              <TrackRangeMap
-                                track={cutTrack}
-                                sections={sections}
-                                selected={sectionMode === "remove" ? marked : undefined}
-                                from={cut.from}
-                                to={cut.to}
-                                color={sectionMode === "drive" ? "#35bcb5" : "#e35c42"}
-                                onSelect={selectRange}
-                              />
-                              {sectionMode === "remove" && (
-                                <div className="selection-summary">
-                                  <strong aria-live="polite">
-                                    {marked.length}{" "}
-                                    {marked.length === 1 ? "Teil markiert" : "Teile markiert"} ·{" "}
-                                    {markedGroups.length}{" "}
-                                    {markedGroups.length === 1 ? "Bereich" : "Bereiche"}
-                                  </strong>
-                                  <button
-                                    className="secondary"
-                                    disabled={!marked.length}
-                                    onClick={() =>
-                                      setCut({
-                                        ...cut,
-                                        marked: [],
-                                        from: 0,
-                                        to: 0,
-                                        anchor: undefined,
-                                      })
-                                    }
-                                  >
-                                    Auswahl leeren
-                                  </button>
-                                </div>
-                              )}
-                              <details className="range-details">
-                                <summary>Abschnitte gezielt auswählen</summary>
-                                <label>
-                                  Von Abschnitt
-                                  <select
-                                    aria-label="Erster ausgewählter Abschnitt"
-                                    value={cut.from}
-                                    onChange={(e) =>
-                                      setContiguousRange(
-                                        +e.target.value,
-                                        Math.max(cut.to, +e.target.value),
-                                      )
-                                    }
-                                  >
-                                    {sections.map((part, i) => (
-                                      <option key={i} value={i}>
-                                        {i + 1} · {part.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </label>
-                                <label>
-                                  Bis Abschnitt
-                                  <select
-                                    aria-label="Letzter ausgewählter Abschnitt"
-                                    value={cut.to}
-                                    onChange={(e) => setContiguousRange(cut.from, +e.target.value)}
-                                  >
-                                    {sections.map(
-                                      (part, i) =>
-                                        i >= cut.from && (
-                                          <option key={i} value={i}>
-                                            {i + 1} · {part.label}
-                                          </option>
-                                        ),
-                                    )}
-                                  </select>
-                                </label>
-                                {sectionMode === "remove" && (
-                                  <div className="section-checklist">
-                                    {sections.map((part, i) => (
-                                      <label key={i}>
-                                        <input
-                                          type="checkbox"
-                                          checked={marked.includes(i)}
-                                          onChange={() => selectRange(i, false)}
-                                        />
-                                        {i + 1} · {part.label}
-                                      </label>
-                                    ))}
-                                  </div>
-                                )}
-                              </details>
-                              {sectionMode === "profile" ? (
-                                <RideProfileAssistant
-                                  park={snapshot}
-                                  id={b.id}
-                                  from={cut.from}
-                                  to={cut.to}
-                                  revision={worldRevision}
-                                  clear={autoClear}
-                                  onPreview={setProfilePreview}
-                                  onApply={(plan) => {
-                                    let commitError: string | null = null;
-                                    edit("Fahrprofil verbessern", () => {
-                                      const error = (commitError = commitRideProfile(
-                                        park.current!,
-                                        plan,
-                                        autoClear,
-                                      ));
-                                      if (error) {
-                                        notify(error);
-                                        setProfilePreview(null);
-                                        return;
-                                      }
-                                      setCut(null);
-                                      setProfilePreview(null);
-                                      notify(
-                                        "Fahrprofil übernommen. Starte eine Testfahrt und öffne die Bahn wieder.",
-                                      );
-                                    });
-                                    return commitError;
-                                  }}
-                                />
-                              ) : sectionMode === "drive" ? (
-                                <>
-                                  <div className="build-modes">
-                                    <button
-                                      className={drive.kind === "boost" ? "active" : ""}
-                                      onClick={() =>
-                                        setDrive({
-                                          ...drive,
-                                          kind: "boost",
-                                          speed: drive.kind === "boost" ? drive.speed : 60,
-                                        })
-                                      }
-                                    >
-                                      <Zap size={16} /> Beschleuniger
-                                    </button>
-                                    <button
-                                      className={drive.kind === "brake" ? "active" : ""}
-                                      onClick={() =>
-                                        setDrive({
-                                          ...drive,
-                                          kind: "brake",
-                                          speed: drive.kind === "brake" ? drive.speed : 15,
-                                        })
-                                      }
-                                    >
-                                      <OctagonPause size={16} /> Bremse
-                                    </button>
-                                  </div>
-                                  <label>
-                                    Zieltempo · {drive.speed} km/h
-                                    <input
-                                      aria-label="Zieltempo des Streckenmoduls"
-                                      type="range"
-                                      min="5"
-                                      max={
-                                        b.track?.[0]?.style === "wood"
-                                          ? 68
-                                          : b.track?.[0]?.style === "launch"
-                                            ? 93
-                                            : 82
-                                      }
-                                      value={drive.speed}
-                                      onChange={(e) =>
-                                        setDrive({ ...drive, speed: +e.target.value })
-                                      }
-                                    />
-                                  </label>
-                                  <label>
-                                    Stärke · {drive.strength} m/s²
-                                    <input
-                                      aria-label="Stärke des Streckenmoduls"
-                                      type="range"
-                                      min="0.5"
-                                      max="12"
-                                      step="0.5"
-                                      value={drive.strength}
-                                      onChange={(e) =>
-                                        setDrive({ ...drive, strength: +e.target.value })
-                                      }
-                                    />
-                                  </label>
-                                  <p className="small">
-                                    Wirkt nur auf dem markierten Gleis. Das erreichbare Tempo hängt
-                                    von Länge, Steigung und der nächsten Bremse ab. Die
-                                    Stationsbremse bleibt aktiv.
-                                  </p>
-                                  <button
-                                    className="primary"
-                                    disabled={
-                                      !!modulePlan?.error ||
-                                      !modulePlan?.changed ||
-                                      (modulePlan?.cost ?? 0) > (snapshot?.cash ?? 0)
-                                    }
-                                    onClick={() => mountDrive(drive)}
-                                  >
-                                    {removeModulePlan?.changed
-                                      ? "Änderungen übernehmen"
-                                      : "Modul montieren"}{" "}
-                                    · {EUR(modulePlan?.cost ?? 0)}
-                                  </button>
-                                  <button
-                                    className="secondary"
-                                    disabled={!removeModulePlan?.changed}
-                                    onClick={() => mountDrive(null)}
-                                  >
-                                    Module im Bereich entfernen
-                                  </button>
-                                </>
-                              ) : (
-                                <>
-                                  <p className="small">
-                                    Rot: zu entfernende Teile. Die Vorschau zeigt neue Verbindungen
-                                    in Türkis. Nicht markierte Gleise und die Station bleiben
-                                    erhalten.
-                                  </p>
-                                  <button
-                                    className="primary"
-                                    disabled={!marked.length}
-                                    onClick={previewRemoval}
-                                  >
-                                    Verbindungen vorschauen
-                                  </button>
-                                  {removalPreview && (
-                                    <div
-                                      className={`removal-preview ${removalPreview.error ? "error" : ""}`}
-                                      role="status"
-                                    >
-                                      {removalPreview.error ? (
-                                        <p>{removalPreview.error}</p>
-                                      ) : (
-                                        <>
-                                          <strong>
-                                            {marked.length}{" "}
-                                            {marked.length === 1
-                                              ? "Teil entfernen"
-                                              : "Teile entfernen"}{" "}
-                                            · {EUR(removalPreview.cost)}
-                                          </strong>
-                                          <p>
-                                            {markedGroups.length}{" "}
-                                            {markedGroups.length === 1
-                                              ? "Lücke wird"
-                                              : "Lücken werden"}{" "}
-                                            mit neuen Gleisen geschlossen. Gerade Verbindungen
-                                            können dem bisherigen Verlauf entsprechen.
-                                          </p>
-                                          <button
-                                            className="primary cut-confirm"
-                                            disabled={removalPreview.cost > snapshot.cash}
-                                            onClick={commitRemoval}
-                                          >
-                                            <Eraser size={16} /> Entfernen & Lücken verbinden
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-                                  )}
-                                  <button
-                                    className="secondary"
-                                    disabled={markedGroups.length !== 1}
-                                    onClick={removeSections}
-                                  >
-                                    Auswahl durch Fertigteile ersetzen
-                                  </button>
-                                  <button
-                                    className="secondary"
-                                    disabled={markedGroups.length !== 1}
-                                    onClick={() => {
-                                      setSectionMode("profile");
-                                      setCut({
-                                        id: b.id,
-                                        from: markedGroups[0].from,
-                                        to: markedGroups[0].to,
-                                      });
-                                    }}
-                                  >
-                                    Fahrprofil für die Auswahl
-                                  </button>
-                                  {markedGroups.length > 1 && (
+                                    <label>
+                                      Zieltempo · {drive.speed} km/h
+                                      <input
+                                        aria-label="Zieltempo des Streckenmoduls"
+                                        type="range"
+                                        min="5"
+                                        max={
+                                          b.track?.[0]?.style === "wood"
+                                            ? 68
+                                            : b.track?.[0]?.style === "launch"
+                                              ? 93
+                                              : 82
+                                        }
+                                        value={drive.speed}
+                                        onChange={(e) =>
+                                          setDrive({ ...drive, speed: +e.target.value })
+                                        }
+                                      />
+                                    </label>
+                                    <label>
+                                      Stärke · {drive.strength} m/s²
+                                      <input
+                                        aria-label="Stärke des Streckenmoduls"
+                                        type="range"
+                                        min="0.5"
+                                        max="12"
+                                        step="0.5"
+                                        value={drive.strength}
+                                        onChange={(e) =>
+                                          setDrive({ ...drive, strength: +e.target.value })
+                                        }
+                                      />
+                                    </label>
                                     <p className="small">
-                                      Für Loopings oder andere Fertigteile wählst du einen
-                                      zusammenhängenden Bereich.
+                                      Wirkt nur auf dem markierten Gleis. Das erreichbare Tempo
+                                      hängt von Länge, Steigung und der nächsten Bremse ab. Die
+                                      Stationsbremse bleibt aktiv.
                                     </p>
-                                  )}
-                                </>
-                              )}
-                              <button className="secondary" onClick={() => setCut(null)}>
-                                Auswahl abbrechen
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                className="primary"
-                                onClick={() => {
-                                  setSectionMode("profile");
-                                  setCut({
-                                    id: b.id,
-                                    from: Math.min(2, sections.length - 1),
-                                    to: Math.min(4, sections.length - 1),
-                                  });
-                                  setTool("select");
-                                }}
-                              >
-                                <WandSparkles size={17} /> Fahrt spannender machen
-                              </button>
-                              <button className="secondary" onClick={() => openSections(b)}>
-                                <Eraser size={16} /> Gleise ersetzen / entfernen
-                              </button>
-                              <button
-                                className="secondary"
-                                onClick={() => {
-                                  setSectionMode("drive");
-                                  setCut({
-                                    id: b.id,
-                                    from:
-                                      driveGroups[0]?.from ??
-                                      Math.min(1, driveSections(cutTrack).length - 1),
-                                    to:
-                                      driveGroups[0]?.to ??
-                                      Math.min(1, driveSections(cutTrack).length - 1),
-                                  });
-                                  setTool("select");
-                                }}
-                              >
-                                <Zap size={16} /> Beschleuniger & Bremsen
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                      {b.kind === "coaster" && !snapshot.trackEdit && !cut && (
-                        <div className="module-list">
-                          <h3>Montierte Module · {driveGroups.length}</h3>
-                          {!driveGroups.length && (
-                            <p className="small">
-                              Noch keine Module montiert. Unter „Beschleuniger & Bremsen“ wählst du
-                              ein Gleisstück.
-                            </p>
-                          )}
-                          {driveGroups.map((group, i) => (
-                            <div
-                              className={`module-card ${group.drive.kind}`}
-                              key={`${group.from}-${group.to}`}
-                            >
-                              <strong>
-                                {group.drive.kind === "boost" ? "Beschleuniger" : "Bremse"} {i + 1}
-                              </strong>
-                              <span>
-                                {group.drive.speed} km/h · {group.drive.strength} m/s² ·{" "}
-                                {Math.round(group.length)} m
-                              </span>
-                              <div>
+                                    <button
+                                      className="primary"
+                                      disabled={
+                                        !!modulePlan?.error ||
+                                        !modulePlan?.changed ||
+                                        (modulePlan?.cost ?? 0) > (snapshot?.cash ?? 0)
+                                      }
+                                      onClick={() => mountDrive(drive)}
+                                    >
+                                      {removeModulePlan?.changed
+                                        ? "Änderungen übernehmen"
+                                        : "Modul montieren"}{" "}
+                                      · {EUR(modulePlan?.cost ?? 0)}
+                                    </button>
+                                    <button
+                                      className="secondary"
+                                      disabled={!removeModulePlan?.changed}
+                                      onClick={() => mountDrive(null)}
+                                    >
+                                      Module im Bereich entfernen
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="small">
+                                      Rot: zu entfernende Teile. Die Vorschau zeigt neue
+                                      Verbindungen in Türkis. Nicht markierte Gleise und die Station
+                                      bleiben erhalten.
+                                    </p>
+                                    <button
+                                      className="primary"
+                                      disabled={!marked.length}
+                                      onClick={previewRemoval}
+                                    >
+                                      Verbindungen vorschauen
+                                    </button>
+                                    {removalPreview && (
+                                      <div
+                                        className={`removal-preview ${removalPreview.error ? "error" : ""}`}
+                                        role="status"
+                                      >
+                                        {removalPreview.error ? (
+                                          <p>{removalPreview.error}</p>
+                                        ) : (
+                                          <>
+                                            <strong>
+                                              {marked.length}{" "}
+                                              {marked.length === 1
+                                                ? "Teil entfernen"
+                                                : "Teile entfernen"}{" "}
+                                              · {EUR(removalPreview.cost)}
+                                            </strong>
+                                            <p>
+                                              {markedGroups.length}{" "}
+                                              {markedGroups.length === 1
+                                                ? "Lücke wird"
+                                                : "Lücken werden"}{" "}
+                                              mit neuen Gleisen geschlossen. Gerade Verbindungen
+                                              können dem bisherigen Verlauf entsprechen.
+                                            </p>
+                                            <button
+                                              className="primary cut-confirm"
+                                              disabled={removalPreview.cost > snapshot.cash}
+                                              onClick={commitRemoval}
+                                            >
+                                              <Eraser size={16} /> Entfernen & Lücken verbinden
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                    <button
+                                      className="secondary"
+                                      disabled={markedGroups.length !== 1}
+                                      onClick={removeSections}
+                                    >
+                                      Auswahl durch Fertigteile ersetzen
+                                    </button>
+                                    <button
+                                      className="secondary"
+                                      disabled={markedGroups.length !== 1}
+                                      onClick={() => {
+                                        setSectionMode("profile");
+                                        setCut({
+                                          id: b.id,
+                                          from: markedGroups[0].from,
+                                          to: markedGroups[0].to,
+                                        });
+                                      }}
+                                    >
+                                      Fahrprofil für die Auswahl
+                                    </button>
+                                    {markedGroups.length > 1 && (
+                                      <p className="small">
+                                        Für Loopings oder andere Fertigteile wählst du einen
+                                        zusammenhängenden Bereich.
+                                      </p>
+                                    )}
+                                  </>
+                                )}
+                                <button className="secondary" onClick={() => setCut(null)}>
+                                  Auswahl abbrechen
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  className="primary"
+                                  onClick={() => {
+                                    setSectionMode("profile");
+                                    setCut({
+                                      id: b.id,
+                                      from: Math.min(2, sections.length - 1),
+                                      to: Math.min(4, sections.length - 1),
+                                    });
+                                    setTool("select");
+                                  }}
+                                >
+                                  <WandSparkles size={17} /> Fahrt spannender machen
+                                </button>
+                                <button className="secondary" onClick={() => openSections(b)}>
+                                  <Eraser size={16} /> Gleise ersetzen / entfernen
+                                </button>
                                 <button
                                   className="secondary"
                                   onClick={() => {
                                     setSectionMode("drive");
-                                    setDrive({ ...group.drive });
-                                    setCut({ id: b.id, from: group.from, to: group.to });
+                                    setCut({
+                                      id: b.id,
+                                      from:
+                                        driveGroups[0]?.from ??
+                                        Math.min(1, driveSections(cutTrack).length - 1),
+                                      to:
+                                        driveGroups[0]?.to ??
+                                        Math.min(1, driveSections(cutTrack).length - 1),
+                                    });
                                     setTool("select");
                                   }}
                                 >
-                                  Bearbeiten
+                                  <Zap size={16} /> Beschleuniger & Bremsen
                                 </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                        {b.kind === "coaster" && !snapshot.trackEdit && !cut && (
+                          <div className="module-list">
+                            <h3>Montierte Module · {driveGroups.length}</h3>
+                            {!driveGroups.length && (
+                              <p className="small">
+                                Noch keine Module montiert. Unter „Beschleuniger & Bremsen“ wählst
+                                du ein Gleisstück.
+                              </p>
+                            )}
+                            {driveGroups.map((group, i) => (
+                              <div
+                                className={`module-card ${group.drive.kind}`}
+                                key={`${group.from}-${group.to}`}
+                              >
+                                <strong>
+                                  {group.drive.kind === "boost" ? "Beschleuniger" : "Bremse"}{" "}
+                                  {i + 1}
+                                </strong>
+                                <span>
+                                  {group.drive.speed} km/h · {group.drive.strength} m/s² ·{" "}
+                                  {Math.round(group.length)} m
+                                </span>
+                                <div>
+                                  <button
+                                    className="secondary"
+                                    onClick={() => {
+                                      setSectionMode("drive");
+                                      setDrive({ ...group.drive });
+                                      setCut({ id: b.id, from: group.from, to: group.to });
+                                      setTool("select");
+                                    }}
+                                  >
+                                    Bearbeiten
+                                  </button>
+                                  <button
+                                    className="secondary"
+                                    onClick={() =>
+                                      mountDrive(null, { id: b.id, from: group.from, to: group.to })
+                                    }
+                                  >
+                                    Entfernen
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {b.kind === "coaster" && b.track && !snapshot.trackEdit && (
+                          <section className="photo-control">
+                            <h3>Streckenfoto · Lichtschranke</h3>
+                            <p className="small">
+                              Setze den Foto-Laser auf deinen gewählten Streckenabschnitt oder
+                              verschiebe ihn entlang der Bahn. In der 3D-Mitfahrt entsteht beim
+                              Passieren ein herunterladbares Foto.
+                            </p>
+                            {b.photoPoint !== undefined ? (
+                              <>
+                                <label className="controlrow">
+                                  Fotopunkt{" "}
+                                  <strong>{Math.round(b.photoPoint * 100)} % der Strecke</strong>
+                                </label>
+                                <input
+                                  aria-label="Position des Foto-Lasers"
+                                  type="range"
+                                  min="0"
+                                  max="100"
+                                  value={Math.round(b.photoPoint * 100)}
+                                  onChange={(e) =>
+                                    edit("Foto-Laser verschieben", () => {
+                                      const live = park.current!.buildings.find(
+                                        (x) => x.id === b.id,
+                                      )!;
+                                      live.photoPoint = Number(e.target.value) / 100;
+                                    })
+                                  }
+                                />
                                 <button
                                   className="secondary"
                                   onClick={() =>
-                                    mountDrive(null, { id: b.id, from: group.from, to: group.to })
+                                    edit("Foto-Laser entfernen", () => {
+                                      delete park.current!.buildings.find((x) => x.id === b.id)!
+                                        .photoPoint;
+                                    })
                                   }
                                 >
-                                  Entfernen
+                                  Foto-Laser entfernen
                                 </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {b.kind === "coaster" && b.track && !snapshot.trackEdit && (
-                        <section className="photo-control">
-                          <h3>Streckenfoto · Lichtschranke</h3>
-                          <p className="small">
-                            Setze den Foto-Laser auf deinen gewählten Streckenabschnitt oder
-                            verschiebe ihn entlang der Bahn. In der 3D-Mitfahrt entsteht beim
-                            Passieren ein herunterladbares Foto.
-                          </p>
-                          {b.photoPoint !== undefined ? (
-                            <>
-                              <label className="controlrow">
-                                Fotopunkt{" "}
-                                <strong>{Math.round(b.photoPoint * 100)} % der Strecke</strong>
-                              </label>
-                              <input
-                                aria-label="Position des Foto-Lasers"
-                                type="range"
-                                min="0"
-                                max="100"
-                                value={Math.round(b.photoPoint * 100)}
-                                onChange={(e) =>
-                                  edit("Foto-Laser verschieben", () => {
+                              </>
+                            ) : (
+                              <button
+                                className="primary"
+                                disabled={snapshot.cash < 180}
+                                onClick={() =>
+                                  edit("Foto-Laser montieren", () => {
                                     const live = park.current!.buildings.find(
                                       (x) => x.id === b.id,
                                     )!;
-                                    live.photoPoint = Number(e.target.value) / 100;
-                                  })
-                                }
-                              />
-                              <button
-                                className="secondary"
-                                onClick={() =>
-                                  edit("Foto-Laser entfernen", () => {
-                                    delete park.current!.buildings.find((x) => x.id === b.id)!
-                                      .photoPoint;
+                                    if (park.current!.cash < 180) return;
+                                    const track = editableTrack(live),
+                                      point =
+                                        cut?.id === b.id
+                                          ? track[Math.floor((cut.from + cut.to) / 2)]
+                                          : null;
+                                    live.photoPoint = point
+                                      ? (closestPhotoPoint(makeRidePath(live.track!), {
+                                          x: point.x * 5,
+                                          y: (point.z ?? 0) * 5 + 1.1,
+                                          z: point.y * 5,
+                                        })?.u ?? 0.5)
+                                      : 0.5;
+                                    park.current!.cash -= 180;
+                                    park.current!.expenses += 180;
+                                    park.current!.dayExpenses += 180;
+                                    notify(
+                                      "Foto-Laser montiert. Du kannst den Fotopunkt jederzeit verschieben.",
+                                    );
                                   })
                                 }
                               >
-                                Foto-Laser entfernen
+                                Foto-Laser {cut?.id === b.id ? "auf Auswahl " : ""}montieren · 180 €
                               </button>
-                            </>
-                          ) : (
+                            )}
+                          </section>
+                        )}
+                        {b.kind === "coaster" && b.track && !snapshot.trackEdit && (
+                          <section className="station-direction-panel">
+                            <h3>Station & Abfahrt</h3>
+                            <p className="small">
+                              Aktuelle Richtung: {stationOrientation(b)?.direction}. Eine Umkehr
+                              dreht den Zug und die Abfahrt um 180°. Danach ist eine neue Testfahrt
+                              nötig.
+                            </p>
+                            <button
+                              className="secondary"
+                              onMouseEnter={() => {
+                                const plan = planStationReverse(snapshot, b);
+                                if (!plan.error)
+                                  view.current.stationDirection = { ...b, ...plan.geometry };
+                              }}
+                              onMouseLeave={() => {
+                                view.current.stationDirection = undefined;
+                              }}
+                              onClick={() =>
+                                edit("Station drehen · Fahrtrichtung umkehren", () => {
+                                  const live = park.current!.buildings.find((x) => x.id === b.id)!;
+                                  const plan = planStationReverse(park.current!, live);
+                                  notify(
+                                    plan.error ??
+                                      commitStationReverse(park.current!, plan) ??
+                                      "Station um 180° gedreht. Starte eine neue Testfahrt.",
+                                  );
+                                  view.current.stationDirection = undefined;
+                                })
+                              }
+                            >
+                              <RotateCw size={16} />
+                              Station um 180° drehen
+                            </button>
+                            <p className="small">
+                              Die Fußgängerpods bleiben an ihren Wegen. Für 90° nutze „Bahn
+                              verschieben / drehen“ – dabei dreht sich die ganze Strecke.
+                            </p>
+                          </section>
+                        )}
+                        <div className="adjust-actions">
+                          {b.kind === "coaster" && (
+                            <button
+                              className="secondary"
+                              disabled={!!snapshot.trackEdit}
+                              onClick={() => startAdjustment("station")}
+                            >
+                              <MapPin size={16} /> Station versetzen
+                            </button>
+                          )}
+                          <button
+                            className="secondary"
+                            disabled={!!snapshot.trackEdit}
+                            onClick={() => startAdjustment("move")}
+                          >
+                            <Move size={16} />{" "}
+                            {b.kind === "coaster"
+                              ? "Bahn verschieben / drehen"
+                              : "Gebäude versetzen"}
+                          </button>
+                        </div>
+                        {directAccess && (
+                          <p className="direct-access">
+                            <Check size={14} /> Direktzugang · 4 Warteplätze. Eine eigene
+                            Warteschlange schafft mehr Platz.
+                          </p>
+                        )}
+                        {usesPods(b.kind) &&
+                          (() => {
+                            const pods = effectivePods(snapshot, b),
+                              size = CATALOG[b.kind].size;
+                            const outgoing = exitPath(snapshot, b);
+                            const exitProposal = !outgoing.length
+                              ? suggestExit(snapshot, b, autoClear)
+                              : null;
+                            return (
+                              <div className="pod-controls">
+                                <h3>Ein- & Ausgangspods</h3>
+                                <p className="small">
+                                  Die Häuschen sitzen am Rand. Verbinde das Feld direkt vor dem
+                                  blauen Pod mit dem Eingangsweg und vor dem roten Pod mit dem
+                                  Ausgangsweg.
+                                </p>
+                                {(["entry", "exit"] as const).map((role) => {
+                                  const pod = pods[role],
+                                    port = podPort(b, size, pod),
+                                    ok = role === "entry" ? !!reachable : !!outgoing.length;
+                                  return (
+                                    <div className={`pod-card ${role}`} key={role}>
+                                      <strong>
+                                        {role === "entry" ? (
+                                          <LogIn size={17} />
+                                        ) : (
+                                          <LogOut size={17} />
+                                        )}{" "}
+                                        {role === "entry" ? "Eingangspod" : "Ausgangspod"}
+                                      </strong>
+                                      <span>
+                                        {POD_SIDES[pod.side]} {size > 1 ? pod.offset + 1 : ""} ·
+                                        Anschluss ({port.x}, {port.y})
+                                      </span>
+                                      <small>
+                                        {ok
+                                          ? "Weg verbunden"
+                                          : role === "entry"
+                                            ? "Eingangsweg fehlt"
+                                            : "Ausgangsweg fehlt · bisheriger Zugang bleibt nutzbar"}
+                                      </small>
+                                      <div>
+                                        <button
+                                          className="secondary"
+                                          disabled={!!snapshot.trackEdit}
+                                          onClick={() => beginPod(b, role)}
+                                        >
+                                          Pod versetzen
+                                        </button>
+                                        <button
+                                          className="secondary"
+                                          onClick={() =>
+                                            pickTool(role === "entry" ? "queue" : "exit", "paths")
+                                          }
+                                        >
+                                          Weg bauen
+                                        </button>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {!outgoing.length && (
+                                  <div className="exit-suggestion">
+                                    <strong>Ausgang automatisch verbinden</strong>
+                                    {exitProposal ? (
+                                      <>
+                                        <p className="small">
+                                          {POD_SIDES[exitProposal.pod.side]}{" "}
+                                          {exitProposal.pod.offset + 1} ·{" "}
+                                          {
+                                            exitProposal.points.filter(
+                                              (p) => snapshot.tiles[p.y][p.x] !== "exit",
+                                            ).length
+                                          }{" "}
+                                          rote Wegfelder · {EUR(exitProposal.cost)}
+                                        </p>
+                                        <button
+                                          className="primary"
+                                          disabled={snapshot.cash < exitProposal.cost}
+                                          onMouseEnter={() => {
+                                            view.current.connection = exitProposal.points;
+                                          }}
+                                          onMouseLeave={() => {
+                                            view.current.connection = undefined;
+                                          }}
+                                          onClick={() =>
+                                            edit("Ausgang automatisch verbinden", () => {
+                                              const live = park.current!.buildings.find(
+                                                (item) => item.id === b.id,
+                                              )!;
+                                              notify(
+                                                applyExitSuggestion(
+                                                  park.current!,
+                                                  live,
+                                                  exitProposal,
+                                                  autoClear,
+                                                ) ??
+                                                  "Ausgang mit dem Parkweg verbunden. Du kannst die Attraktion wieder öffnen.",
+                                              );
+                                            })
+                                          }
+                                        >
+                                          Vorschlag übernehmen · {EUR(exitProposal.cost)}
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <p className="small">
+                                        Kein freier Weg gefunden. Baue einen Parkweg näher an die
+                                        Station oder versetze sie.
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                                {podEdit?.id === b.id && (
+                                  <div className="pod-position-picker">
+                                    <strong>
+                                      {podEdit.role === "entry" ? "Eingangs" : "Ausgangs"}pod
+                                      platzieren
+                                    </strong>
+                                    <p className="small">
+                                      Klicke ein markiertes Anschlussfeld im Park oder wähle hier
+                                      eine Randposition.
+                                    </p>
+                                    <div className="pod-slot-grid">
+                                      {podSlots(size).map((slot) => {
+                                        const plan = planPod(
+                                            snapshot,
+                                            b,
+                                            podEdit.role,
+                                            slot,
+                                            autoClear,
+                                          ),
+                                          port = podPort(b, size, slot);
+                                        return (
+                                          <button
+                                            key={`${slot.side}-${slot.offset}`}
+                                            className={
+                                              samePod(slot, pods[podEdit.role]) ? "active" : ""
+                                            }
+                                            disabled={!!plan.error}
+                                            title={plan.error ?? `Anschluss (${port.x}, ${port.y})`}
+                                            onClick={() => applyPod(b, podEdit.role, slot)}
+                                          >
+                                            {POD_SIDES[slot.side]} {size > 1 ? slot.offset + 1 : ""}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                    <button
+                                      className="secondary"
+                                      onClick={() => {
+                                        setPodEdit(null);
+                                        setTool("select");
+                                      }}
+                                    >
+                                      Platzierung abbrechen
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        {connection && (!reachable || !b.open) && (
+                          <div className="connect-action">
                             <button
                               className="primary"
-                              disabled={snapshot.cash < 180}
+                              disabled={
+                                snapshot.trackEdit?.buildingId === b.id ||
+                                broken(b) ||
+                                (isHabitat(b.kind) && !b.habitat?.count) ||
+                                !!connection.error ||
+                                (!!b.autoOpen && !!reachable)
+                              }
+                              onMouseEnter={() => {
+                                view.current.connection = connection.points;
+                              }}
+                              onMouseLeave={() => {
+                                view.current.connection = undefined;
+                              }}
                               onClick={() =>
-                                edit("Foto-Laser montieren", () => {
-                                  const live = park.current!.buildings.find((x) => x.id === b.id)!;
-                                  if (park.current!.cash < 180) return;
-                                  const track = editableTrack(live),
-                                    point =
-                                      cut?.id === b.id
-                                        ? track[Math.floor((cut.from + cut.to) / 2)]
-                                        : null;
-                                  live.photoPoint = point
-                                    ? (closestPhotoPoint(makeRidePath(live.track!), {
-                                        x: point.x * 5,
-                                        y: (point.z ?? 0) * 5 + 1.1,
-                                        z: point.y * 5,
-                                      })?.u ?? 0.5)
-                                    : 0.5;
-                                  park.current!.cash -= 180;
-                                  park.current!.expenses += 180;
-                                  park.current!.dayExpenses += 180;
+                                edit("Anschluss", () => {
+                                  const live = park.current!.buildings.find(
+                                    (item) => item.id === b.id,
+                                  )!;
+                                  const error = connectBuilding(park.current!, live, autoClear);
+                                  view.current.connection = undefined;
                                   notify(
-                                    "Foto-Laser montiert. Du kannst den Fotopunkt jederzeit verschieben.",
+                                    error ??
+                                      (live.autoOpen
+                                        ? "Zugang bereit. Die Bahn öffnet nach der Testfahrt automatisch."
+                                        : "Angeschlossen und geöffnet! Die Gäste können kommen."),
                                   );
                                 })
                               }
                             >
-                              Foto-Laser {cut?.id === b.id ? "auf Auswahl " : ""}montieren · 180 €
+                              <Route size={16} />{" "}
+                              {connection.error
+                                ? "Anschluss nicht möglich"
+                                : b.autoOpen && reachable
+                                  ? "Öffnet nach der Testfahrt"
+                                  : reachable
+                                    ? b.tested
+                                      ? "Jetzt eröffnen"
+                                      : "Nach Test automatisch öffnen"
+                                    : `Anschließen & öffnen · ${EUR(connection.cost)}`}
                             </button>
-                          )}
-                        </section>
-                      )}
-                      {b.kind === "coaster" && b.track && !snapshot.trackEdit && (
-                        <section className="station-direction-panel">
-                          <h3>Station & Abfahrt</h3>
-                          <p className="small">
-                            Aktuelle Richtung: {stationOrientation(b)?.direction}. Eine Umkehr dreht
-                            den Zug und die Abfahrt um 180°. Danach ist eine neue Testfahrt nötig.
-                          </p>
-                          <button
-                            className="secondary"
-                            onMouseEnter={() => {
-                              const plan = planStationReverse(snapshot, b);
-                              if (!plan.error)
-                                view.current.stationDirection = { ...b, ...plan.geometry };
-                            }}
-                            onMouseLeave={() => {
-                              view.current.stationDirection = undefined;
-                            }}
-                            onClick={() =>
-                              edit("Station drehen · Fahrtrichtung umkehren", () => {
-                                const live = park.current!.buildings.find((x) => x.id === b.id)!;
-                                const plan = planStationReverse(park.current!, live);
-                                notify(
-                                  plan.error ??
-                                    commitStationReverse(park.current!, plan) ??
-                                    "Station um 180° gedreht. Starte eine neue Testfahrt.",
-                                );
-                                view.current.stationDirection = undefined;
-                              })
-                            }
-                          >
-                            <RotateCw size={16} />
-                            Station um 180° drehen
-                          </button>
-                          <p className="small">
-                            Die Fußgängerpods bleiben an ihren Wegen. Für 90° nutze „Bahn
-                            verschieben / drehen“ – dabei dreht sich die ganze Strecke.
-                          </p>
-                        </section>
-                      )}
-                      <div className="adjust-actions">
-                        {b.kind === "coaster" && (
-                          <button
-                            className="secondary"
-                            disabled={!!snapshot.trackEdit}
-                            onClick={() => startAdjustment("station")}
-                          >
-                            <MapPin size={16} /> Station versetzen
-                          </button>
-                        )}
-                        <button
-                          className="secondary"
-                          disabled={!!snapshot.trackEdit}
-                          onClick={() => startAdjustment("move")}
-                        >
-                          <Move size={16} />{" "}
-                          {b.kind === "coaster" ? "Bahn verschieben / drehen" : "Gebäude versetzen"}
-                        </button>
-                      </div>
-                      {directAccess && (
-                        <p className="direct-access">
-                          <Check size={14} /> Direktzugang · 4 Warteplätze. Eine eigene
-                          Warteschlange schafft mehr Platz.
-                        </p>
-                      )}
-                      {usesPods(b.kind) &&
-                        (() => {
-                          const pods = effectivePods(snapshot, b),
-                            size = CATALOG[b.kind].size;
-                          const outgoing = exitPath(snapshot, b);
-                          const exitProposal = !outgoing.length
-                            ? suggestExit(snapshot, b, autoClear)
-                            : null;
-                          return (
-                            <div className="pod-controls">
-                              <h3>Ein- & Ausgangspods</h3>
-                              <p className="small">
-                                Die Häuschen sitzen am Rand. Verbinde das Feld direkt vor dem blauen
-                                Pod mit dem Eingangsweg und vor dem roten Pod mit dem Ausgangsweg.
-                              </p>
-                              {(["entry", "exit"] as const).map((role) => {
-                                const pod = pods[role],
-                                  port = podPort(b, size, pod),
-                                  ok = role === "entry" ? !!reachable : !!outgoing.length;
-                                return (
-                                  <div className={`pod-card ${role}`} key={role}>
-                                    <strong>
-                                      {role === "entry" ? (
-                                        <LogIn size={17} />
-                                      ) : (
-                                        <LogOut size={17} />
-                                      )}{" "}
-                                      {role === "entry" ? "Eingangspod" : "Ausgangspod"}
-                                    </strong>
-                                    <span>
-                                      {POD_SIDES[pod.side]} {size > 1 ? pod.offset + 1 : ""} ·
-                                      Anschluss ({port.x}, {port.y})
-                                    </span>
-                                    <small>
-                                      {ok
-                                        ? "Weg verbunden"
-                                        : role === "entry"
-                                          ? "Eingangsweg fehlt"
-                                          : "Ausgangsweg fehlt · bisheriger Zugang bleibt nutzbar"}
-                                    </small>
-                                    <div>
-                                      <button
-                                        className="secondary"
-                                        disabled={!!snapshot.trackEdit}
-                                        onClick={() => beginPod(b, role)}
-                                      >
-                                        Pod versetzen
-                                      </button>
-                                      <button
-                                        className="secondary"
-                                        onClick={() =>
-                                          pickTool(role === "entry" ? "queue" : "exit", "paths")
-                                        }
-                                      >
-                                        Weg bauen
-                                      </button>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                              {!outgoing.length && (
-                                <div className="exit-suggestion">
-                                  <strong>Ausgang automatisch verbinden</strong>
-                                  {exitProposal ? (
-                                    <>
-                                      <p className="small">
-                                        {POD_SIDES[exitProposal.pod.side]}{" "}
-                                        {exitProposal.pod.offset + 1} ·{" "}
-                                        {
-                                          exitProposal.points.filter(
-                                            (p) => snapshot.tiles[p.y][p.x] !== "exit",
-                                          ).length
-                                        }{" "}
-                                        rote Wegfelder · {EUR(exitProposal.cost)}
-                                      </p>
-                                      <button
-                                        className="primary"
-                                        disabled={snapshot.cash < exitProposal.cost}
-                                        onMouseEnter={() => {
-                                          view.current.connection = exitProposal.points;
-                                        }}
-                                        onMouseLeave={() => {
-                                          view.current.connection = undefined;
-                                        }}
-                                        onClick={() =>
-                                          edit("Ausgang automatisch verbinden", () => {
-                                            const live = park.current!.buildings.find(
-                                              (item) => item.id === b.id,
-                                            )!;
-                                            notify(
-                                              applyExitSuggestion(
-                                                park.current!,
-                                                live,
-                                                exitProposal,
-                                                autoClear,
-                                              ) ??
-                                                "Ausgang mit dem Parkweg verbunden. Du kannst die Attraktion wieder öffnen.",
-                                            );
-                                          })
-                                        }
-                                      >
-                                        Vorschlag übernehmen · {EUR(exitProposal.cost)}
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <p className="small">
-                                      Kein freier Weg gefunden. Baue einen Parkweg näher an die
-                                      Station oder versetze sie.
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                              {podEdit?.id === b.id && (
-                                <div className="pod-position-picker">
-                                  <strong>
-                                    {podEdit.role === "entry" ? "Eingangs" : "Ausgangs"}pod
-                                    platzieren
-                                  </strong>
-                                  <p className="small">
-                                    Klicke ein markiertes Anschlussfeld im Park oder wähle hier eine
-                                    Randposition.
-                                  </p>
-                                  <div className="pod-slot-grid">
-                                    {podSlots(size).map((slot) => {
-                                      const plan = planPod(
-                                          snapshot,
-                                          b,
-                                          podEdit.role,
-                                          slot,
-                                          autoClear,
-                                        ),
-                                        port = podPort(b, size, slot);
-                                      return (
-                                        <button
-                                          key={`${slot.side}-${slot.offset}`}
-                                          className={
-                                            samePod(slot, pods[podEdit.role]) ? "active" : ""
-                                          }
-                                          disabled={!!plan.error}
-                                          title={plan.error ?? `Anschluss (${port.x}, ${port.y})`}
-                                          onClick={() => applyPod(b, podEdit.role, slot)}
-                                        >
-                                          {POD_SIDES[slot.side]} {size > 1 ? slot.offset + 1 : ""}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                  <button
-                                    className="secondary"
-                                    onClick={() => {
-                                      setPodEdit(null);
-                                      setTool("select");
-                                    }}
-                                  >
-                                    Platzierung abbrechen
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      {connection && (!reachable || !b.open) && (
-                        <div className="connect-action">
-                          <button
-                            className="primary"
-                            disabled={
-                              snapshot.trackEdit?.buildingId === b.id ||
-                              broken(b) ||
-                              (isHabitat(b.kind) && !b.habitat?.count) ||
-                              !!connection.error ||
-                              (!!b.autoOpen && !!reachable)
-                            }
-                            onMouseEnter={() => {
-                              view.current.connection = connection.points;
-                            }}
-                            onMouseLeave={() => {
-                              view.current.connection = undefined;
-                            }}
-                            onClick={() =>
-                              edit("Anschluss", () => {
-                                const live = park.current!.buildings.find(
-                                  (item) => item.id === b.id,
-                                )!;
-                                const error = connectBuilding(park.current!, live, autoClear);
-                                view.current.connection = undefined;
-                                notify(
-                                  error ??
-                                    (live.autoOpen
-                                      ? "Zugang bereit. Die Bahn öffnet nach der Testfahrt automatisch."
-                                      : "Angeschlossen und geöffnet! Die Gäste können kommen."),
-                                );
-                              })
-                            }
-                          >
-                            <Route size={16} />{" "}
-                            {connection.error
-                              ? "Anschluss nicht möglich"
-                              : b.autoOpen && reachable
-                                ? "Öffnet nach der Testfahrt"
-                                : reachable
-                                  ? b.tested
-                                    ? "Jetzt eröffnen"
-                                    : "Nach Test automatisch öffnen"
-                                  : `Anschließen & öffnen · ${EUR(connection.cost)}`}
-                          </button>
-                          <p className="small">
-                            {connection.error ??
-                              (reachable
-                                ? isHabitat(b.kind)
-                                  ? "Der Besucherweg am Zaun wird verwendet. Keine Baukosten."
-                                  : "Vorhandener Zugang wird verwendet. Keine Baukosten."
-                                : `${connection.points.length} Wegfelder${connection.clearIds.length ? ` · ${connection.clearIds.length} Deko freiräumen` : ""}`)}
-                          </p>
-                          {connection.error && recommendedStation && (
-                            <button
-                              className="secondary"
-                              onClick={() => startAdjustment("station", recommendedStation)}
-                            >
-                              <Sparkles size={16} /> Besseren Stationsplatz zeigen
-                            </button>
-                          )}
-                          {connection.error && (
-                            <button className="secondary" onClick={() => pickTool("path", "paths")}>
-                              <Route size={16} /> Parkweg selbst bauen
-                            </button>
-                          )}
-                        </div>
-                      )}
-                      {!decorative(b.kind) && (
-                        <>
-                          {isHabitat(b.kind) ? (
-                            <>
-                              <div className="detailstats">
-                                <div>
-                                  <span>Tierbeobachtungen</span>
-                                  <strong>{b.served}</strong>
-                                </div>
-                                <div>
-                                  <span>Gäste am Zaun</span>
-                                  <strong>
-                                    {
-                                      snapshot.guests.filter(
-                                        (g) => g.target === b.id && g.state === "observe",
-                                      ).length
-                                    }
-                                  </strong>
-                                </div>
-                              </div>
-                              <p className="direct-access">
-                                {habitatViewingSpots(snapshot, b).length} erreichbare Wegfelder am
-                                Zaun
-                              </p>
-                              <p className="small">
-                                Normale Parkwege an jeder Zaunseite ermöglichen den Blick ins
-                                Gehege. Gäste bleiben draußen und beobachten die Tiere ohne
-                                Warteschlange. Der Besuch ist im Parkeintritt enthalten.
-                              </p>
+                            <p className="small">
+                              {connection.error ??
+                                (reachable
+                                  ? isHabitat(b.kind)
+                                    ? "Der Besucherweg am Zaun wird verwendet. Keine Baukosten."
+                                    : "Vorhandener Zugang wird verwendet. Keine Baukosten."
+                                  : `${connection.points.length} Wegfelder${connection.clearIds.length ? ` · ${connection.clearIds.length} Deko freiräumen` : ""}`)}
+                            </p>
+                            {connection.error && recommendedStation && (
+                              <button
+                                className="secondary"
+                                onClick={() => startAdjustment("station", recommendedStation)}
+                              >
+                                <Sparkles size={16} /> Besseren Stationsplatz zeigen
+                              </button>
+                            )}
+                            {connection.error && (
                               <button
                                 className="secondary"
                                 onClick={() => pickTool("path", "paths")}
                               >
-                                <Route size={16} /> Besucherweg am Zaun bauen
+                                <Route size={16} /> Parkweg selbst bauen
                               </button>
-                            </>
-                          ) : (
-                            <>
-                              <div className="detailstats">
-                                <div>
-                                  <span>Gäste bedient</span>
-                                  <strong>{b.served}</strong>
+                            )}
+                          </div>
+                        )}
+                        {!decorative(b.kind) && (
+                          <>
+                            {isHabitat(b.kind) ? (
+                              <>
+                                <div className="detailstats">
+                                  <div>
+                                    <span>Tierbeobachtungen</span>
+                                    <strong>{b.served}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Gäste am Zaun</span>
+                                    <strong>
+                                      {
+                                        snapshot.guests.filter(
+                                          (g) => g.target === b.id && g.state === "observe",
+                                        ).length
+                                      }
+                                    </strong>
+                                  </div>
                                 </div>
-                                <div>
-                                  <span>Einnahmen</span>
-                                  <strong>{EUR(b.revenue)}</strong>
-                                </div>
-                              </div>
-                              <div className="controlrow">
-                                <span>
-                                  {isTransport(b.kind) ? "Fahrpreis" : "Preis pro Besuch"}
-                                </span>
-                                <strong>{EUR(b.price)}</strong>
-                              </div>
-                              <Slider
-                                aria-label="Fahrpreis"
-                                min={0}
-                                max={30}
-                                step={1}
-                                value={[b.price]}
-                                onValueChange={(v) =>
-                                  changeBuilding((b) => (b.price = Array.isArray(v) ? v[0] : v))
-                                }
-                              />
-                              {!decorative(b.kind) && (
-                                <div className="controlrow">
-                                  <span>Warteschlange</span>
-                                  <strong>
-                                    {b.queue.length} /{" "}
-                                    {isAttraction(b.kind)
-                                      ? queueCapacity(snapshot, b)
-                                      : isTransport(b.kind)
-                                        ? 16
-                                        : 6}{" "}
-                                    {!isTransport(b.kind) && `· ~${Math.ceil(expectedWait(b))} s`}
-                                  </strong>
-                                </div>
-                              )}
-                            </>
-                          )}
-                          {b.kind === "coaster" && b.track && (
-                            <>
-                              <div className="divider" />
-                              <div className="detailstats">
-                                <div>
-                                  <span>Streckenlänge</span>
-                                  <strong>{trackStats(b.track).length} m</strong>
-                                </div>
-                                <div>
-                                  <span>Höchsttempo</span>
-                                  <strong>
-                                    {trackStats(b.track).speed}
-                                    <small style={{ fontSize: 11 }}> km/h</small>
-                                  </strong>
-                                </div>
-                                <div>
-                                  <span>Fahrspaß</span>
-                                  <strong>{trackStats(b.track).excitement}</strong>
-                                </div>
-                                <div>
-                                  <span>Intensität</span>
-                                  <strong>{trackStats(b.track).intensity}</strong>
-                                </div>
-                              </div>
-                              {!b.tested && (
+                                <p className="direct-access">
+                                  {habitatViewingSpots(snapshot, b).length} erreichbare Wegfelder am
+                                  Zaun
+                                </p>
+                                <p className="small">
+                                  Normale Parkwege an jeder Zaunseite ermöglichen den Blick ins
+                                  Gehege. Gäste bleiben draußen und beobachten die Tiere ohne
+                                  Warteschlange. Der Besuch ist im Parkeintritt enthalten.
+                                </p>
                                 <button
                                   className="secondary"
-                                  style={{ width: "100%" }}
-                                  disabled={
-                                    snapshot.trackEdit?.buildingId === b.id ||
-                                    !!b.testing ||
-                                    broken(b)
-                                  }
-                                  onClick={() => {
-                                    changeBuilding((b) => {
-                                      b.testing = rideDuration(b);
-                                      b.testDuration = b.testing;
-                                    });
-                                    notify(
-                                      "Der Testzug fährt die Strecke ab. Nach der Prüfung kannst du die Bahn eröffnen.",
-                                    );
-                                  }}
+                                  onClick={() => pickTool("path", "paths")}
                                 >
-                                  <FlaskConical size={16} />{" "}
-                                  {b.testing ? "Testfahrt läuft …" : "Testfahrt starten"}
+                                  <Route size={16} /> Besucherweg am Zaun bauen
                                 </button>
-                              )}
-                            </>
-                          )}
-                          {b.open && (
-                            <button
-                              className="primary"
-                              style={{ marginTop: 14 }}
-                              disabled={
-                                snapshot.trackEdit?.buildingId === b.id ||
-                                (!b.open && (!reachable || !b.tested))
-                              }
-                              onClick={() => changeBuilding((b) => (b.open = !b.open))}
-                            >
-                              {b.open ? <Pause size={16} /> : <Play size={16} />}{" "}
-                              {b.open
-                                ? isHabitat(b.kind)
-                                  ? "Gehege schließen"
-                                  : "Attraktion schließen"
-                                : "Jetzt eröffnen"}
-                            </button>
-                          )}
-                        </>
-                      )}
-                      <button
-                        className="secondary"
-                        disabled={isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0}
-                        title={
-                          isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0
-                            ? "Gib die Tiere vor dem Abriss an einen Partnerzoo ab."
-                            : undefined
-                        }
-                        style={{ width: "100%", marginTop: 10 }}
-                        onClick={() => {
-                          edit("Abriss", () => {
-                            place(park.current!, "erase", { x: b.x, y: b.y });
-                          });
-                          setSelected(null);
-                          setCategory("rides");
-                          notify("Gebäude abgerissen. 40 % des Grundpreises wurden erstattet.");
-                          sync();
-                        }}
-                      >
-                        <Eraser size={16} /> Abreißen · +{EUR(CATALOG[b.kind].cost * 0.4)}
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-              {category === "analysis" && snapshot && (
-                <ParkAnalysis
-                  park={snapshot}
-                  moods={showMoods}
-                  onMoods={setShowMoods}
-                  onFocus={(issue) => {
-                    const el = canvas.current;
-                    if (!el) return;
-                    const v = view.current,
-                      p = projection(el.clientWidth, el.clientHeight, v).project(
-                        issue.point.x,
-                        issue.point.y,
-                      );
-                    cameraTarget.current = {
-                      zoom: v.zoom,
-                      panX: v.panX + el.clientWidth * 0.61 - p.x,
-                      panY: v.panY + el.clientHeight * 0.5 - p.y,
-                    };
-                  }}
-                  onBin={() => pickTool("bin", "shops")}
-                  onStaff={() => {
-                    setTab("park");
-                    setSettings(true);
-                  }}
-                  onInspect={(id) => {
-                    setSelected(id);
-                    setCategory("detail");
-                    setTool("select");
-                  }}
-                  onRide={(id) => {
-                    setSelected(id);
-                    setCategory("detail");
-                    setTool("select");
-                    setSectionMode("profile");
-                    setCut({ id, from: 1, to: 3 });
-                  }}
-                />
-              )}
-              {category === "guests" &&
-                snapshot?.guests.slice(0, 7).map((g) => (
-                  <div key={g.id} className="guestrow">
-                    <img
-                      alt=""
-                      src={`${import.meta.env.BASE_URL}assets/pixel-v2/${g.skin === 1 ? "guest2-se" : g.skin === 0 ? "guest-se-a" : "guest-sw-a"}.png`}
-                    />
-                    <div>
-                      <strong>
-                        {g.name ?? guestName(g.id)} ·{" "}
-                        {g.profile === "thrill"
-                          ? "Nervenkitzel"
-                          : g.profile === "budget"
-                            ? "Sparfuchs"
-                            : "Familie"}
-                      </strong>
-                      <small>Budget {EUR(g.wallet ?? 60)}</small>
-                      <p>{g.thought}</p>
+                              </>
+                            ) : (
+                              <>
+                                <div className="detailstats">
+                                  <div>
+                                    <span>Gäste bedient</span>
+                                    <strong>{b.served}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Einnahmen</span>
+                                    <strong>{EUR(b.revenue)}</strong>
+                                  </div>
+                                </div>
+                                <div className="controlrow">
+                                  <span>
+                                    {isTransport(b.kind) ? "Fahrpreis" : "Preis pro Besuch"}
+                                  </span>
+                                  <strong>{EUR(b.price)}</strong>
+                                </div>
+                                <Slider
+                                  aria-label="Fahrpreis"
+                                  min={0}
+                                  max={30}
+                                  step={1}
+                                  value={[b.price]}
+                                  onValueChange={(v) =>
+                                    changeBuilding((b) => (b.price = Array.isArray(v) ? v[0] : v))
+                                  }
+                                />
+                                {!decorative(b.kind) && (
+                                  <div className="controlrow">
+                                    <span>Warteschlange</span>
+                                    <strong>
+                                      {b.queue.length} /{" "}
+                                      {isAttraction(b.kind)
+                                        ? queueCapacity(snapshot, b)
+                                        : isTransport(b.kind)
+                                          ? 16
+                                          : 6}{" "}
+                                      {!isTransport(b.kind) && `· ~${Math.ceil(expectedWait(b))} s`}
+                                    </strong>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {b.kind === "coaster" && b.track && (
+                              <>
+                                <div className="divider" />
+                                <div className="detailstats">
+                                  <div>
+                                    <span>Streckenlänge</span>
+                                    <strong>{trackStats(b.track).length} m</strong>
+                                  </div>
+                                  <div>
+                                    <span>Höchsttempo</span>
+                                    <strong>
+                                      {trackStats(b.track).speed}
+                                      <small style={{ fontSize: 11 }}> km/h</small>
+                                    </strong>
+                                  </div>
+                                  <div>
+                                    <span>Fahrspaß</span>
+                                    <strong>{trackStats(b.track).excitement}</strong>
+                                  </div>
+                                  <div>
+                                    <span>Intensität</span>
+                                    <strong>{trackStats(b.track).intensity}</strong>
+                                  </div>
+                                </div>
+                                {!b.tested && (
+                                  <button
+                                    className="secondary"
+                                    style={{ width: "100%" }}
+                                    disabled={
+                                      snapshot.trackEdit?.buildingId === b.id ||
+                                      !!b.testing ||
+                                      broken(b)
+                                    }
+                                    onClick={() => {
+                                      changeBuilding((b) => {
+                                        b.testing = rideDuration(b);
+                                        b.testDuration = b.testing;
+                                      });
+                                      notify(
+                                        "Der Testzug fährt die Strecke ab. Nach der Prüfung kannst du die Bahn eröffnen.",
+                                      );
+                                    }}
+                                  >
+                                    <FlaskConical size={16} />{" "}
+                                    {b.testing ? "Testfahrt läuft …" : "Testfahrt starten"}
+                                  </button>
+                                )}
+                              </>
+                            )}
+                            {b.open && (
+                              <button
+                                className="primary"
+                                style={{ marginTop: 14 }}
+                                disabled={
+                                  snapshot.trackEdit?.buildingId === b.id ||
+                                  (!b.open && (!reachable || !b.tested))
+                                }
+                                onClick={() => changeBuilding((b) => (b.open = !b.open))}
+                              >
+                                {b.open ? <Pause size={16} /> : <Play size={16} />}{" "}
+                                {b.open
+                                  ? isHabitat(b.kind)
+                                    ? "Gehege schließen"
+                                    : "Attraktion schließen"
+                                  : "Jetzt eröffnen"}
+                              </button>
+                            )}
+                          </>
+                        )}
+                        <button
+                          className="secondary"
+                          disabled={isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0}
+                          title={
+                            isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0
+                              ? "Gib die Tiere vor dem Abriss an einen Partnerzoo ab."
+                              : undefined
+                          }
+                          style={{ width: "100%", marginTop: 10 }}
+                          onClick={() => {
+                            edit("Abriss", () => {
+                              place(park.current!, "erase", { x: b.x, y: b.y });
+                            });
+                            setSelected(null);
+                            setCategory("rides");
+                            notify("Gebäude abgerissen. 40 % des Grundpreises wurden erstattet.");
+                            sync();
+                          }}
+                        >
+                          <Eraser size={16} /> Abreißen · +{EUR(CATALOG[b.kind].cost * 0.4)}
+                        </button>
+                      </>
+                    )}
+                  </>
+                )}
+                {category === "analysis" && snapshot && (
+                  <ParkAnalysis
+                    park={snapshot}
+                    moods={showMoods}
+                    onMoods={setShowMoods}
+                    onFocus={(issue) => {
+                      const el = canvas.current;
+                      if (!el) return;
+                      const v = view.current,
+                        p = projection(el.clientWidth, el.clientHeight, v).project(
+                          issue.point.x,
+                          issue.point.y,
+                        );
+                      cameraTarget.current = {
+                        zoom: v.zoom,
+                        panX: v.panX + el.clientWidth * 0.61 - p.x,
+                        panY: v.panY + el.clientHeight * 0.5 - p.y,
+                      };
+                    }}
+                    onBin={() => pickTool("bin", "shops")}
+                    onStaff={() => {
+                      setTab("park");
+                      setSettings(true);
+                    }}
+                    onInspect={(id) => {
+                      setSelected(id);
+                      setCategory("detail");
+                      setTool("select");
+                    }}
+                    onRide={(id) => {
+                      setSelected(id);
+                      setCategory("detail");
+                      setTool("select");
+                      setSectionMode("profile");
+                      setCut({ id, from: 1, to: 3 });
+                    }}
+                  />
+                )}
+                {category === "guests" &&
+                  snapshot?.guests.slice(0, 7).map((g) => (
+                    <div key={g.id} className="guestrow">
+                      <img
+                        alt=""
+                        src={`${import.meta.env.BASE_URL}assets/pixel-v2/${g.skin === 1 ? "guest2-se" : g.skin === 0 ? "guest-se-a" : "guest-sw-a"}.png`}
+                      />
+                      <div>
+                        <strong>
+                          {g.name ?? guestName(g.id)} ·{" "}
+                          {g.profile === "thrill"
+                            ? "Nervenkitzel"
+                            : g.profile === "budget"
+                              ? "Sparfuchs"
+                              : "Familie"}
+                        </strong>
+                        <small>Budget {EUR(g.wallet ?? 60)}</small>
+                        <p>{g.thought}</p>
+                      </div>
+                      <span className="happiness">{Math.round(g.happiness)}%</span>
                     </div>
-                    <span className="happiness">{Math.round(g.happiness)}%</span>
-                  </div>
-                ))}
-            </div>
-          </aside>
-        )}
+                  ))}
+              </div>
+            </aside>
+          )}
         <aside
           key={snapshot?.scenario}
           className={`objective ${showGoals ? "show-goals" : ""} ${tool !== "select" ? "while-building" : ""}`}
@@ -4338,6 +4418,11 @@ export default function Home() {
               {snapshot && (
                 <StaffPanel
                   park={snapshot}
+                  onSpecialists={(role, count) => {
+                    const error = setZooSpecialists(park.current!, role, count);
+                    sync();
+                    return error;
+                  }}
                   onCleaners={(count) => {
                     park.current!.staff = count;
                     initCleanliness(park.current!);

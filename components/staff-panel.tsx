@@ -1,3 +1,6 @@
+"use client";
+
+import { BrushCleaning, CircleUserRound, Users } from "lucide-react";
 import type { Park } from "../game/simulation";
 import {
   needsOperator,
@@ -8,111 +11,118 @@ import {
   operationsStats,
   OPERATOR_WAGE,
 } from "../game/operations";
+import { ZooTeamControls, zooTeamTotals, type ZooSpecialistsHandler } from "./zoo-panel";
+
 export function StaffPanel({
   park,
   onCleaners,
   onKeepers,
+  onSpecialists,
   onSelectRide,
   onStaffRide,
 }: {
   park: Park;
   onCleaners: (count: number) => void;
   onKeepers: (count: number) => void;
+  onSpecialists?: ZooSpecialistsHandler;
   onSelectRide: (id: number) => void;
   onStaffRide: (id: number, staffed: boolean) => void;
 }) {
   const ops = operationsStats(park),
-    keepers = park.zoo?.keepers ?? 0;
-  const wages = park.staff * 80 + keepers * 90 + ops.dailyCost;
+    zoo = zooTeamTotals(park);
+  const wages = park.staff * 80 + zoo.cost + ops.dailyCost;
   return (
-    <section className="staff-panel">
+    <section className="staff-panel z9">
       <h3>Dein Parkteam</h3>
-      <div className="analysis-stats">
+      <div className="z9-summary">
         <div>
-          <b>{park.staff + keepers + ops.staffed}</b>
+          <Users size={20} />
+          <b>{park.staff + zoo.count + ops.staffed}</b>
           <span>Mitarbeitende</span>
         </div>
         <div>
+          <CircleUserRound size={20} />
           <b>{wages.toLocaleString("de-DE")} €</b>
           <span>Löhne pro Spieltag</span>
         </div>
       </div>
-      <label className="controlrow" htmlFor="staff-cleaners">
-        <span>Reinigung</span>
-        <strong>{park.staff}</strong>
-      </label>
-      <input
-        id="staff-cleaners"
-        aria-label="Anzahl Reinigungskräfte"
-        type="range"
-        min="0"
-        max="8"
-        step="1"
-        value={park.staff}
-        onChange={(e) => onCleaners(Number(e.target.value))}
-      />
-      <p className="small">80 € je Person und Spieltag · Müll sammeln und Mülleimer leeren.</p>
-      <label className="controlrow" htmlFor="staff-keepers">
-        <span>Tierpflege</span>
-        <strong>{keepers}</strong>
-      </label>
-      <input
-        id="staff-keepers"
-        aria-label="Anzahl Tierpfleger"
-        type="range"
-        min="0"
-        max="8"
-        step="1"
-        value={keepers}
-        onChange={(e) => onKeepers(Number(e.target.value))}
-      />
-      <p className="small">
-        90 € je Person und Spieltag · Benötigt eine erreichbare Tierpflegerstation. Versorgung
-        kostet zusätzlich 8 € pro Tier.
-      </p>
-      <h4>
-        Bedienpersonal · {ops.staffed} / {ops.rides}
-      </h4>
-      <p className="small">
+      <div className="z9-team-role z9-cleaners">
+        <div>
+          <strong>
+            <BrushCleaning size={16} /> Reinigung
+          </strong>
+          <p>Müll sammeln und Mülleimer leeren.</p>
+          <small>80 € je Person und Spieltag</small>
+        </div>
+        <label>
+          <span className="z9-sr-only">Anzahl Reinigungskräfte</span>
+          <select
+            aria-label="Anzahl Reinigungskräfte"
+            value={park.staff}
+            onChange={(e) => onCleaners(Number(e.target.value))}
+          >
+            {Array.from({ length: 9 }, (_, i) => (
+              <option key={i} value={i}>
+                {i}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <ZooTeamControls park={park} onKeepers={onKeepers} onSpecialists={onSpecialists} />
+      <div className="z9-section-heading">
+        <h4>Bedienpersonal</h4>
+        <span>
+          {ops.staffed} / {ops.rides} besetzt
+        </span>
+      </div>
+      <p className="z9-muted">
         Eine Person pro Fahrgeschäft · {OPERATOR_WAGE} € pro Spieltag. Einlass, Kontrolle und
         Bedienpult.
       </p>
       {ops.unstaffed > 0 && (
-        <p className="fit-error">
+        <p className="z9-note z9-note--warning">
           {ops.unstaffed} {ops.unstaffed === 1 ? "Fahrgeschäft wartet" : "Fahrgeschäfte warten"} auf
-          eine Crew.
+          Bedienpersonal.
         </p>
       )}
       {!ops.rides && (
-        <p className="small">
+        <p className="z9-note">
           Beim Bau eines Fahrgeschäfts wird automatisch Bedienpersonal zugewiesen.
         </p>
       )}
-      <div className="staff-ride-list" style={{ maxHeight: 260, overflowY: "auto" }}>
+      <div className="z9-ride-staff">
         {park.buildings
           .filter((b) => needsOperator(b.kind))
-          .map((b) => (
-            <div className="controlrow" key={b.id}>
-              <button className="secondary" onClick={() => onSelectRide(b.id)}>
-                {b.name}
-                <small style={{ display: "block" }}>
-                  {hasOperator(b)
-                    ? `${operatorName(b)} · ${OPERATION_LABELS[operatorActivity(b)]}`
-                    : "Crew fehlt"}
-                </small>
-              </button>
-              <label>
-                <input
-                  type="checkbox"
-                  aria-label={`Bedienpersonal für ${b.name}`}
-                  checked={hasOperator(b)}
-                  disabled={b.riders.length > 0 && hasOperator(b)}
-                  onChange={(e) => onStaffRide(b.id, e.target.checked)}
-                />{" "}
-                Zugewiesen
-              </label>
-            </div>
-          ))}
+          .map((b) => {
+            const assigned = hasOperator(b),
+              occupied = b.riders.length > 0 && assigned;
+            return (
+              <article key={b.id}>
+                <button className="z9-ride-link" onClick={() => onSelectRide(b.id)}>
+                  <strong>{b.name}</strong>
+                  <span>
+                    {assigned
+                      ? `${operatorName(b)} · ${OPERATION_LABELS[operatorActivity(b)]}`
+                      : "Bedienpersonal fehlt"}
+                  </span>
+                </button>
+                <label>
+                  <input
+                    type="checkbox"
+                    aria-label={`Bedienpersonal für ${b.name}`}
+                    checked={assigned}
+                    disabled={occupied}
+                    onChange={(e) => onStaffRide(b.id, e.target.checked)}
+                  />
+                  <span>Zugewiesen</span>
+                </label>
+                {occupied && (
+                  <small>Während einer Fahrt bleibt das Bedienpersonal zugewiesen.</small>
+                )}
+              </article>
+            );
+          })}
       </div>
     </section>
   );
