@@ -172,7 +172,7 @@ test("Shop connection preserves an existing ride queue and rejects a blocked ent
   assert(C.connectBuilding(s, blocked));
   assert.equal(JSON.stringify(s), before);
 });
-test("Connection permits exactly twelve new cells and rejects insufficient funds atomically", () => {
+test("Connection supports twelve new cells and rejects insufficient funds atomically", () => {
   const s = empty(),
     b = add(s, "burger", 15, 7);
   road(s, 15, 20);
@@ -269,5 +269,231 @@ test("Closing a running train preserves position and decelerates; pause freezes 
   assert(state.velocity < 0.001);
   const resumed = A.advanceTrain(state, 0, true, state.time + 0.02, 30);
   assert(resumed.angle - state.angle < 0.2);
+});
+test("Screenshot regression: paths directly beside a station work without converting public paths", () => {
+  const s = empty(),
+    b = add(s, "coaster", 12, 12, C.blueprint({ x: 12, y: 12 }));
+  road(s, 11, 11);
+  s.tiles[11][12] = "path";
+  const tiles = JSON.stringify(s.tiles),
+    cash = s.cash;
+  assert(M.access(s, b));
+  assert.equal(M.queueCapacity(s, b), 4);
+  assert.equal(C.planConnection(s, b).cost, 0);
+  assert.equal(C.connectBuilding(s, b), null);
+  assert(b.autoOpen);
+  assert.equal(s.cash, cash);
+  assert.equal(JSON.stringify(s.tiles), tiles);
+  for (let i = 0; i < 40; i++) M.tick(s, 0.25);
+  assert(b.tested && b.open);
+  assert(M.validSave(s));
+});
+test("Direct boarding still requires the park entrance; a dedicated queue takes priority", () => {
+  const s = empty(),
+    b = add(s, "coaster", 12, 12, C.blueprint({ x: 12, y: 12 }));
+  s.tiles[12][11] = "path";
+  assert(!M.access(s, b));
+  assert.equal(M.queueCapacity(s, b), 0);
+  road(s, 11, 11);
+  assert(M.access(s, b));
+  assert.equal(M.queueCapacity(s, b), 4);
+  s.tiles[11][12] = "queue";
+  assert.deepEqual(M.access(s, b), { x: 12, y: 11 });
+  assert.equal(M.queueCapacity(s, b), 4);
+  s.tiles[11][13] = "queue";
+  assert.equal(M.queueCapacity(s, b), 8);
+});
+test("Every eligible station shift preserves the entire circuit, hills, track stats and identity", () => {
+  const s = empty(),
+    b = add(s, "coaster", 10, 10, C.blueprint({ x: 10, y: 10 })),
+    initial = JSON.stringify(b.track),
+    stats = M.trackStats(b.track),
+    id = b.id,
+    cash = s.cash;
+  const points = C.stationPositions(b);
+  assert(points.length >= 4);
+  const edges = (t) =>
+    t
+      .slice(1)
+      .map((p, i) => JSON.stringify([t[i], p]))
+      .sort();
+  const beforeEdges = edges(b.track);
+  for (const p of points) {
+    b.track = JSON.parse(initial);
+    b.x = 10;
+    b.y = 10;
+    const plan = C.planStationMove(s, b, p);
+    assert.equal(plan.error, null);
+    assert.equal(C.adjustBuilding(s, b, "station", p), null);
+    assert.equal(b.id, id);
+    assert.equal(s.cash, cash);
+    assert.deepEqual(b.track[0], b.track.at(-1));
+    assert.equal(b.x, p.x);
+    assert.equal(b.y, p.y);
+    assert.deepEqual(edges(b.track), beforeEdges);
+    assert.deepEqual(M.trackStats(b.track), stats);
+    assert(M.validSave(s));
+  }
+});
+test("Station rejects hilltops, slopes, corners, unrelated land and another ride without mutation", () => {
+  for (const p of [
+    { x: 12, y: 10 },
+    { x: 11, y: 10 },
+    { x: 15, y: 13 },
+    { x: 3, y: 3 },
+  ]) {
+    const s = empty(),
+      b = add(s, "coaster", 10, 10, C.blueprint({ x: 10, y: 10 })),
+      before = JSON.stringify(s);
+    assert(C.adjustBuilding(s, b, "station", p));
+    assert.equal(JSON.stringify(s), before);
+  }
+});
+test("Station move and undo release passengers while retaining new revenue, time, prices and IDs", () => {
+  const s = M.newPark(),
+    b = s.buildings.find((b) => b.kind === "coaster"),
+    before = structuredClone({ x: b.x, y: b.y, track: b.track }),
+    p = C.stationPositions(b)[0],
+    g = s.guests[0];
+  g.target = b.id;
+  g.state = "ride";
+  b.riders = [g.id];
+  b.queue = [];
+  b.served = 14;
+  b.revenue = 168;
+  const record = C.recordEdit(s, "Station", () =>
+    assert.equal(C.adjustBuilding(s, b, "station", p), null),
+  );
+  assert(record && record.geometry.length === 1);
+  assert.equal(b.open, false);
+  assert.equal(g.target, null);
+  assert.equal(g.state, "walk");
+  M.tick(s, 0.25);
+  const time = s.time,
+    nextId = s.nextId;
+  b.revenue += 12;
+  b.served += 1;
+  b.price = 16;
+  C.undoEdits(s, [record]);
+  assert.equal(s.time, time);
+  assert.equal(s.nextId, nextId);
+  assert.equal(b.revenue, 180);
+  assert.equal(b.served, 15);
+  assert.equal(b.price, 16);
+  assert.deepEqual({ x: b.x, y: b.y, track: b.track }, before);
+  assert.deepEqual(b.riders, []);
+  assert.deepEqual(b.queue, []);
+  assert(M.validSave(s));
+});
+test("Rigid relocation rotates around the station, tolerates overlap with itself and preserves costs", () => {
+  for (let r = 0; r < 4; r++) {
+    const s = empty(),
+      b = add(s, "coaster", 12, 12, C.blueprint({ x: 12, y: 12 })),
+      oldTrack = b.track,
+      stats = M.trackStats(b.track),
+      cash = s.cash,
+      id = b.id;
+    const plan = C.planRelocation(s, b, { x: 13, y: 13 }, r);
+    assert.equal(plan.error, null);
+    assert.equal(plan.cost, 0);
+    assert.equal(C.adjustBuilding(s, b, "move", { x: 13, y: 13 }, r), null);
+    assert.notEqual(b.track, oldTrack);
+    assert.equal(b.id, id);
+    assert.equal(s.cash, cash);
+    assert.deepEqual(M.trackStats(b.track), stats);
+    assert(M.validSave(s));
+  }
+});
+test("Move failures leave the original ride and trees intact; only actual clearing is charged", () => {
+  for (const mode of ["budget", "building", "water", "edge", "clearing"]) {
+    const s = empty(),
+      b = add(s, "coaster", 4, 4, C.blueprint({ x: 4, y: 4 })),
+      p = mode === "edge" ? { x: 29, y: 29 } : { x: 16, y: 16 };
+    if (mode === "building") add(s, "burger", 16, 16);
+    else if (mode === "water") s.tiles[16][16] = "water";
+    else if (mode !== "edge") add(s, "tree", 16, 16);
+    if (mode === "budget") s.cash = 9;
+    const before = JSON.stringify(s);
+    assert(C.adjustBuilding(s, b, "move", p, 0, mode !== "clearing"));
+    assert.equal(JSON.stringify(s), before);
+  }
+  const s = empty(),
+    b = add(s, "coaster", 4, 4, C.blueprint({ x: 4, y: 4 })),
+    tree = add(s, "tree", 16, 16),
+    cash = s.cash,
+    track = structuredClone(b.track);
+  const plan = C.planRelocation(s, b, { x: 16, y: 16 });
+  assert.equal(plan.cost, 10);
+  const record = C.recordEdit(s, "Umzug", () =>
+    assert.equal(C.adjustBuilding(s, b, "move", { x: 16, y: 16 }), null),
+  );
+  assert.equal(s.cash, cash - 10);
+  assert(!s.buildings.some((i) => i.id === tree.id));
+  C.undoEdits(s, [record]);
+  assert.equal(s.cash, cash);
+  assert.deepEqual(b.track, track);
+  assert(s.buildings.some((i) => i.id === tree.id));
+  assert(M.validSave(s));
+});
+test("Unchanged preview is a no-op and free relocation works with a negative operating balance", () => {
+  const s = empty(),
+    b = add(s, "coaster", 10, 10, C.blueprint({ x: 10, y: 10 }));
+  b.open = true;
+  const before = JSON.stringify(s);
+  assert.equal(
+    C.recordEdit(s, "Nothing", () => C.adjustBuilding(s, b, "move", { x: 10, y: 10 })),
+    null,
+  );
+  assert.equal(JSON.stringify(s), before);
+  s.cash = -10;
+  assert.equal(C.adjustBuilding(s, b, "move", { x: 11, y: 11 }), null);
+  assert.equal(s.cash, -10);
+});
+test("A suggested station faces an accessible connection; longer useful routes are allowed", () => {
+  const s = empty(),
+    b = add(s, "coaster", 10, 10, C.blueprint({ x: 10, y: 10 }));
+  road(s, 13, 14);
+  const p = C.suggestStation(s, b);
+  assert(p);
+  assert.equal(C.planStationMove(s, b, p).connection.cost, 0);
+  const far = empty(),
+    shop = add(far, "burger", 15, 3);
+  road(far, 15, 20);
+  const plan = C.planConnection(far, shop);
+  assert.equal(plan.error, null);
+  assert.equal(plan.points.length, 16);
+});
+
+test("Connector repairs one missing field in an existing unconnected path without converting that path", () => {
+  const s = empty(),
+    b = add(s, "coaster", 12, 12, C.blueprint({ x: 12, y: 12 }));
+  road(s, 11, 11);
+  s.tiles[21][11] = "grass";
+  s.tiles[11][12] = "path";
+  assert(!M.access(s, b));
+  const plan = C.planConnection(s, b);
+  assert.equal(plan.error, null);
+  assert.deepEqual(plan.points, [{ x: 11, y: 21 }]);
+  assert.equal(plan.cost, 18);
+  assert.equal(C.connectBuilding(s, b), null);
+  assert(M.access(s, b));
+  for (let y = 11; y <= 20; y++) assert.equal(s.tiles[y][11], "path");
+});
+test("Undo of a moved test ride allows a fresh automatic test instead of leaving a pending flag", () => {
+  const s = empty(),
+    b = add(s, "coaster", 12, 12, C.blueprint({ x: 12, y: 12 }));
+  road(s, 11, 12);
+  C.connectBuilding(s, b);
+  M.tick(s, 2);
+  assert(b.testing && b.autoOpen);
+  const record = C.recordEdit(s, "Move", () => C.adjustBuilding(s, b, "move", { x: 19, y: 19 }));
+  C.undoEdits(s, [record]);
+  assert(!b.autoOpen);
+  assert(!b.testing);
+  assert.equal(C.connectBuilding(s, b), null);
+  assert(b.testing);
+  for (let i = 0; i < 40; i++) M.tick(s, 0.25);
+  assert(b.tested && b.open);
+  assert(M.validSave(s));
 });
 if (failed) process.exit(1);

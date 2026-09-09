@@ -34,6 +34,9 @@ import {
   Settings2,
   Flag,
   Info,
+  Move,
+  RotateCw,
+  MapPin,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
@@ -63,6 +66,11 @@ import {
   connectBuilding,
   recordEdit,
   undoEdits,
+  planStationMove,
+  planRelocation,
+  stationPositions,
+  suggestStation,
+  adjustBuilding,
   type BuildTool,
   type EditRecord,
 } from "@/game/construction";
@@ -119,6 +127,12 @@ export default function Home() {
   const [blueprintMode, setBlueprintMode] = useState(true);
   const [rotation, setRotation] = useState(0);
   const [autoClear, setAutoClear] = useState(true);
+  const [adjust, setAdjust] = useState<{
+    id: number;
+    mode: "station" | "move";
+    point: Point;
+    rotation: number;
+  } | null>(null);
   const [hoverTile, setHoverTile] = useState<Point | null>(null);
   const history = useRef<EditRecord[][]>([]);
   const stroke = useRef<EditRecord[] | null>(null);
@@ -168,24 +182,48 @@ export default function Home() {
     if (!records || !park.current) return;
     undoEdits(park.current, records);
     setUndoCount(history.current.length);
+    if (adjust) {
+      setAdjust(null);
+      setTool("select");
+    }
     setSelected(null);
     setCategory((c) => (c === "detail" ? "" : c));
     notify(`${records[0].label} rückgängig gemacht.`);
     sync();
-  }, [draft, blueprintMode, finishStroke, notify, sync]);
+  }, [draft, blueprintMode, finishStroke, notify, sync, adjust]);
   useEffect(() => {
     if (!message) return;
     const timer = setTimeout(() => setMessage(""), 5500);
     return () => clearTimeout(timer);
   }, [message]);
+  const adjustingBuilding = snapshot?.buildings.find((b) => b.id === adjust?.id);
+  const adjustmentPlan = useMemo(
+    () =>
+      adjust && adjustingBuilding && snapshot
+        ? adjust.mode === "station"
+          ? planStationMove(snapshot, adjustingBuilding, adjust.point, autoClear)
+          : planRelocation(snapshot, adjustingBuilding, adjust.point, adjust.rotation, autoClear)
+        : null,
+    [snapshot, adjust, adjustingBuilding, autoClear],
+  );
+  useEffect(() => {
+    if (tool !== "move" && tool !== "station") setAdjust(null);
+  }, [tool]);
   const previewTrack = useMemo(
     () =>
-      tool === "coaster" && blueprintMode && hoverTile ? blueprint(hoverTile, rotation) : draft,
-    [tool, blueprintMode, hoverTile, rotation, draft],
+      adjustmentPlan?.geometry.track ??
+      (tool === "coaster" && blueprintMode && hoverTile ? blueprint(hoverTile, rotation) : draft),
+    [tool, blueprintMode, hoverTile, rotation, draft, adjustmentPlan],
   );
   const placement = useMemo(
     () =>
-      snapshot && tool !== "select" && hoverTile && (tool !== "coaster" || blueprintMode)
+      adjustmentPlan ??
+      (snapshot &&
+      tool !== "select" &&
+      tool !== "move" &&
+      tool !== "station" &&
+      hoverTile &&
+      (tool !== "coaster" || blueprintMode)
         ? planPlacement(
             snapshot,
             tool as BuildTool,
@@ -193,8 +231,8 @@ export default function Home() {
             tool === "coaster" ? previewTrack : undefined,
             autoClear,
           )
-        : null,
-    [snapshot, tool, hoverTile, blueprintMode, previewTrack, autoClear],
+        : null),
+    [snapshot, tool, hoverTile, blueprintMode, previewTrack, autoClear, adjustmentPlan],
   );
   const save = useCallback(() => {
     if (!park.current) return;
@@ -288,7 +326,17 @@ export default function Home() {
     view.current.preview = placement;
     view.current.height = height;
     view.current.grid = tool !== "select";
-  }, [tool, selected, previewTrack, placement, height]);
+    view.current.adjustment =
+      adjust && adjustingBuilding && adjustmentPlan
+        ? {
+            mode: adjust.mode,
+            building: adjustingBuilding,
+            geometry: adjustmentPlan.geometry,
+            candidates: stationPositions(adjustingBuilding),
+          }
+        : undefined;
+    view.current.connection = adjustmentPlan?.connection?.points;
+  }, [tool, selected, previewTrack, placement, height, adjust, adjustingBuilding, adjustmentPlan]);
   const pickTool = useCallback(
     (t: string, cat?: string) => {
       setTool(t);
@@ -356,6 +404,14 @@ export default function Home() {
         e.preventDefault();
         save();
       }
+      if (
+        e.key.toLowerCase() === "r" &&
+        adjust?.mode === "move" &&
+        adjustingBuilding?.kind === "coaster"
+      ) {
+        e.preventDefault();
+        setAdjust((a) => (a ? { ...a, rotation: (a.rotation + 1) % 4 } : a));
+      }
       if (e.key.toLowerCase() === "r" && tool === "coaster" && blueprintMode) {
         e.preventDefault();
         setRotation((r) => (r + 1) % 4);
@@ -365,7 +421,7 @@ export default function Home() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [save, sync, pickTool, changeZoom, undo, tool, blueprintMode]);
+  }, [save, sync, pickTool, changeZoom, undo, tool, blueprintMode, adjust, adjustingBuilding]);
 
   const tileAt = (e: { clientX: number; clientY: number }) => {
     const el = canvas.current!;
@@ -387,12 +443,50 @@ export default function Home() {
     notify(
       decorative(kind)
         ? `${CATALOG[kind].name} gepflanzt.`
-        : `${CATALOG[kind].name} gebaut. Über „Anschließen & öffnen“ kommen die Gäste.`,
+        : `${CATALOG[kind].name} gebaut. Prüfe den Zugang und öffne die Attraktion im Baufenster.`,
     );
+  };
+  const startAdjustment = (mode: "station" | "move", point?: Point) => {
+    const b = park.current?.buildings.find((b) => b.id === selected);
+    if (!b) return;
+    setAdjust({ id: b.id, mode, point: point ?? { x: b.x, y: b.y }, rotation: 0 });
+    setTool(mode);
+    setDraft([]);
+    setHoverTile(null);
+    notify(
+      mode === "station"
+        ? "Grüne Gleisfelder sind geeignete Stationsplätze. Bewegen zeigt die Vorschau, ein Klick versetzt."
+        : "Bewege die Bahn zum neuen Platz. R dreht die Achterbahn, ein Klick übernimmt.",
+    );
+  };
+  const cancelAdjustment = () => {
+    setAdjust(null);
+    setTool("select");
+    setDraft([]);
+    view.current.connection = undefined;
   };
   const act = (p: Point, repeat = false) => {
     const s = park.current;
     if (!s) return;
+    if (adjust && (tool === "station" || tool === "move")) {
+      const b = s.buildings.find((b) => b.id === adjust.id);
+      if (!b) return;
+      edit(adjust.mode === "station" ? "Stationsversatz" : "Versetzen", () => {
+        const error = adjustBuilding(s, b, adjust.mode, p, adjust.rotation, autoClear);
+        if (error) {
+          notify(error);
+          return;
+        }
+        cancelAdjustment();
+        setCategory("detail");
+        notify(
+          access(s, b)
+            ? "Position übernommen. Der Weg ist erreichbar – du kannst die Attraktion öffnen."
+            : "Position übernommen. Verbinde jetzt den neuen Eingang mit dem Wegenetz.",
+        );
+      });
+      return;
+    }
     if (tool === "select") {
       const b = occupant(s, p.x, p.y);
       setSelected(b?.id ?? null);
@@ -482,6 +576,15 @@ export default function Home() {
   const connection =
     b && snapshot && !decorative(b.kind) ? planConnection(snapshot, b, autoClear) : null;
   const reachable = b && snapshot ? access(snapshot, b) : null;
+  const directAccess =
+    reachable && snapshot?.tiles[reachable.y][reachable.x] === "path" && b && isRide(b.kind);
+  const recommendedStation = useMemo(
+    () =>
+      b?.kind === "coaster" && snapshot && !reachable
+        ? suggestStation(snapshot, b, autoClear)
+        : null,
+    [b, snapshot, reachable, autoClear],
+  );
   const readyRides =
     snapshot?.buildings.filter((b) => isRide(b.kind) && b.open && b.tested && access(snapshot, b))
       .length ?? 0;
@@ -599,6 +702,10 @@ export default function Home() {
             const p = tileAt(e);
             view.current.hover = p;
             setHoverTile((old) => (old?.x === p.x && old?.y === p.y ? old : p));
+            if (adjust)
+              setAdjust((a) =>
+                a && (a.point.x !== p.x || a.point.y !== p.y) ? { ...a, point: p } : a,
+              );
             const d = drag.current;
             if (d) {
               const dx = e.clientX - d.x,
@@ -892,163 +999,278 @@ export default function Home() {
               )}
               {category === "detail" && b && snapshot && (
                 <>
-                  <img
-                    className="detailhero"
-                    src={`${import.meta.env.BASE_URL}assets/pixel-v2/${CATALOG[b.kind].sprite}.png`}
-                    alt={b.name}
-                  />
-                  <div
-                    className={`statebadge ${(!reachable && !decorative(b.kind)) || !b.open ? "warn" : ""}`}
-                  >
-                    {decorative(b.kind)
-                      ? "Eine schöne Ecke für deine Besucher."
-                      : !reachable
-                        ? isRide(b.kind)
-                          ? "Warteschlange fehlt oder hat keine Verbindung zum Eingang."
-                          : "Ein erreichbarer Parkweg fehlt."
-                        : b.testing
-                          ? "Testfahrt läuft …"
-                          : !b.tested
-                            ? "Bereit für die Testfahrt."
-                            : b.open
-                              ? "Geöffnet · Besucher sind willkommen."
-                              : "Geschlossen · Bereit zur Eröffnung."}
-                  </div>
-                  {connection && !reachable && (
-                    <div className="connect-action">
-                      <button
-                        className="primary"
-                        disabled={!!connection.error}
-                        onMouseEnter={() => {
-                          view.current.connection = connection.points;
-                        }}
-                        onMouseLeave={() => {
-                          view.current.connection = undefined;
-                        }}
-                        onClick={() =>
-                          edit("Anschluss", () => {
-                            const live = park.current!.buildings.find((item) => item.id === b.id)!;
-                            const error = connectBuilding(park.current!, live, autoClear);
-                            view.current.connection = undefined;
-                            notify(
-                              error ??
-                                (live.autoOpen
-                                  ? "Warteschlange gebaut. Die Bahn öffnet nach der Testfahrt automatisch."
-                                  : "Angeschlossen und geöffnet! Die Gäste können kommen."),
-                            );
-                          })
-                        }
-                      >
-                        <Route size={16} /> Anschließen & öffnen · {EUR(connection.cost)}
-                      </button>
+                  {adjust ? (
+                    <div className="adjust-panel">
+                      <div className="adjust-heading">
+                        {adjust.mode === "station" ? <MapPin /> : <Move />}
+                        <h3>
+                          {adjust.mode === "station" ? "Station versetzen" : "Position anpassen"}
+                        </h3>
+                      </div>
                       <p className="small">
-                        {connection.error ??
-                          `${connection.points.length} Wegfelder${connection.clearIds.length ? ` · ${connection.clearIds.length} Deko freiräumen` : ""}`}
+                        {adjust.mode === "station"
+                          ? "Wähle ein grün markiertes Gleisfeld. Die Station braucht einen geraden, ebenen Abschnitt am Boden."
+                          : "Bewege die Bahn über den Park. Ihre Station ist der Ankerpunkt. Die bisherige Position bleibt bis zur Bestätigung bestehen."}
                       </p>
-                    </div>
-                  )}
-                  {!decorative(b.kind) && (
-                    <>
-                      <div className="detailstats">
-                        <div>
-                          <span>Gäste bedient</span>
-                          <strong>{b.served}</strong>
-                        </div>
-                        <div>
-                          <span>Einnahmen</span>
-                          <strong>{EUR(b.revenue)}</strong>
-                        </div>
+                      {adjust.mode === "move" && b.kind === "coaster" && (
+                        <button
+                          className="secondary"
+                          onClick={() =>
+                            setAdjust((a) => (a ? { ...a, rotation: (a.rotation + 1) % 4 } : a))
+                          }
+                        >
+                          <RotateCw size={16} /> Um 90° drehen <kbd>R</kbd>
+                        </button>
+                      )}
+                      {adjust.mode === "station" && recommendedStation && (
+                        <button
+                          className="secondary"
+                          onClick={() =>
+                            setAdjust((a) => (a ? { ...a, point: recommendedStation } : a))
+                          }
+                        >
+                          <Sparkles size={16} /> Geeigneten Platz vorschlagen
+                        </button>
+                      )}
+                      <div
+                        className={`statebadge ${adjustmentPlan?.error || adjustmentPlan?.connection?.error ? "warn" : ""}`}
+                      >
+                        {adjustmentPlan?.error ??
+                          (adjustmentPlan?.connection?.error
+                            ? "Hier ist noch kein Anschluss möglich."
+                            : adjustmentPlan?.connection?.points.length
+                              ? `Anschluss möglich · ${EUR(adjustmentPlan.connection.cost)} zusätzliche Wegkosten`
+                              : "Direkt an erreichbarem Weg")}
                       </div>
                       <div className="controlrow">
-                        <span>Preis pro Besuch</span>
-                        <strong>{EUR(b.price)}</strong>
+                        <span>Versetzen</span>
+                        <strong>{EUR(adjustmentPlan?.cost ?? 0)}</strong>
                       </div>
-                      <Slider
-                        aria-label="Fahrpreis"
-                        min={0}
-                        max={30}
-                        step={1}
-                        value={[b.price]}
-                        onValueChange={(v) =>
-                          changeBuilding((b) => (b.price = Array.isArray(v) ? v[0] : v))
-                        }
+                      <p className="small">
+                        {adjustmentPlan?.warning ??
+                          "Die Strecke bleibt erhalten. Versetzen ist kostenlos."}
+                      </p>
+                      <button
+                        className="primary"
+                        disabled={!!adjustmentPlan?.error || !adjustmentPlan?.changed}
+                        onClick={() => act(adjust.point)}
+                      >
+                        <Check size={16} /> Position übernehmen
+                      </button>
+                      <button className="secondary" onClick={cancelAdjustment}>
+                        <X size={16} /> Abbrechen
+                      </button>
+                      <p className="buildnote">
+                        Beim Übernehmen wird der Betrieb gestoppt. Namen, Fahrpreise und Einnahmen
+                        bleiben erhalten. Strg/⌘ Z macht den Umbau rückgängig.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <img
+                        className="detailhero"
+                        src={`${import.meta.env.BASE_URL}assets/pixel-v2/${CATALOG[b.kind].sprite}.png`}
+                        alt={b.name}
                       />
-                      {isRide(b.kind) && (
-                        <div className="controlrow">
-                          <span>Warteschlange</span>
-                          <strong>
-                            {b.queue.length} / {queueCapacity(snapshot, b)}
-                          </strong>
-                        </div>
+                      <div
+                        className={`statebadge ${(!reachable && !decorative(b.kind)) || !b.open ? "warn" : ""}`}
+                      >
+                        {decorative(b.kind)
+                          ? "Eine schöne Ecke für deine Besucher."
+                          : !reachable
+                            ? isRide(b.kind)
+                              ? "Ein erreichbarer Weg oder eine Warteschlange fehlt am Eingang."
+                              : "Ein erreichbarer Parkweg fehlt."
+                            : b.testing
+                              ? "Testfahrt läuft …"
+                              : !b.tested
+                                ? "Bereit für die Testfahrt."
+                                : b.open
+                                  ? "Geöffnet · Besucher sind willkommen."
+                                  : "Geschlossen · Bereit zur Eröffnung."}
+                      </div>
+                      <div className="adjust-actions">
+                        {b.kind === "coaster" && (
+                          <button className="secondary" onClick={() => startAdjustment("station")}>
+                            <MapPin size={16} /> Station versetzen
+                          </button>
+                        )}
+                        <button className="secondary" onClick={() => startAdjustment("move")}>
+                          <Move size={16} />{" "}
+                          {b.kind === "coaster" ? "Bahn verschieben / drehen" : "Gebäude versetzen"}
+                        </button>
+                      </div>
+                      {directAccess && (
+                        <p className="direct-access">
+                          <Check size={14} /> Direktzugang · 4 Warteplätze. Eine eigene
+                          Warteschlange schafft mehr Platz.
+                        </p>
                       )}
-                      {b.kind === "coaster" && b.track && (
-                        <>
-                          <div className="divider" />
-                          <div className="detailstats">
-                            <div>
-                              <span>Streckenlänge</span>
-                              <strong>{trackStats(b.track).length} m</strong>
-                            </div>
-                            <div>
-                              <span>Höchsttempo</span>
-                              <strong>
-                                {trackStats(b.track).speed}
-                                <small style={{ fontSize: 11 }}> km/h</small>
-                              </strong>
-                            </div>
-                            <div>
-                              <span>Fahrspaß</span>
-                              <strong>{trackStats(b.track).excitement}</strong>
-                            </div>
-                            <div>
-                              <span>Intensität</span>
-                              <strong>{trackStats(b.track).intensity}</strong>
-                            </div>
-                          </div>
-                          {!b.tested && (
+                      {connection && (!reachable || !b.open) && (
+                        <div className="connect-action">
+                          <button
+                            className="primary"
+                            disabled={!!connection.error || (!!b.autoOpen && !!reachable)}
+                            onMouseEnter={() => {
+                              view.current.connection = connection.points;
+                            }}
+                            onMouseLeave={() => {
+                              view.current.connection = undefined;
+                            }}
+                            onClick={() =>
+                              edit("Anschluss", () => {
+                                const live = park.current!.buildings.find(
+                                  (item) => item.id === b.id,
+                                )!;
+                                const error = connectBuilding(park.current!, live, autoClear);
+                                view.current.connection = undefined;
+                                notify(
+                                  error ??
+                                    (live.autoOpen
+                                      ? "Zugang bereit. Die Bahn öffnet nach der Testfahrt automatisch."
+                                      : "Angeschlossen und geöffnet! Die Gäste können kommen."),
+                                );
+                              })
+                            }
+                          >
+                            <Route size={16} />{" "}
+                            {connection.error
+                              ? "Anschluss nicht möglich"
+                              : b.autoOpen && reachable
+                                ? "Öffnet nach der Testfahrt"
+                                : reachable
+                                  ? b.tested
+                                    ? "Jetzt eröffnen"
+                                    : "Nach Test automatisch öffnen"
+                                  : `Anschließen & öffnen · ${EUR(connection.cost)}`}
+                          </button>
+                          <p className="small">
+                            {connection.error ??
+                              (reachable
+                                ? "Vorhandener Zugang wird verwendet. Keine Baukosten."
+                                : `${connection.points.length} Wegfelder${connection.clearIds.length ? ` · ${connection.clearIds.length} Deko freiräumen` : ""}`)}
+                          </p>
+                          {connection.error && recommendedStation && (
                             <button
                               className="secondary"
-                              style={{ width: "100%" }}
-                              disabled={!!b.testing}
-                              onClick={() => {
-                                changeBuilding((b) => (b.testing = 8));
-                                notify(
-                                  "Der Testzug fährt die Strecke ab. Nach der Prüfung kannst du die Bahn eröffnen.",
-                                );
-                              }}
+                              onClick={() => startAdjustment("station", recommendedStation)}
                             >
-                              <FlaskConical size={16} />{" "}
-                              {b.testing ? "Testfahrt läuft …" : "Testfahrt starten"}
+                              <Sparkles size={16} /> Besseren Stationsplatz zeigen
+                            </button>
+                          )}
+                          {connection.error && (
+                            <button className="secondary" onClick={() => pickTool("path", "paths")}>
+                              <Route size={16} /> Parkweg selbst bauen
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {!decorative(b.kind) && (
+                        <>
+                          <div className="detailstats">
+                            <div>
+                              <span>Gäste bedient</span>
+                              <strong>{b.served}</strong>
+                            </div>
+                            <div>
+                              <span>Einnahmen</span>
+                              <strong>{EUR(b.revenue)}</strong>
+                            </div>
+                          </div>
+                          <div className="controlrow">
+                            <span>Preis pro Besuch</span>
+                            <strong>{EUR(b.price)}</strong>
+                          </div>
+                          <Slider
+                            aria-label="Fahrpreis"
+                            min={0}
+                            max={30}
+                            step={1}
+                            value={[b.price]}
+                            onValueChange={(v) =>
+                              changeBuilding((b) => (b.price = Array.isArray(v) ? v[0] : v))
+                            }
+                          />
+                          {isRide(b.kind) && (
+                            <div className="controlrow">
+                              <span>Warteschlange</span>
+                              <strong>
+                                {b.queue.length} / {queueCapacity(snapshot, b)}
+                              </strong>
+                            </div>
+                          )}
+                          {b.kind === "coaster" && b.track && (
+                            <>
+                              <div className="divider" />
+                              <div className="detailstats">
+                                <div>
+                                  <span>Streckenlänge</span>
+                                  <strong>{trackStats(b.track).length} m</strong>
+                                </div>
+                                <div>
+                                  <span>Höchsttempo</span>
+                                  <strong>
+                                    {trackStats(b.track).speed}
+                                    <small style={{ fontSize: 11 }}> km/h</small>
+                                  </strong>
+                                </div>
+                                <div>
+                                  <span>Fahrspaß</span>
+                                  <strong>{trackStats(b.track).excitement}</strong>
+                                </div>
+                                <div>
+                                  <span>Intensität</span>
+                                  <strong>{trackStats(b.track).intensity}</strong>
+                                </div>
+                              </div>
+                              {!b.tested && (
+                                <button
+                                  className="secondary"
+                                  style={{ width: "100%" }}
+                                  disabled={!!b.testing}
+                                  onClick={() => {
+                                    changeBuilding((b) => (b.testing = 8));
+                                    notify(
+                                      "Der Testzug fährt die Strecke ab. Nach der Prüfung kannst du die Bahn eröffnen.",
+                                    );
+                                  }}
+                                >
+                                  <FlaskConical size={16} />{" "}
+                                  {b.testing ? "Testfahrt läuft …" : "Testfahrt starten"}
+                                </button>
+                              )}
+                            </>
+                          )}
+                          {b.open && (
+                            <button
+                              className="primary"
+                              style={{ marginTop: 14 }}
+                              disabled={!b.open && (!reachable || !b.tested)}
+                              onClick={() => changeBuilding((b) => (b.open = !b.open))}
+                            >
+                              {b.open ? <Pause size={16} /> : <Play size={16} />}{" "}
+                              {b.open ? "Attraktion schließen" : "Jetzt eröffnen"}
                             </button>
                           )}
                         </>
                       )}
                       <button
-                        className="primary"
-                        style={{ marginTop: 14 }}
-                        disabled={!b.open && (!reachable || !b.tested)}
-                        onClick={() => changeBuilding((b) => (b.open = !b.open))}
+                        className="secondary"
+                        style={{ width: "100%", marginTop: 10 }}
+                        onClick={() => {
+                          edit("Abriss", () => {
+                            place(park.current!, "erase", { x: b.x, y: b.y });
+                          });
+                          setSelected(null);
+                          setCategory("rides");
+                          notify("Gebäude abgerissen. 40 % des Grundpreises wurden erstattet.");
+                          sync();
+                        }}
                       >
-                        {b.open ? <Pause size={16} /> : <Play size={16} />}{" "}
-                        {b.open ? "Attraktion schließen" : "Jetzt eröffnen"}
+                        <Eraser size={16} /> Abreißen · +{EUR(CATALOG[b.kind].cost * 0.4)}
                       </button>
                     </>
                   )}
-                  <button
-                    className="secondary"
-                    style={{ width: "100%", marginTop: 10 }}
-                    onClick={() => {
-                      edit("Abriss", () => {
-                        place(park.current!, "erase", { x: b.x, y: b.y });
-                      });
-                      setSelected(null);
-                      setCategory("rides");
-                      notify("Gebäude abgerissen. 40 % des Grundpreises wurden erstattet.");
-                      sync();
-                    }}
-                  >
-                    <Eraser size={16} /> Abreißen · +{EUR(CATALOG[b.kind].cost * 0.4)}
-                  </button>
                 </>
               )}
               {category === "guests" &&
@@ -1111,17 +1333,23 @@ export default function Home() {
             <div>
               <strong>
                 {placement?.error ??
-                  (placement
-                    ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? "Waldflug" : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Warteschlange" : "Wasser"))} · ${EUR(placement.cost)}`
-                    : "Bewege den Zeiger auf den Bauplatz")}
+                  (adjust
+                    ? `${adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
+                    : placement
+                      ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? "Waldflug" : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Warteschlange" : "Wasser"))} · ${EUR(placement.cost)}`
+                      : "Bewege den Zeiger auf den Bauplatz")}
               </strong>
               <span>
                 {placement?.warning ??
-                  (tool === "coaster" && blueprintMode
-                    ? "Klick baut · R dreht · Esc beendet"
-                    : ["path", "queue", "water", "erase"].includes(tool)
-                      ? "Ziehen baut mehrere Felder · Strg/⌘ Z nimmt den Bauzug zurück"
-                      : "Klick baut · Shift für mehrere · Esc beendet")}
+                  (adjust
+                    ? adjust.mode === "station"
+                      ? "Grünes Gleisfeld wählen · Klick übernimmt · Esc beendet"
+                      : "Klick übernimmt · R dreht · Esc beendet"
+                    : tool === "coaster" && blueprintMode
+                      ? "Klick baut · R dreht · Esc beendet"
+                      : ["path", "queue", "water", "erase"].includes(tool)
+                        ? "Ziehen baut mehrere Felder · Strg/⌘ Z nimmt den Bauzug zurück"
+                        : "Klick baut · Shift für mehrere · Esc beendet")}
               </span>
             </div>
             <label className="clear-toggle">
@@ -1259,7 +1487,8 @@ export default function Home() {
           <ol>
             <li>
               <b>Neue Attraktionen:</b> Wähle unten ein Gebäude und klicke auf freie Wiese. Verbinde
-              Fahrgeschäfte mit „Anschließen & öffnen“ automatisch mit dem Wegenetz.
+              Fahrgeschäfte mit „Anschließen & öffnen“ automatisch mit dem Wegenetz. Ein direkt
+              angrenzender Parkweg bietet vier Warteplätze.
             </li>
             <li>
               <b>Eröffnen:</b> Nach dem Bauen öffnet sich die Verwaltung direkt. Du kannst den
@@ -1271,6 +1500,11 @@ export default function Home() {
               Für eine eigene Strecke setze eine Station. Baue mit den Pfeilen oder benachbarten
               Kartenfeldern weiter. Wähle die Höhe vor dem nächsten Abschnitt. Kehre zur Station auf
               Höhe 0 zurück, baue, teste und eröffne die Strecke.
+            </li>
+            <li>
+              <b>Nachträglich anpassen:</b> Klicke eine Bahn an. „Station versetzen“ bietet grüne,
+              ebene Gleisfelder; „Bahn verschieben / drehen“ versetzt die gesamte Anlage. R dreht
+              die Vorschau, Strg/⌘ Z nimmt den Umbau zurück.
             </li>
             <li>
               <b>Glückliche Gäste:</b> Platziere Burger, Getränke und Toiletten an normalen Wegen.
@@ -1386,6 +1620,7 @@ export default function Home() {
                       const s = JSON.parse(raw);
                       if (!validSave(s)) throw Error();
                       park.current = s;
+                      setAdjust(null);
                       history.current = [];
                       stroke.current = null;
                       setUndoCount(0);
@@ -1433,6 +1668,7 @@ export default function Home() {
                 key={m}
                 onClick={() => {
                   park.current = newPark(m);
+                  setAdjust(null);
                   history.current = [];
                   stroke.current = null;
                   setUndoCount(0);

@@ -257,16 +257,17 @@ export function access(s: Park, b: Building, net = connected(s)) {
       { x: b.x + n, y: b.y + i },
       { x: b.x + i, y: b.y - 1 },
     );
-  return adjacent.find(
-    (p) =>
-      inBounds(p.x, p.y) &&
-      net.has(key(p)) &&
-      s.tiles[p.y][p.x] === (isRide(b.kind) ? "queue" : "path"),
+  const reachable = adjacent.filter((p) => inBounds(p.x, p.y) && net.has(key(p)));
+  // Prefer a dedicated queue, but a station can also board directly from a park path.
+  return (
+    (isRide(b.kind) ? reachable.find((p) => s.tiles[p.y][p.x] === "queue") : undefined) ??
+    reachable.find((p) => s.tiles[p.y][p.x] === "path")
   );
 }
 export function queueCapacity(s: Park, b: Building) {
   const a = access(s, b);
   if (!a) return 0;
+  if (s.tiles[a.y][a.x] === "path") return 4;
   const seen = new Set([key(a)]),
     q = [a];
   for (let i = 0; i < q.length; i++)

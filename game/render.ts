@@ -11,7 +11,7 @@ import {
   type Kind,
   type Building,
 } from "./simulation";
-import type { Placement } from "./construction";
+import type { Placement, Geometry } from "./construction";
 import {
   advanceSpin,
   advanceTrain,
@@ -34,6 +34,12 @@ export type View = {
   height: number;
   preview?: Placement | null;
   connection?: Point[];
+  adjustment?: {
+    mode: "station" | "move";
+    building: Building;
+    geometry: Geometry;
+    candidates: Point[];
+  };
 };
 type SpriteSpec = { width: number; height: number; anchorX: number; anchorY: number };
 const sprites: Record<string, HTMLImageElement> = {};
@@ -109,7 +115,7 @@ const guestMotion = new WeakMap<
   { x: number; y: number; phase: number; heading: Direction; time: number; queued: boolean }
 >();
 const motors = new WeakMap<Building, Spin & { time: number }>();
-const trains = new WeakMap<Building, TrainMotor>();
+const trains = new WeakMap<Building, TrainMotor & { track: Point[] }>();
 const routes = new WeakMap<Point[], RouteMotion>();
 const service = new WeakMap<Building, { served: number; time: number; value: number }>();
 export function draw(
@@ -258,7 +264,7 @@ export function draw(
     const im = sprites[name];
     if (!im) return;
     ctx.save();
-    ctx.globalAlpha = alpha;
+    ctx.globalAlpha *= alpha;
     ctx.translate(p.x, p.y);
     ctx.rotate(rotation);
     if (mirror) ctx.scale(-1, 1);
@@ -330,7 +336,7 @@ export function draw(
     const im = sprites["wheel-rim"];
     if (im) {
       ctx.save();
-      ctx.globalAlpha = alpha;
+      ctx.globalAlpha *= alpha;
       ctx.translate(hub.x, hub.y);
       ctx.transform(0.84, 0.42, 0, 1, 0, 0);
       ctx.rotate(angle);
@@ -392,6 +398,7 @@ export function draw(
     else frame(CATALOG[b.kind].sprite, p, specs[CATALOG[b.kind].sprite], alpha);
   };
   for (const b of s.buildings) {
+    const firstObject = objects.length;
     if (b.id === v.selected) for (const p of footprint(b)) tile(p.x, p.y, "#ffef9166", "#fff0bb");
     if (b.kind === "coaster") {
       const pts = b.track ?? [];
@@ -443,14 +450,18 @@ export function draw(
             : 0;
         const desired = trainDistance(route, progress),
           running = !!b.testing || !!(b.open && b.riders.length && access(s, b, net));
-        const previous = trains.get(b) ?? {
-          angle: desired,
-          velocity: 0,
-          target: desired,
-          time: s.time,
-        };
+        const cached = trains.get(b);
+        const previous =
+          cached?.track === pts
+            ? cached
+            : {
+                angle: desired,
+                velocity: 0,
+                target: desired,
+                time: s.time,
+              };
         const motor = advanceTrain(previous, desired, running, s.time, route.length);
-        trains.set(b, motor);
+        trains.set(b, { ...motor, track: pts });
         const head = motor.angle;
         for (let car = 0; car < 4; car++) {
           const q = routePosition(route, head - car * 0.55);
@@ -488,6 +499,17 @@ export function draw(
           ctx.fillText("!", p.x, p.y - 29 * scale);
         },
       });
+    if (v.adjustment?.mode === "move" && v.adjustment.building.id === b.id) {
+      for (const object of objects.slice(firstObject)) {
+        const paint = object.draw;
+        object.draw = () => {
+          ctx.save();
+          ctx.globalAlpha = 0.28;
+          paint();
+          ctx.restore();
+        };
+      }
+    }
   }
   // Queue guests occupy successive spaces along the actual queue, instead of stacking on one tile.
   const queued = new Map<number, Point>();
@@ -497,7 +519,11 @@ export function draw(
       if (!start) continue;
       const cells = [start],
         seen = new Set([`${start.x},${start.y}`]);
-      for (let i = 0; i < cells.length && cells.length < 40; i++)
+      for (
+        let i = 0;
+        s.tiles[start.y][start.x] === "queue" && i < cells.length && cells.length < 40;
+        i++
+      )
         for (const [dx, dy] of [
           [0, 1],
           [1, 0],
@@ -609,7 +635,28 @@ export function draw(
   objects.push({ depth: 43.9, draw: () => frame("entrance", project(15, 29), specs.entrance) });
   objects.sort((a, b) => a.depth - b.depth).forEach((o) => o.draw());
   if (v.connection) for (const p of v.connection) tile(p.x, p.y, "#83e6c6aa", "#e5fff3");
-  if (v.draft.length) {
+  if (v.selected !== null) {
+    const b = s.buildings.find((b) => b.id === v.selected);
+    if (b?.kind === "coaster") {
+      const p = project(b.x, b.y);
+      ctx.save();
+      ctx.fillStyle = "#fff8d9";
+      ctx.strokeStyle = "#315d45";
+      ctx.lineWidth = 1.5 * scale;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y + 5 * scale, 7 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#315d45";
+      ctx.font = `bold ${9 * scale}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.fillText("S", p.x, p.y + 8 * scale);
+      ctx.restore();
+    }
+  }
+  if (v.adjustment?.mode === "station")
+    for (const p of v.adjustment.candidates) tile(p.x, p.y, "#52d99b90", "#e3ffee");
+  if (v.draft.length && v.adjustment?.mode !== "station") {
     for (let i = 1; i < v.draft.length; i++) rail(v.draft[i - 1], v.draft[i], true);
     v.draft.forEach((p, i) => {
       const q = project(p.x, p.y, p.z ?? 0);
@@ -617,8 +664,9 @@ export function draw(
       ctx.fillRect(q.x - 2 * scale, q.y - 2 * scale, 4 * scale, 4 * scale);
     });
   }
-  if (v.hover && v.tool !== "select") {
-    const { x, y } = v.hover;
+  const hover = v.adjustment ? v.adjustment.geometry : v.hover;
+  if (hover && v.tool !== "select") {
+    const { x, y } = hover;
     if (x >= 0 && y >= 0 && x < SIZE && y < SIZE) {
       const d = CATALOG[v.tool as Kind],
         n = d?.size ?? 1;
@@ -653,6 +701,12 @@ export function draw(
             );
           }
         }
+      if (v.adjustment && !v.preview?.error) {
+        const pending = { ...v.adjustment.building, ...v.adjustment.geometry, id: -1, open: false };
+        if (pending.kind === "coaster")
+          frame("station", project(pending.x, pending.y), specs.station, 0.85);
+        else drawBuilding(pending, 0.65);
+      }
       if (d && v.tool !== "coaster")
         drawBuilding({ id: -1, kind: v.tool as Kind, x, y, open: false } as Building, 0.65);
     }

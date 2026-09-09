@@ -9,6 +9,7 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 - 30 × 30 Felder mit Wegen, Warteschlangen, Wasser und Dekoration.
 - Achterbahn-Schnellbau mit drehbarer 6 × 4-Vorlage, eigenem Streckeneditor, Höhenstufen und automatischer Testfahrt.
 - Gültige/ungültige Bauvorschau mit Gesamtkosten, optionales Deko-Freiräumen, automatischer Anschluss und Rückgängig für die letzten 30 Bauaktionen.
+- Bestehende Stationen auf ebene, gerade Gleisfelder versetzen; ganze Bahnen verschieben und um ihre Station drehen. Der Umbau behält ID, Fahrpreise, Testresultat und Statistik und ist rückgängig machbar.
 - Panoramarad und Karussell, Burgergarten, Limonadenbar und Toiletten.
 - Gäste mit vier Blickrichtungen, Gehposen für beide Outfits, individuellen Geschwindigkeiten, Zielen, Hunger, Durst und Zufriedenheit. Wartende verteilen sich auf Queue-Felder.
 - Fahrgeschäfte fahren sanft an und bremsen; Gondeln schwingen, Karussellpferde heben sich. Achterbahnzüge beschleunigen, fahren Steigungen langsam und Abfahrten schneller. Einnahmen erscheinen kurz direkt am Gebäude.
@@ -19,9 +20,13 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 
 ## So baust du
 
-Wähle unten ein Werkzeug. Die grüne/rote Vorschau zeigt, ob das Bauwerk passt, und nennt den Gesamtpreis. **Deko freiräumen** entfernt störende Bäume oder Blumen für 10 € pro Objekt. Bestehende Gebäude werden dabei nicht entfernt. Nach dem Platzieren öffnet sich direkt die Verwaltung; **Anschließen & öffnen** baut einen passenden Weg oder eine Warteschlange zum bestehenden Wegenetz. Der Anschluss sucht bis zu zwölf neue Felder weit.
+Wähle unten ein Werkzeug. Die grüne/rote Vorschau zeigt, ob das Bauwerk passt, und nennt den Gesamtpreis. **Deko freiräumen** entfernt störende Bäume oder Blumen für 10 € pro Objekt. Bestehende Gebäude werden dabei nicht entfernt. Nach dem Platzieren öffnet sich direkt die Verwaltung; **Anschließen & öffnen** baut einen passenden Weg oder eine Warteschlange zum bestehenden Wegenetz. Ein direkt angrenzender, mit dem Parkeingang verbundener Parkweg genügt: Er bietet vier Warteplätze. Eine eigene Warteschlange wird bevorzugt und kann mehr Gäste aufnehmen. Der Anschlussplaner nutzt vorhandene Wege, füllt Lücken und sucht Verbindungen mit bis zu 30 neuen Feldern. Vorhandene Wege werden nicht umgefärbt.
 
 Eine Achterbahn kannst du im **Schnellbau** vollständig platzieren und mit **R** drehen. Ihre Testfahrt startet automatisch; nach dem Anschluss eröffnet sie sich, sobald der Test abgeschlossen ist. Unter **Eigene Strecke** kannst du weiterhin eine Station setzen, benachbarte Abschnitte ergänzen und ihre Höhe wählen. Der Rundkurs muss zur Station auf Höhe 0 zurückkehren.
+
+Zum Umbau eine bestehende Achterbahn auswählen: **Station versetzen** markiert geeignete gerade Abschnitte am Boden. Die Gleisform bleibt dabei unverändert. **Bahn verschieben / drehen** bewegt die gesamte Anlage; **R** dreht sie um die Station. Mausbewegung zeigt die Vorschau und mögliche Anschlusskosten. Klicke auf die Karte oder **Position übernehmen**, um den Umbau abzuschließen. **Abbrechen** und **Esc** verwerfen die Vorschau. Bei fehlendem Zugang kann das Spiel einen besseren Stationsplatz vorschlagen.
+
+Versetzen ist kostenlos; nur geräumte Dekoration kostet 10 € pro Objekt. Bestehende Wege bleiben an ihrem bisherigen Ort. Beim Übernehmen wird die betroffene Attraktion geschlossen und entladen; anschließend den neuen Zugang prüfen und wieder öffnen. Eine laufende Testfahrt wird abgebrochen und kann neu gestartet werden. Bereits abgeschlossene Tests und Fahrwerte bleiben bei diesen geometrisch unveränderten Umbauten gültig.
 
 Wege, Warteschlangen, Wasser und Abriss lassen sich ziehen. **Rückgängig** nimmt einen ganzen Bauzug zurück, während Besucher und Simulationszeit weiterlaufen. Die Bauhistorie gilt für die aktuelle Sitzung und wird beim Laden oder Neubeginn geleert. Einzelne Attraktionen wechseln nach dem Bauen direkt in die Verwaltung; **Shift** hält das Werkzeug für mehrere Platzierungen aktiv.
 

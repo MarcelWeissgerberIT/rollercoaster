@@ -1349,3 +1349,53 @@ button:hover:not(:disabled) {
     display: none;
   }
 }
+.adjust-actions {
+  display: grid;
+  gap: 7px;
+  margin: 13px 0;
+}
+.adjust-actions .secondary,
+.connect-action .secondary {
+  width: 100%;
+  font-size: 12px;
+  padding: 9px 11px;
+}
+.connect-action .secondary {
+  margin-top: 7px;
+}
+.adjust-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #315e47;
+}
+.adjust-heading h3 {
+  font-family: Georgia, serif;
+  font-size: 23px;
+  margin: 5px 0 12px;
+}
+.adjust-heading svg {
+  flex-shrink: 0;
+  width: 22px;
+}
+.adjust-panel > .primary,
+.adjust-panel > .secondary {
+  width: 100%;
+  margin: 6px 0;
+}
+.adjust-panel .statebadge {
+  margin-top: 16px;
+}
+.direct-access {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  color: #3e7250;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 10px 0;
+}
+.direct-access svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}

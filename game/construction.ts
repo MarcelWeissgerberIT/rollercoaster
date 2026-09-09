@@ -134,6 +134,7 @@ export function place(
   }
   return { ...build(s, tool as Kind, p.x, p.y, track), cost: plan.cost };
 }
+export const CONNECTION_LIMIT = 30;
 export type Connection = {
   points: Point[];
   clearIds: number[];
@@ -160,12 +161,45 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
       for (const p of footprint(item)) blocked.add(`${p.x},${p.y}`);
   const passable = (p: Point) =>
     inside(p) && !blocked.has(`${p.x},${p.y}`) && s.tiles[p.y][p.x] !== "water";
-  const q: Array<{ p: Point; path: Point[] }> = [],
-    seen = new Set<string>();
+  // Dijkstra prefers existing paths (free) and fills only missing cells. It never repaints infrastructure.
+  type Search = { p: Point; path: Point[]; cost: number; newCells: number };
+  const heap: Search[] = [],
+    best = new Map<string, number>();
+  const push = (item: Search) => {
+    let i = heap.length;
+    heap.push(item);
+    while (i > 0) {
+      const parent = (i - 1) >> 1;
+      if (heap[parent].cost <= item.cost) break;
+      heap[i] = heap[parent];
+      i = parent;
+    }
+    heap[i] = item;
+  };
+  const pop = () => {
+    const first = heap[0],
+      last = heap.pop()!;
+    if (heap.length) {
+      let i = 0;
+      while (i * 2 + 1 < heap.length) {
+        let child = i * 2 + 1;
+        if (child + 1 < heap.length && heap[child + 1].cost < heap[child].cost) child++;
+        if (heap[child].cost >= last.cost) break;
+        heap[i] = heap[child];
+        i = child;
+      }
+      heap[i] = last;
+    }
+    return first;
+  };
+  const price = (p: Point) =>
+    (s.tiles[p.y][p.x] === "grass" ? (ride ? 18 : 12) : 0) + (occupant(s, p.x, p.y) ? 10 : 0);
   for (const p of starts)
-    if (passable(p) && ["grass", ride ? "queue" : "path"].includes(s.tiles[p.y][p.x])) {
-      q.push({ p, path: [p] });
-      seen.add(`${p.x},${p.y}`);
+    if (passable(p) && (ride || s.tiles[p.y][p.x] !== "queue")) {
+      const cost = price(p),
+        key = `${p.x},${p.y}`;
+      best.set(key, cost);
+      push({ p, path: [p], cost, newCells: s.tiles[p.y][p.x] === "grass" ? 1 : 0 });
     }
   const dirs = [
     [0, 1],
@@ -174,35 +208,32 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
     [0, -1],
   ];
   let route: Point[] | undefined;
-  for (let i = 0; i < q.length; i++) {
-    const { p, path } = q[i];
-    if (["path", "queue"].includes(s.tiles[p.y][p.x]) && net.has(`${p.x},${p.y}`)) {
+  while (heap.length) {
+    const current = pop(),
+      { p, path, cost, newCells } = current;
+    if (cost !== best.get(`${p.x},${p.y}`)) continue;
+    if (net.has(`${p.x},${p.y}`)) {
       route = path.slice(0, -1);
       break;
     }
-    if (path.length > 12) continue;
     for (const [dx, dy] of dirs) {
       const next = { x: p.x + dx, y: p.y + dy },
         key = `${next.x},${next.y}`;
-      if (
-        !passable(next) ||
-        seen.has(key) ||
-        (s.tiles[next.y][next.x] !== "grass" &&
-          s.tiles[next.y][next.x] !== (ride ? "queue" : "path") &&
-          !net.has(key))
-      )
-        continue;
-      seen.add(key);
-      q.push({ p: next, path: [...path, next] });
+      if (!passable(next)) continue;
+      const count = newCells + (s.tiles[next.y][next.x] === "grass" ? 1 : 0),
+        nextCost = cost + price(next);
+      if (count > CONNECTION_LIMIT || nextCost >= (best.get(key) ?? Infinity)) continue;
+      best.set(key, nextCost);
+      push({ p: next, path: [...path, next], cost: nextCost, newCells: count });
     }
   }
   if (!route?.length)
     return {
       ...empty,
       error:
-        "Kein freier Anschluss innerhalb von 12 Feldern. Baue zuerst einen Parkweg näher heran.",
+        "Kein freier Weg zur Station. Versetze die Station oder die Bahn; Wasser und Gebäude blockieren den Anschluss.",
     };
-  const points = unique(route),
+  const points = unique(route).filter((p) => s.tiles[p.y][p.x] === "grass"),
     clearIds = [
       ...new Set(
         points.map((p) => occupant(s, p.x, p.y)?.id).filter((id): id is number => id !== undefined),
@@ -225,12 +256,197 @@ export function connectBuilding(s: Park, b: Building, clear = true): string | nu
   const plan = planConnection(s, b, clear);
   if (plan.error) return plan.error;
   s.buildings = s.buildings.filter((item) => !plan.clearIds.includes(item.id));
-  spend(s, plan.clearIds.length * 10);
+  if (plan.clearIds.length) spend(s, plan.clearIds.length * 10);
   for (const p of plan.points) paint(s, p.x, p.y, isRide(b.kind) ? "queue" : "path");
   if (b.kind === "coaster" && !b.tested) {
     b.testing = b.testing || 8;
     b.autoOpen = true;
   } else b.open = true;
+  return null;
+}
+export type Geometry = Pick<Building, "x" | "y" | "track">;
+export type AdjustmentPlan = Placement & {
+  geometry: Geometry;
+  changed: boolean;
+  connection: Connection | null;
+};
+const geometryOf = (b: Building): Geometry => ({
+  x: b.x,
+  y: b.y,
+  track: b.track?.map((p) => ({ ...p })),
+});
+const sameGeometry = (a: Geometry, b: Geometry) =>
+  a.x === b.x && a.y === b.y && JSON.stringify(a.track) === JSON.stringify(b.track);
+export function stationPositions(b: Building): Point[] {
+  if (b.kind !== "coaster" || !b.track) return [];
+  const ring = b.track.slice(0, -1);
+  return ring
+    .filter((p, i) => {
+      const prev = ring[(i + ring.length - 1) % ring.length],
+        next = ring[(i + 1) % ring.length];
+      return (
+        (p.z ?? 0) === 0 &&
+        (prev.z ?? 0) === 0 &&
+        (next.z ?? 0) === 0 &&
+        prev.x + next.x === 2 * p.x &&
+        prev.y + next.y === 2 * p.y
+      );
+    })
+    .map((p) => ({ ...p }));
+}
+function withConnection(
+  s: Park,
+  b: Building,
+  plan: AdjustmentPlan,
+  clear: boolean,
+): AdjustmentPlan {
+  if (plan.error) return plan;
+  const moved = { ...b, ...plan.geometry },
+    virtual = {
+      ...s,
+      buildings: [
+        ...s.buildings.filter((item) => item.id !== b.id && !plan.clearIds.includes(item.id)),
+        moved,
+      ],
+      cash: s.cash - plan.cost,
+    };
+  return { ...plan, connection: planConnection(virtual, moved, clear) };
+}
+export function planStationMove(s: Park, b: Building, p: Point, clear = true): AdjustmentPlan {
+  const empty: AdjustmentPlan = {
+    points: [p],
+    clearIds: [],
+    cost: 0,
+    error: null,
+    geometry: geometryOf(b),
+    changed: false,
+    connection: null,
+  };
+  if (b.kind !== "coaster" || !b.track)
+    return { ...empty, error: "Nur Achterbahnen haben eine versetzbare Station." };
+  if (p.x === b.x && p.y === b.y) return withConnection(s, b, empty, clear);
+  if (!stationPositions(b).some((q) => q.x === p.x && q.y === p.y))
+    return { ...empty, error: "Wähle einen grün markierten, geraden Gleisabschnitt am Boden." };
+  const ring = b.track.slice(0, -1),
+    i = ring.findIndex((q) => q.x === p.x && q.y === p.y && (q.z ?? 0) === 0);
+  const reordered = [...ring.slice(i), ...ring.slice(0, i)].map((q) => ({ ...q }));
+  const geometry = { x: p.x, y: p.y, track: [...reordered, { ...reordered[0] }] };
+  const error = validateTrack(
+    { ...s, buildings: s.buildings.filter((item) => item.id !== b.id) },
+    geometry.track,
+  );
+  return withConnection(s, b, { ...empty, geometry, changed: true, error }, clear);
+}
+export function planRelocation(
+  s: Park,
+  b: Building,
+  p: Point,
+  rotation = 0,
+  clear = true,
+): AdjustmentPlan {
+  const turns = ((rotation % 4) + 4) % 4;
+  const geometry: Geometry = {
+    x: p.x,
+    y: p.y,
+    track: b.track?.map((q) => {
+      let x = q.x - b.x,
+        y = q.y - b.y;
+      for (let i = 0; i < turns; i++) [x, y] = [-y, x];
+      return { x: p.x + x, y: p.y + y, z: q.z };
+    }),
+  };
+  const points = unique(footprint({ ...b, ...geometry }));
+  const plan: AdjustmentPlan = {
+    points,
+    clearIds: [],
+    cost: 0,
+    error: null,
+    geometry,
+    changed: !sameGeometry(b, geometry),
+    connection: null,
+  };
+  if (points.some((q) => !inside(q)))
+    return { ...plan, error: "Die Bahn ragt über den Parkrand hinaus." };
+  const virtual = { ...s, buildings: s.buildings.filter((item) => item.id !== b.id) };
+  for (const q of points) {
+    if (s.tiles[q.y][q.x] !== "grass")
+      return {
+        ...plan,
+        error: "Die neue Position braucht Wiese. Wege und Wasser bleiben erhalten.",
+      };
+    const obstacle = occupant(virtual, q.x, q.y);
+    if (obstacle) {
+      if (!clear || !decorative(obstacle.kind))
+        return {
+          ...plan,
+          error: decorative(obstacle.kind)
+            ? "Deko im Weg – Freiräumen aktivieren."
+            : "Hier steht ein anderes Gebäude.",
+        };
+      if (!plan.clearIds.includes(obstacle.id)) plan.clearIds.push(obstacle.id);
+    }
+  }
+  plan.cost = plan.clearIds.length * 10;
+  if (b.kind === "coaster")
+    plan.error = validateTrack(
+      {
+        ...virtual,
+        buildings: virtual.buildings.filter((item) => !plan.clearIds.includes(item.id)),
+      },
+      geometry.track ?? [],
+    );
+  if (plan.cost > 0 && plan.cost > s.cash)
+    plan.error = "Das Parkbudget reicht zum Freiräumen nicht.";
+  plan.warning = plan.clearIds.length
+    ? `${plan.clearIds.length} Deko freiräumen · ${plan.cost} €`
+    : "Versetzen kostenlos · vorhandene Wege bleiben stehen";
+  return withConnection(s, b, plan, clear);
+}
+export function suggestStation(s: Park, b: Building, clear = true): Point | null {
+  const options = stationPositions(b)
+    .filter((p) => p.x !== b.x || p.y !== b.y)
+    .map((p) => ({ p, plan: planStationMove(s, b, p, clear) }))
+    .filter((o) => !o.plan.error && !o.plan.connection?.error);
+  options.sort((a, b) => (a.plan.connection?.cost ?? 0) - (b.plan.connection?.cost ?? 0));
+  return options[0]?.p ?? null;
+}
+function releaseBuildingGuests(s: Park, b: Building) {
+  const exit = access(s, b) ?? ENTRANCE;
+  for (const g of s.guests)
+    if (g.target === b.id) {
+      if (g.state === "ride" || g.state === "queue") {
+        g.x = exit.x;
+        g.y = exit.y;
+      }
+      g.target = null;
+      g.route = [];
+      g.timer = 0;
+      g.state = "walk";
+    }
+  b.queue = [];
+  b.riders = [];
+  b.cycle = 0;
+  b.testing = undefined;
+  b.autoOpen = false;
+  b.open = false;
+}
+export function adjustBuilding(
+  s: Park,
+  b: Building,
+  mode: "station" | "move",
+  p: Point,
+  rotation = 0,
+  clear = true,
+): string | null {
+  const plan =
+    mode === "station" ? planStationMove(s, b, p, clear) : planRelocation(s, b, p, rotation, clear);
+  if (plan.error) return plan.error;
+  if (!plan.changed) return null;
+  releaseBuildingGuests(s, b);
+  s.buildings = s.buildings.filter((item) => !plan.clearIds.includes(item.id));
+  if (plan.cost) spend(s, plan.cost);
+  Object.assign(b, plan.geometry);
+  // Rigid moves retain existing test results, track shape and operating statistics.
   return null;
 }
 export type EditRecord = {
@@ -239,6 +455,7 @@ export type EditRecord = {
   added: number[];
   removed: Building[];
   flags: { id: number; open: boolean; autoOpen?: boolean }[];
+  geometry: { id: number; before: Geometry }[];
   cash: number;
   income: number;
   expenses: number;
@@ -247,6 +464,7 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
   const tiles = s.tiles.map((row) => [...row]),
     buildings = [...s.buildings],
     flags = buildings.map((b) => ({ id: b.id, open: b.open, autoOpen: b.autoOpen }));
+  const geometries = buildings.map((b) => ({ id: b.id, before: geometryOf(b) }));
   const cash = s.cash,
     income = s.income,
     expenses = s.expenses;
@@ -258,6 +476,10 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     removed: buildings
       .filter((b) => !s.buildings.some((now) => now.id === b.id))
       .map((b) => structuredClone(b)),
+    geometry: geometries.filter((old) => {
+      const b = s.buildings.find((b) => b.id === old.id);
+      return b && !sameGeometry(old.before, b);
+    }),
     flags: flags.filter((old) => {
       const b = s.buildings.find((b) => b.id === old.id);
       return b && (b.open !== old.open || b.autoOpen !== old.autoOpen);
@@ -273,7 +495,8 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
   return changes.tiles.length ||
     changes.added.length ||
     changes.removed.length ||
-    changes.flags.length
+    changes.flags.length ||
+    changes.geometry.length
     ? changes
     : null;
 }
@@ -299,11 +522,18 @@ export function undoEdits(s: Park, records: EditRecord[]) {
         autoOpen: false,
       });
     for (const t of record.tiles) s.tiles[t.y][t.x] = t.before;
+    for (const old of record.geometry) {
+      const b = s.buildings.find((b) => b.id === old.id);
+      if (b) {
+        releaseBuildingGuests(s, b);
+        Object.assign(b, structuredClone(old.before));
+      }
+    }
     for (const old of record.flags) {
       const b = s.buildings.find((b) => b.id === old.id);
       if (b) {
         b.open = old.open;
-        b.autoOpen = old.autoOpen;
+        b.autoOpen = record.geometry.some((item) => item.id === b.id) ? false : old.autoOpen;
       }
     }
     s.cash -= record.cash;
