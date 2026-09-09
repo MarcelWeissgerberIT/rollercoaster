@@ -3221,6 +3221,39 @@ button:hover:not(:disabled) {
 .zoo-view header .secondary {
   color: #284d3c;
 }
+.zoo-view-tools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.zoo-view-tools .secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.zoo-focus {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.zoo-focus select {
+  padding: 9px;
+  background: #fffef6;
+  border: 1px solid #d8e0cd;
+  border-radius: 8px;
+  color: #284d3c;
+}
+@media (max-width: 640px) {
+  .zoo-view-tools {
+    max-width: 160px;
+  }
+  .zoo-view-tools .secondary {
+    font-size: 11px;
+    padding: 7px;
+  }
+}
 .objective.show-goals {
   display: block;
   z-index: 16;

@@ -1,0 +1,25 @@
+<!doctype html><html lang="de"><meta charset="utf-8"><title>Zoo-Audio-Prüfung</title><body><h1>Zoo-Audio-Prüfung</h1><button id="run">Tierstimmen prüfen</button><pre id="result">Bereit</pre><script type="module">
+import {ParkAudio, DEFAULT_AUDIO} from '../game/audio.ts';
+const result=document.querySelector('#result');
+document.querySelector('#run').onclick=async()=>{
+const Original=window.AudioContext, output=[];
+const cases=[...['zebra','giraffe','flamingo','penguin'].map(species=>({name:species,species})),
+{name:'Links',pan:-1},{name:'Rechts',pan:1},{name:'Master stumm',levels:{master:0}},
+{name:'Effekte stumm',levels:{effects:0}},{name:'Sound ausgeschaltet',levels:{enabled:false}},
+{name:'Pause',stop:true},{name:'Seite verborgen',hidden:true},{name:'Ansicht geschlossen',leave:true},{name:'Engine beendet',dispose:true}];
+try { for(const c of cases){
+ const context=new OfflineAudioContext(2,48000,24000);
+ window.AudioContext=class{constructor(){return new Proxy(context,{get(target,key){if(key==='state')return 'running';if(['resume','suspend','close'].includes(key))return ()=>Promise.resolve();const v=Reflect.get(target,key,target);return typeof v==='function'?v.bind(target):v;}})}};
+ const engine=new ParkAudio();engine.setSettings({...DEFAULT_AUDIO,enabled:true,music:0,master:.7,effects:.8,...c.levels});engine.park(false);await engine.unlock();engine.observeAnimals(true);
+ const started=engine.animalCall(c.species??'zebra',1,c.pan??0,2);
+ if(c.stop)engine.stopAnimalCall();if(c.hidden)engine.visibility(true);if(c.leave)engine.observeAnimals(false);if(c.dispose)engine.dispose();
+ const rendered=await context.startRendering();engine.dispose();
+ const stats=[0,1].map(channel=>{const data=rendered.getChannelData(channel);let sum=0,peak=0;for(const sample of data){if(!Number.isFinite(sample))throw Error('Nichtendlicher Pegel');sum+=sample*sample;peak=Math.max(peak,Math.abs(sample));}return {rms:Math.sqrt(sum/data.length),peak};});
+ const silent=!!(c.levels||c.stop||c.hidden||c.leave||c.dispose),max=Math.max(...stats.map(s=>s.peak));
+ if(silent?max>1e-10:!started||max<.001||max>.5)throw Error(c.name+': Pegel '+max);
+ if(c.pan===-1&&!(stats[0].rms>.001&&stats[1].rms<1e-9))throw Error('Stereoposition links');
+ if(c.pan===1&&!(stats[1].rms>.001&&stats[0].rms<1e-9))throw Error('Stereoposition rechts');
+ output.push('PASS '+c.name+': '+(silent?'stumm':stats.map(s=>s.rms.toFixed(5)).join(' / ')));
+ }}catch(e){output.push('FAIL '+e.message);}finally{window.AudioContext=Original;result.textContent=output.join('\n');}
+};
+</script></body></html>

@@ -16,6 +16,22 @@ export function createHabitatModel(b: Building) {
   const box = new THREE.BoxGeometry(1, 1, 1),
     ball = new THREE.SphereGeometry(1, 10, 8),
     pole = new THREE.CylinderGeometry(1, 1, 1, 8);
+  // Surface colouring keeps stripes attached to the coat, including in close-up.
+  const zebraBody =
+    species === "zebra" && (b.habitat?.count ?? 0) > 0 ? new THREE.SphereGeometry(1, 56, 32) : null;
+  if (zebraBody) {
+    const positions = zebraBody.getAttribute("position"),
+      colors = new Float32Array(positions.count * 3),
+      light = new THREE.Color("#eee6d4"),
+      dark = new THREE.Color("#30352f");
+    for (let i = 0; i < positions.count; i++) {
+      const wave = positions.getZ(i) * 28 + Math.sin(positions.getY(i) * 5) * 0.65,
+        color = Math.sin(wave) > 0.25 ? dark : light;
+      color.toArray(colors, i * 3);
+    }
+    zebraBody.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    mat("#ffffff").vertexColors = true;
+  }
   const mesh = (
     parent: THREE.Object3D,
     g: THREE.BufferGeometry,
@@ -100,7 +116,7 @@ export function createHabitatModel(b: Building) {
       const giraffe = species === "giraffe",
         color = giraffe ? "#d7aa58" : "#eee6d4",
         tall = giraffe ? 1.55 : 1;
-      mesh(a, ball, color, 0, 1.35 * tall, 0, 0.65, 0.68, 1.14);
+      mesh(a, zebraBody ?? ball, giraffe ? color : "#ffffff", 0, 1.35 * tall, 0, 0.65, 0.68, 1.14);
       for (const x of [-0.4, 0.4])
         for (const z of [-0.72, 0.72]) {
           limbs.push(mesh(a, pole, color, x, 0.69 * tall, z, 0.12, 1.35 * tall, 0.12));
@@ -130,11 +146,6 @@ export function createHabitatModel(b: Building) {
           const ang = j * 2.399,
             y = 1.65 + (j % 4) * 0.23;
           mesh(a, ball, "#946135", Math.cos(ang) * 0.61, y, Math.sin(ang) * 1.03, 0.14, 0.19, 0.16);
-        }
-      else
-        for (let j = 0; j < 8; j++) {
-          const stripe = mesh(a, box, "#30352f", 0, 1.55, -0.85 + j * 0.24, 1.27, 0.7, 0.085);
-          stripe.rotation.z = (j % 2 ? 1 : -1) * 0.14;
         }
       const tail = mesh(a, pole, "#4a4034", 0, 1.12 * tall, 1.26, 0.05, 0.85, 0.05);
       tail.rotation.x = -0.3;

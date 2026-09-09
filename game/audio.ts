@@ -1,4 +1,6 @@
 import { CoasterCheers, type CheerFrame } from "./coaster-cheers";
+import { playAnimalCall, clearAnimalCallCache } from "./zoo-audio";
+import type { Species } from "./zoo";
 import type { RidePhase } from "./motion";
 import type { CoasterType } from "./simulation";
 export type AudioSettings = { enabled: boolean; master: number; music: number; effects: number };
@@ -27,6 +29,8 @@ export type Sound = "build" | "cash" | "undo" | "save";
 export class ParkAudio {
   private context?: AudioContext;
   private cheers?: CoasterCheers;
+  private animalVoice?: { stop(): void };
+  private observing = false;
   private master?: GainNode;
   private music?: GainNode;
   private effects?: GainNode;
@@ -55,6 +59,13 @@ export class ParkAudio {
     this.levels();
   }
   private levels() {
+    if (
+      !this.settings.enabled ||
+      this.hidden ||
+      this.settings.master <= 0 ||
+      this.settings.effects <= 0
+    )
+      this.stopAnimalCall();
     this.cheers?.setAudible(
       this.settings.enabled &&
         !this.hidden &&
@@ -68,7 +79,7 @@ export class ParkAudio {
       0.04,
     );
     this.music?.gain.setTargetAtTime(
-      this.settings.music * (this.active ? 1 : 0) * (this.riding ? 0.25 : 1),
+      this.settings.music * (this.active ? 1 : 0) * (this.riding || this.observing ? 0.25 : 1),
       t,
       0.08,
     );
@@ -134,6 +145,32 @@ export class ParkAudio {
   rideCheer(frame: CheerFrame | null) {
     if (frame) this.cheers?.update(frame);
     else this.cheers?.halt();
+  }
+  observeAnimals(active: boolean) {
+    this.observing = active;
+    if (!active) this.stopAnimalCall();
+    this.levels();
+  }
+  animalCall(species: Species, gain = 1, pan = 0, variant = 0): boolean {
+    const ctx = this.context;
+    if (
+      this.disposed ||
+      !ctx ||
+      !this.effects ||
+      ctx.state !== "running" ||
+      !this.settings.enabled ||
+      this.hidden ||
+      this.settings.master <= 0 ||
+      this.settings.effects <= 0
+    )
+      return false;
+    this.stopAnimalCall();
+    this.animalVoice = playAnimalCall(ctx, this.effects, species, { gain, pan, variant });
+    return true;
+  }
+  stopAnimalCall() {
+    this.animalVoice?.stop();
+    this.animalVoice = undefined;
   }
   visibility(hidden: boolean) {
     if (hidden) this.cheers?.halt();
@@ -307,6 +344,8 @@ export class ParkAudio {
   }
 
   dispose() {
+    this.stopAnimalCall();
+    if (this.context) clearAnimalCallCache(this.context);
     this.cheers?.dispose();
     this.cheers = undefined;
     this.disposed = true;
