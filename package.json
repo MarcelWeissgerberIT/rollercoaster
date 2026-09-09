@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "node scripts/test-simulation.mjs",
+    "test": "node scripts/test-simulation.mjs && node scripts/test-construction.mjs",
     "check:assets": "node scripts/check-assets.mjs"
   },
   "dependencies": {

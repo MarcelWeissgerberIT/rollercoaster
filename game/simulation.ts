@@ -27,6 +27,7 @@ export type Building = {
   track?: Point[];
   tested: boolean;
   testing?: number;
+  autoOpen?: boolean;
 };
 export type Guest = {
   id: number;
@@ -632,6 +633,10 @@ export function tick(s: Park, dt: number) {
       b.testing = Math.max(0, b.testing - dt);
       if (b.testing === 0) b.tested = true;
     }
+    if (b.autoOpen && b.tested && access(s, b, net)) {
+      b.open = true;
+      b.autoOpen = false;
+    }
     if (!b.open || !access(s, b, net)) {
       for (const id of [...b.queue, ...b.riders]) {
         const g = s.guests.find((g) => g.id === id);
@@ -705,7 +710,7 @@ export function tick(s: Park, dt: number) {
         continue;
       }
       const d = Math.hypot(p.x - g.x, p.y - g.y),
-        step = dt * 1.2;
+        step = dt * (1 + (g.id % 7) * 0.065);
       if (d <= step) {
         g.x = p.x;
         g.y = p.y;
@@ -860,6 +865,7 @@ export function validSave(v: unknown): v is Park {
         b.name.length > 150 ||
         typeof b.open !== "boolean" ||
         typeof b.tested !== "boolean" ||
+        (b.autoOpen !== undefined && typeof b.autoOpen !== "boolean") ||
         (b.testing !== undefined && (!num(b.testing) || b.testing < 0 || b.testing > 8)) ||
         !["price", "served", "revenue", "cycle"].every((k) =>
           num((b as unknown as Record<string, unknown>)[k]),

@@ -23,3 +23,17 @@ for (const asset of active) {
   }
 }
 console.log(`PASS: ${active.length} OpenArt sprite frames, canvas sizes and shared guest anchors`);
+const walks = JSON.parse(
+  readFileSync(new URL("../art/walk-v3/manifest.json", import.meta.url), "utf8"),
+);
+assert.equal(walks.assets.length, 32);
+for (const asset of walks.assets) {
+  const bytes = readFileSync(
+    new URL(`../public/assets/walk-v3/${asset.name}.png`, import.meta.url),
+  );
+  assert.equal(bytes.subarray(1, 4).toString(), "PNG");
+  assert.deepEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], [96, 128]);
+  assert.deepEqual(asset.logicalPivot, [12, 28]);
+  assert.deepEqual(asset.logicalCanvas, [24, 32]);
+}
+console.log("PASS: 32 OpenArt walking frames with matching canvas sizes and foot anchors");

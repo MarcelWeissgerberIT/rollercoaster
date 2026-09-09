@@ -4,11 +4,24 @@ import {
   footprint,
   access,
   isRide,
+  connected,
+  type Guest,
   type Park,
   type Point,
   type Kind,
   type Building,
 } from "./simulation";
+import type { Placement } from "./construction";
+import {
+  advanceSpin,
+  advanceTrain,
+  type TrainMotor,
+  prepareRoute,
+  trainDistance,
+  routePosition,
+  type Spin,
+  type RouteMotion,
+} from "./motion";
 export type View = {
   zoom: number;
   panX: number;
@@ -19,6 +32,8 @@ export type View = {
   selected: number | null;
   draft: Point[];
   height: number;
+  preview?: Placement | null;
+  connection?: Point[];
 };
 type SpriteSpec = { width: number; height: number; anchorX: number; anchorY: number };
 const sprites: Record<string, HTMLImageElement> = {};
@@ -47,9 +62,12 @@ const extra = [
   "carousel-horse",
   ...directions.flatMap((d) => [`guest-${d}-a`, `guest-${d}-b`, `guest2-${d}`, `car-${d}`]),
 ];
+const walkNames = ["red", "teal"].flatMap((c) =>
+  directions.flatMap((d) => Array.from({ length: 4 }, (_, i) => `walk-${c}-${d}-${i}`)),
+);
 export function loadSprites(base = "/assets/pixel-v2") {
   return Promise.all(
-    [...Object.keys(specs), ...extra].map(
+    [...Object.keys(specs), ...extra, ...walkNames].map(
       (name) =>
         new Promise<void>((resolve, reject) => {
           const im = new Image();
@@ -58,7 +76,7 @@ export function loadSprites(base = "/assets/pixel-v2") {
             resolve();
           };
           im.onerror = () => reject(Error(name));
-          im.src = `${base}/${name}.png`;
+          im.src = `${name.startsWith("walk-") ? base.replace(/pixel-v2$/, "walk-v3") : base}/${name}.png`;
         }),
     ),
   );
@@ -86,15 +104,23 @@ export function projection(w: number, h: number, v: View) {
 function heading(dx: number, dy: number): Direction {
   return Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? "se" : "nw") : dy >= 0 ? "sw" : "ne";
 }
-const headings = new Map<number, Direction>();
+const guestMotion = new WeakMap<
+  Guest,
+  { x: number; y: number; phase: number; heading: Direction; time: number; queued: boolean }
+>();
+const motors = new WeakMap<Building, Spin & { time: number }>();
+const trains = new WeakMap<Building, TrainMotor>();
+const routes = new WeakMap<Point[], RouteMotion>();
+const service = new WeakMap<Building, { served: number; time: number; value: number }>();
 export function draw(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
   s: Park,
   v: View,
-  realTime: number,
+  _realTime: number,
 ) {
+  const net = connected(s);
   const { scale, tw, th, project } = projection(w, h, v);
   ctx.clearRect(0, 0, w, h);
   ctx.imageSmoothingEnabled = false;
@@ -212,7 +238,7 @@ export function draw(
             }
       }
       if (type === "water" && n % 3 === 0) {
-        const off = Math.sin(realTime / 1600 + x) * 2 * scale;
+        const off = Math.sin(s.time / 1.6 + x) * 2 * scale;
         line(
           { x: p.x - 6 * scale, y: p.y + off },
           { x: p.x + 6 * scale, y: p.y + off },
@@ -221,15 +247,25 @@ export function draw(
         );
       }
     }
-  const frame = (name: string, p: Point, spec: SpriteSpec, alpha = 1) => {
+  const frame = (
+    name: string,
+    p: Point,
+    spec: SpriteSpec,
+    alpha = 1,
+    rotation = 0,
+    mirror = false,
+  ) => {
     const im = sprites[name];
     if (!im) return;
     ctx.save();
     ctx.globalAlpha = alpha;
+    ctx.translate(p.x, p.y);
+    ctx.rotate(rotation);
+    if (mirror) ctx.scale(-1, 1);
     ctx.drawImage(
       im,
-      p.x - spec.anchorX * scale,
-      p.y - spec.anchorY * scale,
+      -spec.anchorX * scale,
+      -spec.anchorY * scale,
       spec.width * scale,
       spec.height * scale,
     );
@@ -263,48 +299,83 @@ export function draw(
       );
   };
   const objects: Array<{ depth: number; draw: () => void }> = [];
+  const motor = (b: Building): Spin => {
+    if (b.id < 0) return { angle: 0, velocity: 0 };
+    const prev = motors.get(b) ?? { angle: (b.id % 5) * 0.3, velocity: 0, time: s.time };
+    const running = b.open && !!access(s, b, net) && b.riders.length > 0;
+    const remaining = b.cycle,
+      elapsed = CATALOG[b.kind].duration - remaining;
+    const envelope = running
+      ? Math.min(1, Math.max(0, elapsed / 2), Math.max(0, remaining / 3))
+      : 0;
+    const next = {
+      ...advanceSpin(
+        prev,
+        (b.kind === "wheel" ? 0.34 : 1.05) * envelope,
+        Math.max(0, s.time - prev.time),
+        b.kind === "wheel" ? 1.5 : 0.8,
+      ),
+      time: s.time,
+    };
+    motors.set(b, next);
+    return next;
+  };
+  // Advance each motor once; translucent placement previews never affect running rides.
+  for (const b of s.buildings) if (b.kind === "wheel" || b.kind === "carousel") motor(b);
   const wheel = (b: Building, p: Point, alpha = 1) => {
-    const active = b.open && !!access(s, b),
-      angle = active ? s.time * 0.18 : 0,
+    const spin = motors.get(b) ?? { angle: 0, velocity: 0 },
+      angle = spin.angle,
       r = 64 * scale,
       hub = { x: p.x, y: p.y - 106 * scale };
-    ctx.save();
-    ctx.globalAlpha = alpha;
     const im = sprites["wheel-rim"];
     if (im) {
       ctx.save();
+      ctx.globalAlpha = alpha;
       ctx.translate(hub.x, hub.y);
       ctx.transform(0.84, 0.42, 0, 1, 0, 0);
       ctx.rotate(angle);
-      ctx.drawImage(im, -r, -r, r * 2, r * 2);
+      ctx.drawImage(im, -r, -r, 2 * r, 2 * r);
       ctx.restore();
     }
     const cabins = Array.from({ length: 10 }, (_, i) => {
       const t = angle + (i * Math.PI) / 5;
       return {
-        x: hub.x + Math.cos(t) * r * 0.8,
-        y: hub.y + Math.cos(t) * r * 0.4 + Math.sin(t) * r * 0.95,
+        x: hub.x + Math.cos(t) * r * 0.84,
+        y: hub.y + Math.cos(t) * r * 0.42 + Math.sin(t) * r,
+        sway: Math.sin(t * 2) * spin.velocity * 0.12,
       };
     }).sort((a, b) => a.y - b.y);
     cabins.forEach((q) =>
-      frame("wheel-cabin", q, { width: 20, height: 25, anchorX: 10, anchorY: 2.5 }, alpha),
+      frame("wheel-cabin", q, { width: 20, height: 25, anchorX: 10, anchorY: 2.5 }, alpha, q.sway),
     );
     frame("wheel-support", p, { width: 128, height: 176, anchorX: 64, anchorY: 164 }, alpha);
-    ctx.restore();
   };
   const carousel = (b: Building, p: Point, alpha = 1) => {
-    const active = b.open && !!access(s, b),
-      angle = active ? s.time * 0.52 : 0;
+    const spin = motors.get(b) ?? { angle: 0, velocity: 0 },
+      angle = spin.angle;
     frame("carousel-base", p, { width: 100.8, height: 72, anchorX: 50.4, anchorY: 36 }, alpha);
     const horses = Array.from({ length: 6 }, (_, i) => {
-      const t = angle + (i * Math.PI) / 3;
+      const t = angle + (i * Math.PI) / 3,
+        depth = p.y + Math.sin(t) * 15 * scale;
       return {
         x: p.x + Math.cos(t) * 31 * scale,
-        y: p.y + Math.sin(t) * 15 * scale - 2 * scale + Math.sin(t * 2) * 2 * scale,
+        y:
+          depth -
+          2 * scale -
+          Math.sin(angle * 2 + i * Math.PI) * 3 * scale * Math.min(1, spin.velocity),
+        depth,
+        mirror: Math.sin(t) > 0,
       };
-    }).sort((a, b) => a.y - b.y);
+    }).sort((a, b) => a.depth - b.depth);
     horses.forEach((q) =>
-      frame("carousel-horse", q, { width: 32, height: 44.8, anchorX: 16, anchorY: 38.4 }, alpha),
+      frame(
+        "carousel-horse",
+        q,
+        { width: 32, height: 44.8, anchorX: 16, anchorY: 38.4 },
+        alpha,
+        0,
+        q.mirror,
+      ),
     );
     frame(
       "carousel-roof",
@@ -360,43 +431,39 @@ export function draw(
         });
       }
       if (pts.length > 1) {
-        const distances = [0];
-        for (let i = 1; i < pts.length; i++)
-          distances.push(
-            distances[i - 1] +
-              Math.hypot(
-                pts[i].x - pts[i - 1].x,
-                pts[i].y - pts[i - 1].y,
-                (pts[i].z ?? 0) - (pts[i - 1].z ?? 0),
-              ),
-          );
-        const total = distances.at(-1)!;
+        let route = routes.get(pts);
+        if (!route) {
+          route = prepareRoute(pts);
+          routes.set(pts, route);
+        }
         const progress = b.testing
           ? 1 - b.testing / 8
-          : b.open && b.riders.length && access(s, b)
+          : b.open && b.riders.length && access(s, b, net)
             ? 1 - b.cycle / CATALOG.coaster.duration
             : 0;
+        const desired = trainDistance(route, progress),
+          running = !!b.testing || !!(b.open && b.riders.length && access(s, b, net));
+        const previous = trains.get(b) ?? {
+          angle: desired,
+          velocity: 0,
+          target: desired,
+          time: s.time,
+        };
+        const motor = advanceTrain(previous, desired, running, s.time, route.length);
+        trains.set(b, motor);
+        const head = motor.angle;
         for (let car = 0; car < 4; car++) {
-          const d = (((progress * total - car * 0.55) % total) + total) % total;
-          let i = 1;
-          while (i < distances.length - 1 && distances[i] < d) i++;
-          const pa = pts[i - 1],
-            pb = pts[i],
-            f = (d - distances[i - 1]) / (distances[i] - distances[i - 1]);
-          const q = {
-            x: pa.x + (pb.x - pa.x) * f,
-            y: pa.y + (pb.y - pa.y) * f,
-            z: (pa.z ?? 0) + ((pb.z ?? 0) - (pa.z ?? 0)) * f,
-          };
+          const q = routePosition(route, head - car * 0.55);
           objects.push({
             depth: q.x + q.y + (q.z ?? 0) * 0.035 + 0.15,
             draw: () =>
-              frame(`car-${heading(pb.x - pa.x, pb.y - pa.y)}`, project(q.x, q.y, q.z), {
-                width: 48,
-                height: 40,
-                anchorX: 24,
-                anchorY: 30,
-              }),
+              frame(
+                `car-${heading(q.dx, q.dy)}`,
+                project(q.x, q.y, q.z),
+                { width: 48, height: 40, anchorX: 24, anchorY: 30 },
+                1,
+                -q.pitch * 0.12 * Math.sign(q.dx - q.dy),
+              ),
           });
         }
       }
@@ -408,7 +475,7 @@ export function draw(
       const n = CATALOG[b.kind].size;
       objects.push({ depth: b.x + b.y + 2 * (n - 1) + 0.05, draw: () => drawBuilding(b) });
     }
-    if (isRide(b.kind) && (!b.open || !access(s, b)))
+    if (isRide(b.kind) && (!b.open || !access(s, b, net)))
       objects.push({
         depth: 1000,
         draw: () => {
@@ -422,28 +489,126 @@ export function draw(
         },
       });
   }
+  // Queue guests occupy successive spaces along the actual queue, instead of stacking on one tile.
+  const queued = new Map<number, Point>();
+  for (const b of s.buildings)
+    if (b.queue.length) {
+      const start = access(s, b, net);
+      if (!start) continue;
+      const cells = [start],
+        seen = new Set([`${start.x},${start.y}`]);
+      for (let i = 0; i < cells.length && cells.length < 40; i++)
+        for (const [dx, dy] of [
+          [0, 1],
+          [1, 0],
+          [0, -1],
+          [-1, 0],
+        ]) {
+          const p = { x: cells[i].x + dx, y: cells[i].y + dy },
+            key = `${p.x},${p.y}`;
+          if (s.tiles[p.y]?.[p.x] === "queue" && !seen.has(key)) {
+            seen.add(key);
+            cells.push(p);
+          }
+        }
+      b.queue.forEach((id, i) => {
+        const cell = cells[Math.min(cells.length - 1, Math.floor(i / 4))];
+        queued.set(id, {
+          x: cell.x + ((i % 2) - 0.5) * 0.32,
+          y: cell.y + (Math.floor((i % 4) / 2) - 0.5) * 0.32,
+        });
+      });
+    }
   for (const g of s.guests) {
     if (g.state === "ride") continue;
-    const next = g.route.find((p) => Math.hypot(p.x - g.x, p.y - g.y) > 0.025);
-    if (next) headings.set(g.id, heading(next.x - g.x, next.y - g.y));
-    const direction = headings.get(g.id) ?? "se";
+    const target = queued.get(g.id) ?? {
+      x: g.x + ((g.id % 3) - 1) * 0.13,
+      y: g.y + ((Math.floor(g.id / 3) % 3) - 1) * 0.1,
+    };
+    const old = guestMotion.get(g) ?? {
+      x: g.x,
+      y: g.y,
+      time: s.time,
+      queued: false,
+      phase: g.id * 0.73,
+      heading: "se" as Direction,
+    };
+    const isQueued = queued.has(g.id),
+      distance = Math.hypot(target.x - old.x, target.y - old.y);
+    const factor =
+      isQueued || old.queued
+        ? Math.min(1, (Math.max(0, s.time - old.time) * 1.8) / Math.max(0.001, distance))
+        : 1;
+    const visual = {
+      x: old.x + (target.x - old.x) * factor,
+      y: old.y + (target.y - old.y) * factor,
+    };
+    const moved = Math.hypot(visual.x - old.x, visual.y - old.y),
+      next = g.route.find((p) => Math.hypot(p.x - g.x, p.y - g.y) > 0.025);
+    if ((isQueued || old.queued) && moved > 0.001)
+      old.heading = heading(visual.x - old.x, visual.y - old.y);
+    else if (next) old.heading = heading(next.x - g.x, next.y - g.y);
+    old.phase += Math.min(0.3, moved) * 9;
+    old.time = s.time;
+    old.queued = isQueued || (old.queued && distance > 0.1);
+    old.x = visual.x;
+    old.y = visual.y;
+    guestMotion.set(g, old);
     const moving =
-      (g.state === "walk" || g.state === "leave") && g.route.length > 0 && g.timer <= 0;
-    const step = moving && Math.floor(s.time * 7 + g.id) % 2 === 1 ? "b" : "a";
-    const name = g.skin === 1 ? `guest2-${direction}` : `guest-${direction}-${step}`;
+      isQueued || old.queued
+        ? moved > 0.001
+        : (g.state === "walk" || g.state === "leave") && g.route.length > 0 && g.timer <= 0;
+    const step = moving ? Math.floor(old.phase) % 4 : 1;
+    const name = `walk-${g.skin === 1 ? "teal" : "red"}-${old.heading}-${step}`;
     objects.push({
-      depth: g.x + g.y + 0.12,
+      depth: visual.x + visual.y + 0.12,
       draw: () => {
-        const p = project(g.x + ((g.id % 3) - 1) * 0.11, g.y);
-        if (g.skin === 1 && moving) p.y -= Math.sin(s.time * 12 + g.id) * 0.5 * scale;
-        frame(name, p, { width: 24, height: 32, anchorX: 12, anchorY: 28 });
+        const p = project(visual.x, visual.y);
+        ctx.fillStyle = "#29442830";
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, 4.3 * scale, 1.6 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (moving) p.y -= Math.abs(Math.sin((old.phase * Math.PI) / 2)) * 0.8 * scale;
+        frame(
+          name,
+          p,
+          { width: 24, height: 32, anchorX: 12, anchorY: 28 },
+          1,
+          moving ? Math.sin((old.phase * Math.PI) / 2) * 0.018 : 0,
+        );
       },
     });
   }
-  const liveIds = new Set(s.guests.map((g) => g.id));
-  for (const id of headings.keys()) if (!liveIds.has(id)) headings.delete(id);
+  for (const b of s.buildings) {
+    const event = service.get(b) ?? { served: b.served, time: -10, value: 0 };
+    if (event.served !== b.served) {
+      event.value = (b.served - event.served) * b.price;
+      event.served = b.served;
+      event.time = s.time;
+    }
+    service.set(b, event);
+    const age = s.time - event.time;
+    if (age >= 0 && age < 2.4 && event.value > 0)
+      objects.push({
+        depth: 1001,
+        draw: () => {
+          const p = project(b.x, b.y);
+          ctx.save();
+          ctx.globalAlpha = Math.min(1, (2.4 - age) * 2);
+          ctx.font = `bold ${12 * scale}px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.lineWidth = 3 * scale;
+          ctx.strokeStyle = "#fff9dd";
+          ctx.strokeText(`+${Math.round(event.value)} €`, p.x, p.y - (35 + age * 10) * scale);
+          ctx.fillStyle = "#28583e";
+          ctx.fillText(`+${Math.round(event.value)} €`, p.x, p.y - (35 + age * 10) * scale);
+          ctx.restore();
+        },
+      });
+  }
   objects.push({ depth: 43.9, draw: () => frame("entrance", project(15, 29), specs.entrance) });
   objects.sort((a, b) => a.depth - b.depth).forEach((o) => o.draw());
+  if (v.connection) for (const p of v.connection) tile(p.x, p.y, "#83e6c6aa", "#e5fff3");
   if (v.draft.length) {
     for (let i = 1; i < v.draft.length; i++) rail(v.draft[i - 1], v.draft[i], true);
     v.draft.forEach((p, i) => {
@@ -457,9 +622,37 @@ export function draw(
     if (x >= 0 && y >= 0 && x < SIZE && y < SIZE) {
       const d = CATALOG[v.tool as Kind],
         n = d?.size ?? 1;
-      for (let a = 0; a < n; a++)
-        for (let b = 0; b < n; b++)
-          tile(x + a, y + b, v.tool === "erase" ? "#e3655477" : "#fff29a66", "#fff0bd");
+      const preview = v.preview,
+        points =
+          preview?.points ??
+          Array.from({ length: n * n }, (_, i) => ({ x: x + (i % n), y: y + Math.floor(i / n) }));
+      const invalid = !!preview?.error;
+      for (const p of points)
+        tile(
+          p.x,
+          p.y,
+          invalid || v.tool === "erase" ? "#e3655490" : "#66dca878",
+          invalid ? "#ffdad0" : "#d7ffe9",
+        );
+      if (preview)
+        for (const id of preview.clearIds) {
+          const b = s.buildings.find((b) => b.id === id);
+          if (b) {
+            const q = project(b.x, b.y);
+            line(
+              { x: q.x - 5 * scale, y: q.y - 8 * scale },
+              { x: q.x + 5 * scale, y: q.y + 2 * scale },
+              "#ffe297",
+              2,
+            );
+            line(
+              { x: q.x + 5 * scale, y: q.y - 8 * scale },
+              { x: q.x - 5 * scale, y: q.y + 2 * scale },
+              "#ffe297",
+              2,
+            );
+          }
+        }
       if (d && v.tool !== "coaster")
         drawBuilding({ id: -1, kind: v.tool as Kind, x, y, open: false } as Building, 0.65);
     }

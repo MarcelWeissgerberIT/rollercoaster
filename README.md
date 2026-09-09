@@ -7,9 +7,11 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 ## Im Spiel
 
 - 30 × 30 Felder mit Wegen, Warteschlangen, Wasser und Dekoration.
-- Achterbahneditor mit Höhenstufen, Kollisionsprüfung, Rundkursvorlage und Testfahrten.
+- Achterbahn-Schnellbau mit drehbarer 6 × 4-Vorlage, eigenem Streckeneditor, Höhenstufen und automatischer Testfahrt.
+- Gültige/ungültige Bauvorschau mit Gesamtkosten, optionales Deko-Freiräumen, automatischer Anschluss und Rückgängig für die letzten 30 Bauaktionen.
 - Panoramarad und Karussell, Burgergarten, Limonadenbar und Toiletten.
-- Gäste mit vier Blickrichtungen, Zielen, Hunger, Durst und Zufriedenheit. Mehrteilige Züge fahren entlang deiner Strecke; Riesenrad und Karussell bewegen sich.
+- Gäste mit vier Blickrichtungen, Gehposen für beide Outfits, individuellen Geschwindigkeiten, Zielen, Hunger, Durst und Zufriedenheit. Wartende verteilen sich auf Queue-Felder.
+- Fahrgeschäfte fahren sanft an und bremsen; Gondeln schwingen, Karussellpferde heben sich. Achterbahnzüge beschleunigen, fahren Steigungen langsam und Abfahrten schneller. Einnahmen erscheinen kurz direkt am Gebäude.
 - Eintritts- und Fahrpreise, Personal, Einnahmen, Baukosten und tägliche Betriebskosten.
 - Waldhain-Szenario mit 16.000 € und einem bereits geöffneten Park. Ziel: 150 Gäste begrüßen, vier Attraktionen betreiben und mindestens 75 % Zufriedenheit erreichen.
 - Freies Spiel mit 100.000 € Startkapital.
@@ -17,16 +19,21 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 
 ## So baust du
 
-Wähle ein Werkzeug unten und klicke auf freie Wiese. Attraktionen benötigen eine braune Warteschlange zum normalen Wegenetz; Geschäfte benötigen einen normalen Weg. Mit **Auswahl** kannst du ein Gebäude anklicken, Preise ändern und es eröffnen.
+Wähle unten ein Werkzeug. Die grüne/rote Vorschau zeigt, ob das Bauwerk passt, und nennt den Gesamtpreis. **Deko freiräumen** entfernt störende Bäume oder Blumen für 10 € pro Objekt. Bestehende Gebäude werden dabei nicht entfernt. Nach dem Platzieren öffnet sich direkt die Verwaltung; **Anschließen & öffnen** baut einen passenden Weg oder eine Warteschlange zum bestehenden Wegenetz. Der Anschluss sucht bis zu zwölf neue Felder weit.
 
-Für eine Achterbahn setzt du zunächst eine Station. Ergänze benachbarte Abschnitte mit den Pfeilen oder einem Klick auf die Karte. Die Gleishöhe gilt für den nächsten Abschnitt. Schließe die Strecke auf Stationshöhe, baue sie, starte eine Testfahrt und eröffne sie. Die **Waldflug-Vorlage** erstellt einen kompakten 6 × 4 Rundkurs.
+Eine Achterbahn kannst du im **Schnellbau** vollständig platzieren und mit **R** drehen. Ihre Testfahrt startet automatisch; nach dem Anschluss eröffnet sie sich, sobald der Test abgeschlossen ist. Unter **Eigene Strecke** kannst du weiterhin eine Station setzen, benachbarte Abschnitte ergänzen und ihre Höhe wählen. Der Rundkurs muss zur Station auf Höhe 0 zurückkehren.
+
+Wege, Warteschlangen, Wasser und Abriss lassen sich ziehen. **Rückgängig** nimmt einen ganzen Bauzug zurück, während Besucher und Simulationszeit weiterlaufen. Die Bauhistorie gilt für die aktuelle Sitzung und wird beim Laden oder Neubeginn geleert. Einzelne Attraktionen wechseln nach dem Bauen direkt in die Verwaltung; **Shift** hält das Werkzeug für mehrere Platzierungen aktiv.
 
 | Steuerung                                            | Aktion                                   |
 | ---------------------------------------------------- | ---------------------------------------- |
 | Auswahl + Ziehen, rechte Maustaste oder Alt + Ziehen | Karte verschieben                        |
-| Mausrad / + / −                                      | Zoomen                                   |
+| Mausrad / + / −                                      | Zum Zeiger / zur Bildschirmmitte zoomen  |
 | Leertaste                                            | Pause / Weiter                           |
-| Esc                                                  | Bauwerkzeug verlassen                    |
+| R                                                    | Schnellbau-Vorlage drehen                |
+| Strg / ⌘ + Z                                         | Bauaktion rückgängig                     |
+| Shift + Klick                                        | Attraktion mehrfach platzieren           |
+| Esc / Rechtsklick                                    | Bauwerkzeug verlassen                    |
 | Strg / ⌘ + S                                         | Park speichern                           |
 | Parkverwaltung                                       | Eintritt, Personal, Finanzen, neuer Park |
 

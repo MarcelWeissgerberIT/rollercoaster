@@ -1,0 +1,98 @@
+{
+  "projectId": "ZUPnQYt5rmIl9G729LjL",
+  "model": "gpt-image-2-5-sunburst",
+  "mode": "image2image",
+  "referenceSource": "Original OpenArt generated mobile atlas from rollercoaster/art/pixel-v2/provenance.json",
+  "entries": [
+    {
+      "atlas": "walk-red",
+      "params": {
+        "prompt": "Use the supplied existing Coaster Grove mobile sprite atlas ONLY as the exact pixel style, character appearance and palette reference. Produce one completely new animation sprite atlas, not a scene. Match the small late-1990s PC park-management pixels in this reference: simple tiny adult proportions, chunky square pixel clusters, brown/dark outlines, exactly the same flat color shading, no additional detail. NOT anime, NOT smooth cartoon, NOT chibi, NOT illustration. All pixels hard-edged and square. Entire background solid flat magenta #FF00FF, also between arms and legs. No soft shadow, no ground, no bases, no labels, no letters, no frame borders, no grid lines. Leave wide clear magenta gaps between all cells.\nCRITICAL exact atlas layout: FOUR equal columns and FOUR equal rows, square overall image, exactly sixteen isolated sprites of ONE identical person. EACH ROW IS ONE DIRECTION; EACH COLUMN IS ONE TIME PHASE. Every cell represents a 32x32 logical pixel square, enlarged with nearest-neighbor. Visible standing person approximately 9-12 logical pixels wide,24 logical pixels tall. Consistent adult anatomy, no face details, no eyes. Uniform head/torso scale across all sixteen cells, every cell centered at same ground anchor, all heads similar height; pose must change without resizing the character.\nROWS from top to bottom:\n1 southeast SE: faces diagonally screen LOWER RIGHT, front three-quarter.\n2 southwest SW: faces diagonally screen LOWER LEFT, front three-quarter.\n3 northwest NW: travels diagonally screen UPPER LEFT, back three-quarter, back of head and back of shirt visible.\n4 northeast NE: travels diagonally screen UPPER RIGHT, back three-quarter, back of head and back of shirt visible.\nDo not change facing direction across a row.\nCOLUMNS left to right form a true FOUR-FRAME WALK CYCLE:\nColumn1 LEFT CONTACT: left leg reaches far forward, right leg stretched back. Right arm strongly forward, left arm strongly back. Feet visibly separated in a long wide stride, heel of front foot down.\nColumn2 LEFT PASSING / HIGH BODY: left foot supporting directly below body, right knee visibly bends and swings forward with right foot lifted clear of ground; the legs pass very close together under pelvis. Arms pass close to torso. Body1 logical pixel taller.\nColumn3 RIGHT CONTACT: exact OPPOSITE of column1: right leg reaches far forward, left leg stretched back. LEFT arm strongly forward, right arm strongly back. A clearly different silhouette than column1, long wide stride.\nColumn4 RIGHT PASSING / HIGH BODY: right supporting foot directly below body, LEFT knee visibly bends and swings forward with LEFT foot lifted; legs pass together below pelvis. Arms pass close to torso. Body1 logical pixel taller.\nMost important: clear leg movement! Adjacent columns must alternate a WIDE OPEN SPLIT-LEG SILHOUETTE and a NARROW LEGS-TOGETHER PASSING SILHOUETTE. Contact frames1and3 must visibly exchange leading limbs and opposing arm swing. Every raised foot clear of ground, both knees clearly articulate. Purposefully exaggerate opposite arm swing and knee flexion for readable walking at tiny game size. Preserve torso and head, animate limbs. Do not merely translate or rotate the same standing sprite. Avoid repeating identical leg arrangements across columns.\nCharacter: exactly the light-skinned brown-haired adult woman in coral-red short sleeve shirt, dark navy trousers and small cream shoes from the reference TOP TWO ROWS. Same plain short brown hairstyle, same proportions and clothes. Make only this woman, no man and no cars.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "kPGGzt6lGzp5mHN0q0Nq",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938063832_39ad46fa.png",
+            "label": "Existing Coaster Grove pixel characters and palette"
+          }
+        ],
+        "aspectRatio": "1:1",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "status": "COMPLETED",
+      "historyId": "D0HmMi69a6l9S9QiC6g2",
+      "capabilityId": "gpt-image-2-5-sunburst:image2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "1:1",
+      "resources": [
+        {
+          "id": "7gGe4VwvueNDf8LjzNFT",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788939643558_b28490e5.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788939643727_aef42765.webp",
+          "metadata": {
+            "width": 1360,
+            "height": 1360,
+            "format": "png"
+          }
+        }
+      ]
+    },
+    {
+      "atlas": "walk-teal",
+      "params": {
+        "prompt": "Use the supplied existing Coaster Grove mobile sprite atlas ONLY as the exact pixel style, character appearance and palette reference. Produce one completely new animation sprite atlas, not a scene. Match the small late-1990s PC park-management pixels in this reference: simple tiny adult proportions, chunky square pixel clusters, brown/dark outlines, exactly the same flat color shading, no additional detail. NOT anime, NOT smooth cartoon, NOT chibi, NOT illustration. All pixels hard-edged and square. Entire background solid flat magenta #FF00FF, also between arms and legs. No soft shadow, no ground, no bases, no labels, no letters, no frame borders, no grid lines. Leave wide clear magenta gaps between all cells.\nCRITICAL exact atlas layout: FOUR equal columns and FOUR equal rows, square overall image, exactly sixteen isolated sprites of ONE identical person. EACH ROW IS ONE DIRECTION; EACH COLUMN IS ONE TIME PHASE. Every cell represents a 32x32 logical pixel square, enlarged with nearest-neighbor. Visible standing person approximately 9-12 logical pixels wide,24 logical pixels tall. Consistent adult anatomy, no face details, no eyes. Uniform head/torso scale across all sixteen cells, every cell centered at same ground anchor, all heads similar height; pose must change without resizing the character.\nROWS from top to bottom:\n1 southeast SE: faces diagonally screen LOWER RIGHT, front three-quarter.\n2 southwest SW: faces diagonally screen LOWER LEFT, front three-quarter.\n3 northwest NW: travels diagonally screen UPPER LEFT, back three-quarter, back of head and back of shirt visible.\n4 northeast NE: travels diagonally screen UPPER RIGHT, back three-quarter, back of head and back of shirt visible.\nDo not change facing direction across a row.\nCOLUMNS left to right form a true FOUR-FRAME WALK CYCLE:\nColumn1 LEFT CONTACT: left leg reaches far forward, right leg stretched back. Right arm strongly forward, left arm strongly back. Feet visibly separated in a long wide stride, heel of front foot down.\nColumn2 LEFT PASSING / HIGH BODY: left foot supporting directly below body, right knee visibly bends and swings forward with right foot lifted clear of ground; the legs pass very close together under pelvis. Arms pass close to torso. Body1 logical pixel taller.\nColumn3 RIGHT CONTACT: exact OPPOSITE of column1: right leg reaches far forward, left leg stretched back. LEFT arm strongly forward, right arm strongly back. A clearly different silhouette than column1, long wide stride.\nColumn4 RIGHT PASSING / HIGH BODY: right supporting foot directly below body, LEFT knee visibly bends and swings forward with LEFT foot lifted; legs pass together below pelvis. Arms pass close to torso. Body1 logical pixel taller.\nMost important: clear leg movement! Adjacent columns must alternate a WIDE OPEN SPLIT-LEG SILHOUETTE and a NARROW LEGS-TOGETHER PASSING SILHOUETTE. Contact frames1and3 must visibly exchange leading limbs and opposing arm swing. Every raised foot clear of ground, both knees clearly articulate. Purposefully exaggerate opposite arm swing and knee flexion for readable walking at tiny game size. Preserve torso and head, animate limbs. Do not merely translate or rotate the same standing sprite. Avoid repeating identical leg arrangements across columns.\nCharacter: exactly the dark-brown-skinned adult man with short black hair, teal short sleeve shirt, cream trousers and small dark shoes from the reference BOTTOM ROW. Same proportions and clothes. Make only this man, no red-shirt woman and no cars.",
+        "visualReferences": [
+          {
+            "type": "image",
+            "id": "kPGGzt6lGzp5mHN0q0Nq",
+            "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-1_1788938063832_39ad46fa.png",
+            "label": "Existing Coaster Grove pixel characters and palette"
+          }
+        ],
+        "aspectRatio": "1:1",
+        "resolutionTier": "2k",
+        "quality": "high",
+        "outputFormat": "png",
+        "imageCount": 1,
+        "autoEnhancePrompt": false
+      },
+      "status": "COMPLETED",
+      "historyId": "eJc5irIOHOfdoicwmFCA",
+      "capabilityId": "gpt-image-2-5-sunburst:image2image",
+      "modelDisplayName": "GPT Image 2.5 Sunburst",
+      "aspectRatio": "1:1",
+      "resources": [
+        {
+          "id": "rrLVzoTniQsZsBAZEcYj",
+          "mediaType": "image",
+          "url": "https://cdn.openart.ai/openart-ai/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788939649376_64509bbe.png",
+          "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-09/create-image/wRD6PTxSzjxZwjWN69MC/gpt-image-2.5-sunburst-edit-1_1788939649586_0a160788.webp",
+          "metadata": {
+            "width": 1360,
+            "height": 1360,
+            "format": "png"
+          }
+        }
+      ]
+    }
+  ],
+  "processing": "Technical processing only: equal atlas cell cropping; magenta color key to binary alpha; transparent trim; common isotropic nearest-neighbor scale within each character; centered ground pivot normalization to 24x32 logical pixels with pivot (12,28); exact 4x nearest-neighbor PNG copies. No sprite features were painted, filled, synthesized, or otherwise altered in code.",
+  "manifest": "manifest.json",
+  "visualReview": {
+    "reviewed": [
+      "raw/walk-red.png",
+      "raw/walk-teal.png",
+      "contact/red-1x.png",
+      "contact/teal-1x.png",
+      "contact/red-4x.png",
+      "contact/teal-4x.png"
+    ],
+    "result": "Clear alternating open stride versus narrow bent-knee passing silhouette for both characters, preserved reference style and correct row directions. Contact poses 0 and 2 are similar and do not convincingly exchange the leading anatomical limb; passing poses 1 and 3 are also similar. Phase names describe requested poses, not verified anatomical articulation. This two-pose-dominant result improves the previous unchanged leg silhouette but is not a fully articulated four-phase cycle.",
+    "anatomicalFourPhaseCycleVerified": false
+  }
+}

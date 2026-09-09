@@ -1,6 +1,6 @@
 # OpenArt-Spielgrafiken
 
-Die aktive Grafik nutzt 33 Sprites aus drei über **OpenArt MCP** erzeugten Pixel-Art-Atlanten. Alle Objekte sind für die 2:1-isometrische Spielkarte ausgelegt. Die Quelldateien, Prompts und die Verarbeitung sind unter [`art/pixel-v2/`](art/pixel-v2/) dokumentiert.
+Gebäude, Umgebung, Wagen und Fahrgeschäftsteile nutzen 33 Sprites aus drei über **OpenArt MCP** erzeugten Pixel-Art-Atlanten. Alle Objekte sind für die 2:1-isometrische Spielkarte ausgelegt. Die Quelldateien, Prompts und die Verarbeitung sind unter [`art/pixel-v2/`](art/pixel-v2/) dokumentiert.
 
 - **Umgebung:** Fahrgeschäft-Icons, Kioske, Eingang, Achterbahnstation, Bänke, Bäume und Blumen.
 - **Besucher und Wagen:** vier Blickrichtungen, zwei Gehposen mit gemeinsamen Größen und Fußpunkten; eine weitere Besucherfigur und vier Wagenansichten.
@@ -12,8 +12,16 @@ Modell: **GPT Image 2.5 Sunburst**, Text-to-image, hohe Qualität, drei Generier
 
 [`manifest.json`](art/pixel-v2/manifest.json) enthält Zuschnitt, logische Canvasgröße, Skalierungsgruppe und Ankerpunkt jedes Sprites. Beispielsweise haben alle Besucherframes eine logische Fläche von 24 × 32 Pixeln, den Fußpunkt (12, 28) und 23–24 Pixel sichtbare Körperhöhe. Die PNGs sind exakte vierfache Vergrößerungen per Nearest Neighbor.
 
-Die Dateien werden unter `public/assets/pixel-v2/` geladen. Der neue Pfad verhindert, dass Browser ältere Illustrationen aus dem Cache mit dem neuen Satz mischen. Gebäude und Bauvorschau verwenden dieselbe Zeichnungsfunktion. Die Engine zeichnet Riesenradfelge und Gondeln getrennt, bewegt die Karussellpferde auf ihrer Umlaufbahn und wählt Besucher- und Wagenansichten nach Bewegungsrichtung. Die zweite Besucherfigur hat Richtungsframes; ihre Bewegung nutzt einen leichten Gehversatz.
+Die Dateien werden unter `public/assets/pixel-v2/` geladen. Der neue Pfad verhindert, dass Browser ältere Illustrationen aus dem Cache mit dem neuen Satz mischen. Gebäude und Bauvorschau verwenden dieselbe Zeichnungsfunktion. Die Engine zeichnet Riesenradfelge und Gondeln getrennt, bewegt die Karussellpferde auf ihrer Umlaufbahn und wählt Besucher- und Wagenansichten nach Bewegungsrichtung. Für laufende Besucher werden inzwischen die neuen Frames aus `walk-v3` verwendet. Beide Figuren haben richtungsabhängige Gehbilder; Schrittphase und Körperbewegung folgen der tatsächlich zurückgelegten Strecke.
 
 Technische Verarbeitung: Rasterzellen ausschneiden, Magenta transparent setzen, transparente Ränder trimmen, gemeinsame Frames und Anker erhalten und mit Nearest Neighbor verkleinern. Die erste Rastergrenze im Umgebungsatlas wurde in die tatsächliche freie Lücke verschoben, damit die Füße des Riesenrads und das Karusselldeck vollständig erhalten bleiben. Keine fremden Spielgrafiken.
 
 Die vorherigen hochaufgelösten Illustrationsatlanten bleiben als Quellhistorie unter `art/` erhalten. Sie werden nicht mehr im Spiel verwendet. Karte, Wege und Schienen sind Spielgeometrie auf Canvas; Bedienelemente verwenden Lucide-Symbole.
+
+## Gehbewegungen, Version 3
+
+32 zusätzliche Besucherframes aus zwei OpenArt-MCP-Generierungen (GPT Image 2.5 Sunburst, image-to-image mit dem bisherigen Figurenatlas als Referenz). Die beiden unveränderten Atlanten, exakten Prompts, Generierungskennungen und Verarbeitung stehen unter [`art/walk-v3/`](art/walk-v3/). Laufzeitdateien: `public/assets/walk-v3/`.
+
+Jedes Outfit hat vier Richtungen mit je vier Bildern. Die Bilder wechseln sichtbar zwischen Schritt- und Durchgangspose; die jeweils gegenüberliegenden Kontaktphasen bleiben ähnlich. Das sind überwiegend zwei ausgeprägte Posen mit Variationen, kein anatomisch vollständiger Vierphasengang. Diese Grenze ist auch in Manifest und Provenienz festgehalten. Alle Bilder behalten 24 × 32 logische Pixel, Fußpunkt (12, 28) und dieselbe vierfache Nearest-Neighbor-Vergrößerung.
+
+Die Engine steuert Anfahren und Bremsen der Fahrgeschäfte über gedämpfte Motorbewegung. Riesenradfelge und Gondelaufhängungen teilen dieselbe Projektion. Der Zug hält feste Wagenabstände entlang der Strecke und benötigt bergauf mehr Zeit. Sämtliche Weltbewegungen folgen der Simulationszeit einschließlich Pause und 3×-Tempo.

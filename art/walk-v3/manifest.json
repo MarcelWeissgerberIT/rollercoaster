@@ -1,0 +1,2210 @@
+{
+  "projectId": "ZUPnQYt5rmIl9G729LjL",
+  "model": "gpt-image-2-5-sunburst",
+  "mode": "image2image",
+  "processing": "Technical processing only: equal atlas cell cropping; magenta color key to binary alpha; transparent trim; common isotropic nearest-neighbor scale within each character; centered ground pivot normalization to 24x32 logical pixels with pivot (12,28); exact 4x nearest-neighbor PNG copies. No sprite features were painted, filled, synthesized, or otherwise altered in code.",
+  "logicalCanvas": [
+    24,
+    32
+  ],
+  "logicalPivot": [
+    12,
+    28
+  ],
+  "fileScale": 4,
+  "animation": {
+    "rowDirections": [
+      "se",
+      "sw",
+      "nw",
+      "ne"
+    ],
+    "columns": [
+      "left-contact",
+      "left-passing",
+      "right-contact",
+      "right-passing"
+    ],
+    "frameCount": 4
+  },
+  "assets": [
+    {
+      "name": "walk-red-se-0",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 0,
+      "column": 0,
+      "direction": "se",
+      "phase": 0,
+      "phaseName": "left-contact",
+      "cellBounds": [
+        0,
+        0,
+        340,
+        340
+      ],
+      "trimBoundsInCell": [
+        120,
+        84,
+        231,
+        297
+      ],
+      "cropDimensions": [
+        111,
+        213
+      ],
+      "crop": "crops/walk-red-se-0.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        18,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        12,
+        23
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-se-0.png",
+      "logical": "logical/walk-red-se-0.png",
+      "sha256": "1963c04bd2e4ad9e3eab1a6db7a393a212297d46bac86b06c2e7f8def218b533"
+    },
+    {
+      "name": "walk-red-se-1",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 0,
+      "column": 1,
+      "direction": "se",
+      "phase": 1,
+      "phaseName": "left-passing",
+      "cellBounds": [
+        340,
+        0,
+        680,
+        340
+      ],
+      "trimBoundsInCell": [
+        125,
+        79,
+        209,
+        297
+      ],
+      "cropDimensions": [
+        84,
+        218
+      ],
+      "crop": "crops/walk-red-se-1.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        4,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        9,
+        24
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-se-1.png",
+      "logical": "logical/walk-red-se-1.png",
+      "sha256": "f7ad2ff0ae9f4f952a211de8b663e2b403c1e49e796a2f8082172b87ba690b88"
+    },
+    {
+      "name": "walk-red-se-2",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 0,
+      "column": 2,
+      "direction": "se",
+      "phase": 2,
+      "phaseName": "right-contact",
+      "cellBounds": [
+        680,
+        0,
+        1020,
+        340
+      ],
+      "trimBoundsInCell": [
+        117,
+        84,
+        227,
+        297
+      ],
+      "cropDimensions": [
+        110,
+        213
+      ],
+      "crop": "crops/walk-red-se-2.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        18,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        12,
+        23
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-se-2.png",
+      "logical": "logical/walk-red-se-2.png",
+      "sha256": "09814aab394c0f5c7ec8779ecce218bdcdd74c2058576455d557544ed30af26b"
+    },
+    {
+      "name": "walk-red-se-3",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 0,
+      "column": 3,
+      "direction": "se",
+      "phase": 3,
+      "phaseName": "right-passing",
+      "cellBounds": [
+        1020,
+        0,
+        1360,
+        340
+      ],
+      "trimBoundsInCell": [
+        126,
+        79,
+        204,
+        297
+      ],
+      "cropDimensions": [
+        78,
+        218
+      ],
+      "crop": "crops/walk-red-se-3.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        4,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        9,
+        24
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-se-3.png",
+      "logical": "logical/walk-red-se-3.png",
+      "sha256": "6b8136f5b344f560b221facb988fa8be9e30d9372d61732673e72104bdc491d6"
+    },
+    {
+      "name": "walk-red-sw-0",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 1,
+      "column": 0,
+      "direction": "sw",
+      "phase": 0,
+      "phaseName": "left-contact",
+      "cellBounds": [
+        0,
+        340,
+        340,
+        680
+      ],
+      "trimBoundsInCell": [
+        112,
+        82,
+        226,
+        294
+      ],
+      "cropDimensions": [
+        114,
+        212
+      ],
+      "crop": "crops/walk-red-sw-0.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        18,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        12,
+        23
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-sw-0.png",
+      "logical": "logical/walk-red-sw-0.png",
+      "sha256": "525f01dccb95c30086f150329180dc7cba914cd7d27c70d2077a6b81580b18d4"
+    },
+    {
+      "name": "walk-red-sw-1",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 1,
+      "column": 1,
+      "direction": "sw",
+      "phase": 1,
+      "phaseName": "left-passing",
+      "cellBounds": [
+        340,
+        340,
+        680,
+        680
+      ],
+      "trimBoundsInCell": [
+        124,
+        77,
+        204,
+        294
+      ],
+      "cropDimensions": [
+        80,
+        217
+      ],
+      "crop": "crops/walk-red-sw-1.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        4,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        9,
+        24
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-sw-1.png",
+      "logical": "logical/walk-red-sw-1.png",
+      "sha256": "a49a18e1f8aac96c25875cee0ace9cca4bf5613c9a101967a93e5f61560c377d"
+    },
+    {
+      "name": "walk-red-sw-2",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 1,
+      "column": 2,
+      "direction": "sw",
+      "phase": 2,
+      "phaseName": "right-contact",
+      "cellBounds": [
+        680,
+        340,
+        1020,
+        680
+      ],
+      "trimBoundsInCell": [
+        107,
+        82,
+        221,
+        293
+      ],
+      "cropDimensions": [
+        114,
+        211
+      ],
+      "crop": "crops/walk-red-sw-2.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        18,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        12,
+        23
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-sw-2.png",
+      "logical": "logical/walk-red-sw-2.png",
+      "sha256": "01fb7bd35eea2d42674435d3a88797e77cb3265d0ea3fc9f500fba163da7cdee"
+    },
+    {
+      "name": "walk-red-sw-3",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 1,
+      "column": 3,
+      "direction": "sw",
+      "phase": 3,
+      "phaseName": "right-passing",
+      "cellBounds": [
+        1020,
+        340,
+        1360,
+        680
+      ],
+      "trimBoundsInCell": [
+        125,
+        74,
+        204,
+        294
+      ],
+      "cropDimensions": [
+        79,
+        220
+      ],
+      "crop": "crops/walk-red-sw-3.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        4,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        9,
+        24
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-sw-3.png",
+      "logical": "logical/walk-red-sw-3.png",
+      "sha256": "28bb7f7f85feb322c9713f767b0fc753daaf2ac1e302b951b0a32aac85424176"
+    },
+    {
+      "name": "walk-red-nw-0",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 2,
+      "column": 0,
+      "direction": "nw",
+      "phase": 0,
+      "phaseName": "left-contact",
+      "cellBounds": [
+        0,
+        680,
+        340,
+        1020
+      ],
+      "trimBoundsInCell": [
+        112,
+        66,
+        230,
+        276
+      ],
+      "cropDimensions": [
+        118,
+        210
+      ],
+      "crop": "crops/walk-red-nw-0.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        19,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        13,
+        23
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-nw-0.png",
+      "logical": "logical/walk-red-nw-0.png",
+      "sha256": "116d33fd26f67654311f6b8e53c7f9f66103726988abf7e86363f39f1a324851"
+    },
+    {
+      "name": "walk-red-nw-1",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 2,
+      "column": 1,
+      "direction": "nw",
+      "phase": 1,
+      "phaseName": "left-passing",
+      "cellBounds": [
+        340,
+        680,
+        680,
+        1020
+      ],
+      "trimBoundsInCell": [
+        124,
+        60,
+        212,
+        276
+      ],
+      "cropDimensions": [
+        88,
+        216
+      ],
+      "crop": "crops/walk-red-nw-1.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        4,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        10,
+        24
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-nw-1.png",
+      "logical": "logical/walk-red-nw-1.png",
+      "sha256": "40818d694ae8d46e9e61e716c0525b85a5f7db0a1feec54221600f26630059d5"
+    },
+    {
+      "name": "walk-red-nw-2",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 2,
+      "column": 2,
+      "direction": "nw",
+      "phase": 2,
+      "phaseName": "right-contact",
+      "cellBounds": [
+        680,
+        680,
+        1020,
+        1020
+      ],
+      "trimBoundsInCell": [
+        103,
+        66,
+        222,
+        279
+      ],
+      "cropDimensions": [
+        119,
+        213
+      ],
+      "crop": "crops/walk-red-nw-2.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        19,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        13,
+        23
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-nw-2.png",
+      "logical": "logical/walk-red-nw-2.png",
+      "sha256": "b48e19c5a435acbf2e395ad31a403678acc1ee96bb90fc524920e68c3d53ad91"
+    },
+    {
+      "name": "walk-red-nw-3",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 2,
+      "column": 3,
+      "direction": "nw",
+      "phase": 3,
+      "phaseName": "right-passing",
+      "cellBounds": [
+        1020,
+        680,
+        1360,
+        1020
+      ],
+      "trimBoundsInCell": [
+        124,
+        59,
+        207,
+        276
+      ],
+      "cropDimensions": [
+        83,
+        217
+      ],
+      "crop": "crops/walk-red-nw-3.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        4,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        9,
+        24
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-nw-3.png",
+      "logical": "logical/walk-red-nw-3.png",
+      "sha256": "8cfe7ff811d70a9cbfe9ae3f933167609efd482e94a78b5dffad82f96ea4e9d7"
+    },
+    {
+      "name": "walk-red-ne-0",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 3,
+      "column": 0,
+      "direction": "ne",
+      "phase": 0,
+      "phaseName": "left-contact",
+      "cellBounds": [
+        0,
+        1020,
+        340,
+        1360
+      ],
+      "trimBoundsInCell": [
+        119,
+        43,
+        230,
+        250
+      ],
+      "cropDimensions": [
+        111,
+        207
+      ],
+      "crop": "crops/walk-red-ne-0.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        18,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        12,
+        23
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-ne-0.png",
+      "logical": "logical/walk-red-ne-0.png",
+      "sha256": "e743f328ca80c22f77fe1ffd495145afe245f1c829212d1e582b757947ae5231"
+    },
+    {
+      "name": "walk-red-ne-1",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 3,
+      "column": 1,
+      "direction": "ne",
+      "phase": 1,
+      "phaseName": "left-passing",
+      "cellBounds": [
+        340,
+        1020,
+        680,
+        1360
+      ],
+      "trimBoundsInCell": [
+        118,
+        37,
+        210,
+        248
+      ],
+      "cropDimensions": [
+        92,
+        211
+      ],
+      "crop": "crops/walk-red-ne-1.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        5,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        10,
+        23
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-ne-1.png",
+      "logical": "logical/walk-red-ne-1.png",
+      "sha256": "dba96a2c60ebf2d4b79609b639660c721ecd0d8e8d806f73fa297ae6c011d3ee"
+    },
+    {
+      "name": "walk-red-ne-2",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 3,
+      "column": 2,
+      "direction": "ne",
+      "phase": 2,
+      "phaseName": "right-contact",
+      "cellBounds": [
+        680,
+        1020,
+        1020,
+        1360
+      ],
+      "trimBoundsInCell": [
+        112,
+        43,
+        231,
+        252
+      ],
+      "cropDimensions": [
+        119,
+        209
+      ],
+      "crop": "crops/walk-red-ne-2.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        19,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        13,
+        23
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-ne-2.png",
+      "logical": "logical/walk-red-ne-2.png",
+      "sha256": "90d92803f384df6d214270febf389f05c89d0c95aa6db60d5f8b473b08ea2776"
+    },
+    {
+      "name": "walk-red-ne-3",
+      "character": "red",
+      "atlas": "raw/walk-red.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 3,
+      "column": 3,
+      "direction": "ne",
+      "phase": 3,
+      "phaseName": "right-passing",
+      "cellBounds": [
+        1020,
+        1020,
+        1360,
+        1360
+      ],
+      "trimBoundsInCell": [
+        118,
+        37,
+        210,
+        249
+      ],
+      "cropDimensions": [
+        92,
+        212
+      ],
+      "crop": "crops/walk-red-ne-3.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        5,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.10909090909090909,
+      "logicalVisibleDimensions": [
+        10,
+        23
+      ],
+      "scaleGroup": "red",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-red-ne-3.png",
+      "logical": "logical/walk-red-ne-3.png",
+      "sha256": "938743cd60d67876bb9515199866e74969c6a3944495982938d37c9d4f7a2c86"
+    },
+    {
+      "name": "walk-teal-se-0",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 0,
+      "column": 0,
+      "direction": "se",
+      "phase": 0,
+      "phaseName": "left-contact",
+      "cellBounds": [
+        0,
+        0,
+        340,
+        340
+      ],
+      "trimBoundsInCell": [
+        122,
+        86,
+        233,
+        290
+      ],
+      "cropDimensions": [
+        111,
+        204
+      ],
+      "crop": "crops/walk-teal-se-0.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        4,
+        19,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        13,
+        24
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-se-0.png",
+      "logical": "logical/walk-teal-se-0.png",
+      "sha256": "691ab6adfe1ec51d6a46752ea261ee426a93a51d5c89ffd46d2cf9d69ce0388c"
+    },
+    {
+      "name": "walk-teal-se-1",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 0,
+      "column": 1,
+      "direction": "se",
+      "phase": 1,
+      "phaseName": "left-passing",
+      "cellBounds": [
+        340,
+        0,
+        680,
+        340
+      ],
+      "trimBoundsInCell": [
+        125,
+        80,
+        203,
+        284
+      ],
+      "cropDimensions": [
+        78,
+        204
+      ],
+      "crop": "crops/walk-teal-se-1.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        4,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        9,
+        24
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-se-1.png",
+      "logical": "logical/walk-teal-se-1.png",
+      "sha256": "2868197f25a3923cf65aa34b4d119b2c93c758f99f676a8f76600d2133db75ac"
+    },
+    {
+      "name": "walk-teal-se-2",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 0,
+      "column": 2,
+      "direction": "se",
+      "phase": 2,
+      "phaseName": "right-contact",
+      "cellBounds": [
+        680,
+        0,
+        1020,
+        340
+      ],
+      "trimBoundsInCell": [
+        119,
+        87,
+        226,
+        290
+      ],
+      "cropDimensions": [
+        107,
+        203
+      ],
+      "crop": "crops/walk-teal-se-2.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        4,
+        19,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        13,
+        24
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-se-2.png",
+      "logical": "logical/walk-teal-se-2.png",
+      "sha256": "e821c4aaf4529a3ae4415c32f74160525ed252baf09f603e4cc042011b9a8527"
+    },
+    {
+      "name": "walk-teal-se-3",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 0,
+      "column": 3,
+      "direction": "se",
+      "phase": 3,
+      "phaseName": "right-passing",
+      "cellBounds": [
+        1020,
+        0,
+        1360,
+        340
+      ],
+      "trimBoundsInCell": [
+        124,
+        80,
+        203,
+        284
+      ],
+      "cropDimensions": [
+        79,
+        204
+      ],
+      "crop": "crops/walk-teal-se-3.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        4,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        9,
+        24
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-se-3.png",
+      "logical": "logical/walk-teal-se-3.png",
+      "sha256": "527131e996413a0eaf09acfef291a20c02a1e30abf166c59f6e267990f58cc83"
+    },
+    {
+      "name": "walk-teal-sw-0",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 1,
+      "column": 0,
+      "direction": "sw",
+      "phase": 0,
+      "phaseName": "left-contact",
+      "cellBounds": [
+        0,
+        340,
+        340,
+        680
+      ],
+      "trimBoundsInCell": [
+        109,
+        76,
+        220,
+        276
+      ],
+      "cropDimensions": [
+        111,
+        200
+      ],
+      "crop": "crops/walk-teal-sw-0.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        4,
+        19,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        13,
+        24
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-sw-0.png",
+      "logical": "logical/walk-teal-sw-0.png",
+      "sha256": "56951b3d4002bf9bfeccfb38f78944402ec4c62d6e65c6db13ff6695bab6837a"
+    },
+    {
+      "name": "walk-teal-sw-1",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 1,
+      "column": 1,
+      "direction": "sw",
+      "phase": 1,
+      "phaseName": "left-passing",
+      "cellBounds": [
+        340,
+        340,
+        680,
+        680
+      ],
+      "trimBoundsInCell": [
+        136,
+        70,
+        215,
+        269
+      ],
+      "cropDimensions": [
+        79,
+        199
+      ],
+      "crop": "crops/walk-teal-sw-1.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        5,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        9,
+        23
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-sw-1.png",
+      "logical": "logical/walk-teal-sw-1.png",
+      "sha256": "50269682a385829260c3d07102bc3ee185d9c07c1ff8b898a740bc43759050d7"
+    },
+    {
+      "name": "walk-teal-sw-2",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 1,
+      "column": 2,
+      "direction": "sw",
+      "phase": 2,
+      "phaseName": "right-contact",
+      "cellBounds": [
+        680,
+        340,
+        1020,
+        680
+      ],
+      "trimBoundsInCell": [
+        113,
+        76,
+        221,
+        276
+      ],
+      "cropDimensions": [
+        108,
+        200
+      ],
+      "crop": "crops/walk-teal-sw-2.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        4,
+        19,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        13,
+        24
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-sw-2.png",
+      "logical": "logical/walk-teal-sw-2.png",
+      "sha256": "84b3858b6ed6f38d217a1f47ed1a415a971b2b0ccb883e5cbbecb5e0c5343939"
+    },
+    {
+      "name": "walk-teal-sw-3",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 1,
+      "column": 3,
+      "direction": "sw",
+      "phase": 3,
+      "phaseName": "right-passing",
+      "cellBounds": [
+        1020,
+        340,
+        1360,
+        680
+      ],
+      "trimBoundsInCell": [
+        135,
+        70,
+        214,
+        269
+      ],
+      "cropDimensions": [
+        79,
+        199
+      ],
+      "crop": "crops/walk-teal-sw-3.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        5,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        9,
+        23
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-sw-3.png",
+      "logical": "logical/walk-teal-sw-3.png",
+      "sha256": "ab5c9c652e7a3f244594b2d1fb2e708966190f5b6fa0142d98d9694b08ba141a"
+    },
+    {
+      "name": "walk-teal-nw-0",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 2,
+      "column": 0,
+      "direction": "nw",
+      "phase": 0,
+      "phaseName": "left-contact",
+      "cellBounds": [
+        0,
+        680,
+        340,
+        1020
+      ],
+      "trimBoundsInCell": [
+        115,
+        74,
+        221,
+        273
+      ],
+      "cropDimensions": [
+        106,
+        199
+      ],
+      "crop": "crops/walk-teal-nw-0.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        18,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        12,
+        23
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-nw-0.png",
+      "logical": "logical/walk-teal-nw-0.png",
+      "sha256": "a601d675fa85f617d73943c92a6596d139254e12553ef1fc350ea9fe52c7e436"
+    },
+    {
+      "name": "walk-teal-nw-1",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 2,
+      "column": 1,
+      "direction": "nw",
+      "phase": 1,
+      "phaseName": "left-passing",
+      "cellBounds": [
+        340,
+        680,
+        680,
+        1020
+      ],
+      "trimBoundsInCell": [
+        130,
+        65,
+        206,
+        262
+      ],
+      "cropDimensions": [
+        76,
+        197
+      ],
+      "crop": "crops/walk-teal-nw-1.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        5,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        9,
+        23
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-nw-1.png",
+      "logical": "logical/walk-teal-nw-1.png",
+      "sha256": "dfc22baf3273b9ef6bcf076e767b92a479ff79990a0d42b34976a49a53ec4709"
+    },
+    {
+      "name": "walk-teal-nw-2",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 2,
+      "column": 2,
+      "direction": "nw",
+      "phase": 2,
+      "phaseName": "right-contact",
+      "cellBounds": [
+        680,
+        680,
+        1020,
+        1020
+      ],
+      "trimBoundsInCell": [
+        114,
+        74,
+        219,
+        274
+      ],
+      "cropDimensions": [
+        105,
+        200
+      ],
+      "crop": "crops/walk-teal-nw-2.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        4,
+        18,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        12,
+        24
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-nw-2.png",
+      "logical": "logical/walk-teal-nw-2.png",
+      "sha256": "274e2927804551c0929936254d6633e0742e2507e26af71c5beae933c6727239"
+    },
+    {
+      "name": "walk-teal-nw-3",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 2,
+      "column": 3,
+      "direction": "nw",
+      "phase": 3,
+      "phaseName": "right-passing",
+      "cellBounds": [
+        1020,
+        680,
+        1360,
+        1020
+      ],
+      "trimBoundsInCell": [
+        129,
+        65,
+        206,
+        262
+      ],
+      "cropDimensions": [
+        77,
+        197
+      ],
+      "crop": "crops/walk-teal-nw-3.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        8,
+        5,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        9,
+        23
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-nw-3.png",
+      "logical": "logical/walk-teal-nw-3.png",
+      "sha256": "7031cac867e5006d690ce2a73d18f1b623549e06c0fb3b7835e030565aab0a4a"
+    },
+    {
+      "name": "walk-teal-ne-0",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 3,
+      "column": 0,
+      "direction": "ne",
+      "phase": 0,
+      "phaseName": "left-contact",
+      "cellBounds": [
+        0,
+        1020,
+        340,
+        1360
+      ],
+      "trimBoundsInCell": [
+        119,
+        48,
+        221,
+        247
+      ],
+      "cropDimensions": [
+        102,
+        199
+      ],
+      "crop": "crops/walk-teal-ne-0.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        18,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        12,
+        23
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-ne-0.png",
+      "logical": "logical/walk-teal-ne-0.png",
+      "sha256": "00a85e3b8fe2af16a321c0e177858fa1c1eba77dbe470203f4bb9a0943d069e2"
+    },
+    {
+      "name": "walk-teal-ne-1",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 3,
+      "column": 1,
+      "direction": "ne",
+      "phase": 1,
+      "phaseName": "left-passing",
+      "cellBounds": [
+        340,
+        1020,
+        680,
+        1360
+      ],
+      "trimBoundsInCell": [
+        125,
+        42,
+        206,
+        240
+      ],
+      "cropDimensions": [
+        81,
+        198
+      ],
+      "crop": "crops/walk-teal-ne-1.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        5,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        10,
+        23
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-ne-1.png",
+      "logical": "logical/walk-teal-ne-1.png",
+      "sha256": "40976037849e85280535acc239986a20f56a01406bb09072de48ea1f44093664"
+    },
+    {
+      "name": "walk-teal-ne-2",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 3,
+      "column": 2,
+      "direction": "ne",
+      "phase": 2,
+      "phaseName": "right-contact",
+      "cellBounds": [
+        680,
+        1020,
+        1020,
+        1360
+      ],
+      "trimBoundsInCell": [
+        120,
+        48,
+        221,
+        247
+      ],
+      "cropDimensions": [
+        101,
+        199
+      ],
+      "crop": "crops/walk-teal-ne-2.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        6,
+        5,
+        18,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        12,
+        23
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-ne-2.png",
+      "logical": "logical/walk-teal-ne-2.png",
+      "sha256": "fd11ab75c179adfb52d5ae33bb44277ede601be12e022f50894328bd2e80c446"
+    },
+    {
+      "name": "walk-teal-ne-3",
+      "character": "teal",
+      "atlas": "raw/walk-teal.png",
+      "atlasDimensions": [
+        1360,
+        1360
+      ],
+      "row": 3,
+      "column": 3,
+      "direction": "ne",
+      "phase": 3,
+      "phaseName": "right-passing",
+      "cellBounds": [
+        1020,
+        1020,
+        1360,
+        1360
+      ],
+      "trimBoundsInCell": [
+        124,
+        42,
+        206,
+        240
+      ],
+      "cropDimensions": [
+        82,
+        198
+      ],
+      "crop": "crops/walk-teal-ne-3.png",
+      "logicalCanvas": [
+        24,
+        32
+      ],
+      "logicalPivot": [
+        12,
+        28
+      ],
+      "logicalBounds": [
+        7,
+        5,
+        17,
+        28
+      ],
+      "sourceToLogicalScale": 0.11764705882352941,
+      "logicalVisibleDimensions": [
+        10,
+        23
+      ],
+      "scaleGroup": "teal",
+      "fileScale": 4,
+      "canvas": [
+        96,
+        128
+      ],
+      "pivot": [
+        48,
+        112
+      ],
+      "asset": "assets/walk-teal-ne-3.png",
+      "logical": "logical/walk-teal-ne-3.png",
+      "sha256": "a5b92de1964d028a82446f8a23dccda3dfd769325fa9b04a4be48528f8e6ec50"
+    }
+  ],
+  "validation": {
+    "frameCount": 32,
+    "uniqueLogicalImages": 32,
+    "lowerBodyDifferences": [
+      {
+        "character": "red",
+        "direction": "se",
+        "adjacentLowerBodyPixelDifferences": [
+          90,
+          91,
+          90,
+          90
+        ],
+        "oppositeContactPixelDifference": 79,
+        "adjacentLowerBodySilhouettePixelDifferences": [
+          55,
+          55,
+          56,
+          58
+        ],
+        "contactSilhouettePixelDifference": 24
+      },
+      {
+        "character": "red",
+        "direction": "sw",
+        "adjacentLowerBodyPixelDifferences": [
+          87,
+          85,
+          82,
+          84
+        ],
+        "oppositeContactPixelDifference": 73,
+        "adjacentLowerBodySilhouettePixelDifferences": [
+          47,
+          46,
+          43,
+          44
+        ],
+        "contactSilhouettePixelDifference": 15
+      },
+      {
+        "character": "red",
+        "direction": "nw",
+        "adjacentLowerBodyPixelDifferences": [
+          84,
+          89,
+          87,
+          81
+        ],
+        "oppositeContactPixelDifference": 80,
+        "adjacentLowerBodySilhouettePixelDifferences": [
+          46,
+          56,
+          53,
+          41
+        ],
+        "contactSilhouettePixelDifference": 24
+      },
+      {
+        "character": "red",
+        "direction": "ne",
+        "adjacentLowerBodyPixelDifferences": [
+          83,
+          84,
+          79,
+          78
+        ],
+        "oppositeContactPixelDifference": 69,
+        "adjacentLowerBodySilhouettePixelDifferences": [
+          47,
+          45,
+          39,
+          41
+        ],
+        "contactSilhouettePixelDifference": 12
+      },
+      {
+        "character": "teal",
+        "direction": "se",
+        "adjacentLowerBodyPixelDifferences": [
+          90,
+          93,
+          91,
+          88
+        ],
+        "oppositeContactPixelDifference": 76,
+        "adjacentLowerBodySilhouettePixelDifferences": [
+          51,
+          55,
+          53,
+          49
+        ],
+        "contactSilhouettePixelDifference": 16
+      },
+      {
+        "character": "teal",
+        "direction": "sw",
+        "adjacentLowerBodyPixelDifferences": [
+          85,
+          87,
+          88,
+          86
+        ],
+        "oppositeContactPixelDifference": 77,
+        "adjacentLowerBodySilhouettePixelDifferences": [
+          41,
+          46,
+          47,
+          42
+        ],
+        "contactSilhouettePixelDifference": 21
+      },
+      {
+        "character": "teal",
+        "direction": "nw",
+        "adjacentLowerBodyPixelDifferences": [
+          78,
+          81,
+          81,
+          75
+        ],
+        "oppositeContactPixelDifference": 79,
+        "adjacentLowerBodySilhouettePixelDifferences": [
+          17,
+          19,
+          21,
+          15
+        ],
+        "contactSilhouettePixelDifference": 16
+      },
+      {
+        "character": "teal",
+        "direction": "ne",
+        "adjacentLowerBodyPixelDifferences": [
+          86,
+          85,
+          85,
+          86
+        ],
+        "oppositeContactPixelDifference": 78,
+        "adjacentLowerBodySilhouettePixelDifferences": [
+          25,
+          23,
+          23,
+          25
+        ],
+        "contactSilhouettePixelDifference": 2
+      }
+    ],
+    "visualReview": {
+      "reviewed": [
+        "raw/walk-red.png",
+        "raw/walk-teal.png",
+        "contact/red-1x.png",
+        "contact/teal-1x.png",
+        "contact/red-4x.png",
+        "contact/teal-4x.png"
+      ],
+      "result": "Clear alternating open stride versus narrow bent-knee passing silhouette for both characters, preserved reference style and correct row directions. Contact poses 0 and 2 are similar and do not convincingly exchange the leading anatomical limb; passing poses 1 and 3 are also similar. Phase names describe requested poses, not verified anatomical articulation. This two-pose-dominant result improves the previous unchanged leg silhouette but is not a fully articulated four-phase cycle.",
+      "anatomicalFourPhaseCycleVerified": false
+    }
+  }
+}
