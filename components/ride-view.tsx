@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Pause, Play, RotateCcw, X, Volume2, VolumeX } from "lucide-react";
-import { type Building, type Park, CATALOG, COASTER_TYPES } from "../game/simulation";
+import { type Building, type Park, CATALOG, COASTER_TYPES, rideCapacity } from "../game/simulation";
+import { populatePark } from "../game/park-scene";
+import { PHASE_NAMES, type RidePhase } from "../game/motion";
 import { makeRidePath } from "../game/ride-path";
 import type { ParkAudio } from "../game/audio";
 type Props = {
@@ -13,12 +15,24 @@ type Props = {
   onClose: () => void;
 };
 export default function RideView({ park, building, audio, muted, onMute, onClose }: Props) {
+  const compiledPath = useMemo(() => makeRidePath(building.track!), [building.track]);
   const host = useRef<HTMLDivElement>(null),
-    control = useRef({ playing: true, time: 0, camera: "front", reset: 0 });
+    control = useRef({
+      playing: true,
+      time: 0,
+      camera: "front",
+      reset: 0,
+      orbit: { yaw: 0.72, pitch: 0.68, radius: 180 },
+    });
   const [playing, setPlaying] = useState(true),
     [mode, setMode] = useState("front"),
     [error, setError] = useState("");
-  const [hud, setHud] = useState({ speed: 0, height: 0, progress: 0 });
+  const [hud, setHud] = useState({
+    speed: 0,
+    height: 0,
+    progress: 0,
+    phase: "station" as RidePhase,
+  });
   useEffect(() => {
     const target = host.current;
     if (!target) return;
@@ -86,69 +100,8 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
       });
       scene.add(instances);
     }
-    const trees = park.buildings.filter((b) => b.kind === "tree" || b.kind === "pine");
-    for (const [geometry, color, height, radius, offset] of [
-      [cylinder, "#795831", 4, 0.35, 2],
-      [cone, "#286b45", 6, 2.3, 6],
-      [cone, "#348653", 4, 1.7, 8],
-    ] as const) {
-      const instances = new THREE.InstancedMesh(geometry, mat(color), trees.length),
-        matrix = new THREE.Matrix4(),
-        q = new THREE.Quaternion();
-      trees.forEach((b, i) => {
-        matrix.compose(
-          new THREE.Vector3(b.x * 5, offset, b.y * 5),
-          q,
-          new THREE.Vector3(radius, height, radius),
-        );
-        instances.setMatrixAt(i, matrix);
-      });
-      scene.add(instances);
-    }
-    for (const b of park.buildings) {
-      if (["tree", "pine", "coaster"].includes(b.kind)) continue;
-      const n = CATALOG[b.kind].size,
-        x = (b.x + (n - 1) / 2) * 5,
-        z = (b.y + (n - 1) / 2) * 5;
-      if (["burger", "drink", "toilet"].includes(b.kind)) {
-        mesh(cube, "#fff0c6", x, 1.7, z, 3.8, 3.4, 3.8);
-        mesh(cone, b.kind === "burger" ? "#dc5c37" : "#e7b62c", x, 4.3, z, 3.5, 2, 3.5).rotation.y =
-          Math.PI / 4;
-      } else if (b.kind === "flowers") mesh(cylinder, "#e9aa45", x, 0.25, z, 1, 0.5, 1);
-      else if (b.kind === "bench") mesh(cube, "#b38038", x, 0.6, z, 2, 0.35, 0.6);
-      else if (b.kind === "wheel") {
-        const group = new THREE.Group();
-        group.position.set(x, 10, z);
-        scene.add(group);
-        const rim = new THREE.Mesh(new THREE.TorusGeometry(8, 0.2, 6, 48), mat("#da5938"));
-        group.add(rim);
-        for (let i = 0; i < 10; i++) {
-          const a = (i * Math.PI) / 5;
-          mesh(
-            cube,
-            "#f2d886",
-            Math.sin(a) * 4,
-            Math.cos(a) * 4,
-            0,
-            0.12,
-            8,
-            0.12,
-            group,
-          ).rotation.z = -a;
-          mesh(cube, "#d95b39", Math.sin(a) * 8, Math.cos(a) * 8, 0, 1.4, 1.5, 1.4, group);
-        }
-        mesh(cube, "#177779", x - 3, 4.5, z, 1, 11, 1).rotation.z = -0.25;
-        mesh(cube, "#177779", x + 3, 4.5, z, 1, 11, 1).rotation.z = 0.25;
-      } else if (b.kind === "drop") {
-        mesh(cube, "#248b93", x, 10, z, 1.4, 20, 1.4);
-        mesh(cylinder, "#df6444", x, 12, z, 3, 1, 3);
-      } else {
-        mesh(cylinder, "#e1ad43", x, 0.6, z, n * 1.3, 1.2, n * 1.3);
-        mesh(cylinder, "#247c7a", x, 3, z, 0.3, 6, 0.3);
-        mesh(cone, "#d86242", x, 6, z, n * 1.6, 2, n * 1.6);
-      }
-    }
-    const path = makeRidePath(building.track!);
+    const updatePark = populatePark(scene, park, building.id, mesh, mat, cube, cylinder, cone);
+    const path = compiledPath;
     const color = COASTER_TYPES[building.track?.[0]?.style ?? "steel"].color;
     const railGeometry = (offset: number) =>
       new THREE.TubeGeometry(
@@ -202,6 +155,13 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
     mesh(cube, "#233b3e", 0, 0.72, -0.7, 1.75, 0.1, 0.12, cart);
     for (const x of [-0.72, 0.72])
       mesh(cylinder, "#cbd5d0", x, 0.55, -0.7, 0.055, 0.45, 0.055, cart);
+    const train = [cart];
+    for (let i = 1; i < Math.ceil(rideCapacity(building) / 2); i++) {
+      const wagon = cart.clone();
+      scene.add(wagon);
+      train.push(wagon);
+    }
+    const desiredCamera = new THREE.PerspectiveCamera();
     const resize = () => {
       const w = target.clientWidth,
         h = target.clientHeight;
@@ -209,12 +169,41 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
       camera.aspect = w / Math.max(1, h);
       camera.updateProjectionMatrix();
     };
+    let pointer: { x: number; y: number } | null = null;
+    const pointerDown = (e: PointerEvent) => {
+      if (control.current.camera !== "overview") return;
+      pointer = { x: e.clientX, y: e.clientY };
+      renderer.domElement.setPointerCapture(e.pointerId);
+    };
+    const pointerMove = (e: PointerEvent) => {
+      if (!pointer) return;
+      const orbit = control.current.orbit;
+      orbit.yaw -= (e.clientX - pointer.x) * 0.008;
+      orbit.pitch = Math.max(0.25, Math.min(1.35, orbit.pitch + (e.clientY - pointer.y) * 0.006));
+      pointer = { x: e.clientX, y: e.clientY };
+    };
+    const pointerUp = () => {
+      pointer = null;
+    };
+    const wheel = (e: WheelEvent) => {
+      if (control.current.camera !== "overview") return;
+      e.preventDefault();
+      control.current.orbit.radius = Math.max(
+        45,
+        Math.min(250, control.current.orbit.radius * Math.exp(e.deltaY * 0.001)),
+      );
+    };
+    renderer.domElement.addEventListener("pointerdown", pointerDown);
+    renderer.domElement.addEventListener("pointermove", pointerMove);
+    renderer.domElement.addEventListener("pointerup", pointerUp);
+    renderer.domElement.addEventListener("pointercancel", pointerUp);
+    renderer.domElement.addEventListener("wheel", wheel, { passive: false });
     const observer = new ResizeObserver(resize);
     observer.observe(target);
     resize();
     let last = performance.now(),
       lastHud = 0,
-      prev = path.at(0).position,
+      parkTime = 0,
       initialized = false,
       lost = false;
     const contextLost = (e: Event) => {
@@ -241,32 +230,53 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
       if (c.playing) c.time = Math.min(path.duration, c.time + dt);
       const u = path.progress(c.time),
         p = path.at(u),
-        speed = initialized && dt > 0 ? Math.min(35, p.position.distanceTo(prev) / dt) : 0;
-      prev = p.position.clone();
-      cart.position.copy(p.position);
-      cart.quaternion.copy(p.quaternion);
-      cart.visible = true;
+        speed = c.playing ? p.speed : 0;
+      if (c.playing) parkTime += dt;
+      updatePark(parkTime);
+      train.forEach((wagon, i) => {
+        const frame = path.at((((u - (i * 3.7) / path.length) % 1) + 1) % 1);
+        wagon.position.copy(frame.position);
+        wagon.quaternion.copy(frame.quaternion);
+      });
       let cameraPosition = p.position.clone().addScaledVector(p.up, 1.35),
         quaternion = p.quaternion;
       if (c.camera === "chase") {
-        cameraPosition.addScaledVector(p.tangent, -7).addScaledVector(p.up, 3);
-        camera.position.copy(cameraPosition);
-        camera.up.copy(p.up);
-        camera.lookAt(p.position.clone().addScaledVector(p.tangent, 4));
-        quaternion = camera.quaternion.clone();
+        cameraPosition
+          .addScaledVector(p.tangent, -(train.length * 3.7 + 4))
+          .addScaledVector(p.up, 4);
+        desiredCamera.position.copy(cameraPosition);
+        desiredCamera.up.copy(p.up);
+        desiredCamera.lookAt(p.position.clone().addScaledVector(p.tangent, 4));
+        quaternion = desiredCamera.quaternion.clone();
       }
       if (c.camera === "overview") {
-        cameraPosition = new THREE.Vector3(155, 110, 170);
-        camera.position.copy(cameraPosition);
-        camera.up.set(0, 1, 0);
-        camera.lookAt(75, 0, 75);
-        quaternion = camera.quaternion.clone();
+        const o = c.orbit;
+        cameraPosition = new THREE.Vector3(
+          75 + Math.cos(o.yaw) * Math.cos(o.pitch) * o.radius,
+          Math.sin(o.pitch) * o.radius,
+          75 + Math.sin(o.yaw) * Math.cos(o.pitch) * o.radius,
+        );
+        desiredCamera.position.copy(cameraPosition);
+        desiredCamera.up.set(0, 1, 0);
+        desiredCamera.lookAt(75, 0, 75);
+        quaternion = desiredCamera.quaternion.clone();
       }
-      camera.position.copy(cameraPosition);
+      const fov = c.camera === "overview" ? 50 : 72;
+      if (camera.fov !== fov) {
+        camera.fov = fov;
+        camera.updateProjectionMatrix();
+      }
+      if (!initialized || c.camera === "front") camera.position.copy(cameraPosition);
+      else camera.position.lerp(cameraPosition, 1 - Math.exp(-dt / 0.08));
       if (!initialized) camera.quaternion.copy(quaternion);
       else camera.quaternion.slerp(quaternion, 1 - Math.exp(-dt / 0.055));
       initialized = true;
-      audio?.ride(c.playing ? speed : 0, true);
+      audio?.ride(
+        speed,
+        true,
+        c.playing ? p.phase : "station",
+        building.track?.[0]?.style ?? "steel",
+      );
       renderer.render(scene, camera);
       if (now - lastHud > 150) {
         lastHud = now;
@@ -274,6 +284,7 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
           speed: Math.round(speed * 3.6),
           height: Math.max(0, Math.round(p.position.y - 1.1)),
           progress: u,
+          phase: p.phase,
         });
       }
       if (c.time >= path.duration && c.playing) {
@@ -285,6 +296,11 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
     return () => {
       renderer.setAnimationLoop(null);
       observer.disconnect();
+      renderer.domElement.removeEventListener("pointerdown", pointerDown);
+      renderer.domElement.removeEventListener("pointermove", pointerMove);
+      renderer.domElement.removeEventListener("pointerup", pointerUp);
+      renderer.domElement.removeEventListener("pointercancel", pointerUp);
+      renderer.domElement.removeEventListener("wheel", wheel);
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       audio?.ride(0, false);
       const geometries = new Set<THREE.BufferGeometry>();
@@ -327,9 +343,32 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
         <span>
           {hud.progress >= 0.999
             ? "Zurück an der Station"
-            : `${Math.round(hud.progress * 100)} % der Strecke`}
+            : `${PHASE_NAMES[hud.phase]} · ${Math.round(hud.progress * 100)} %`}
         </span>
       </div>
+      <input
+        className="ride-timeline"
+        aria-label="Position auf der Strecke"
+        type="range"
+        min="0"
+        max="1000"
+        value={Math.round(hud.progress * 1000)}
+        onChange={(e) => {
+          const path = compiledPath;
+          const wanted = Number(e.target.value) / 1000;
+          let lo = 0,
+            hi = path.duration;
+          for (let i = 0; i < 24; i++) {
+            const mid = (lo + hi) / 2;
+            if (path.progress(mid) < wanted) lo = mid;
+            else hi = mid;
+          }
+          control.current.time = (lo + hi) / 2;
+          control.current.playing = false;
+          setPlaying(false);
+          setHud({ ...hud, progress: wanted, speed: 0 });
+        }}
+      />
       <div className="ride-controls">
         <button
           className="primary"
@@ -381,7 +420,10 @@ export default function RideView({ park, building, audio, muted, onMute, onClose
         </button>
       </div>
       <p className="ride-caption">
-        Deine gebaute Strecke als 3D-Probefahrt. Der Park pausiert während der Mitfahrt.
+        {mode === "overview"
+          ? "Parkblick: ziehen zum Drehen · Mausrad zum Zoomen."
+          : "Deine echte Strecke · Gleiche Fahrberechnung wie im Park."}{" "}
+        Zeitregler zum Erkunden · Der Park pausiert während der Probefahrt.
       </p>
     </div>
   );

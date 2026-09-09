@@ -2,6 +2,7 @@ import expansionSpecs from "./expansion-sprites.json";
 import {
   SIZE,
   rideDuration,
+  rideCapacity,
   CATALOG,
   footprint,
   access,
@@ -16,13 +17,11 @@ import {
 import type { Placement, Geometry } from "./construction";
 import {
   advanceSpin,
-  advanceTrain,
   type TrainMotor,
   prepareRoute,
   trainDistance,
   routePosition,
   type Spin,
-  type RouteMotion,
 } from "./motion";
 export type View = {
   zoom: number;
@@ -33,6 +32,7 @@ export type View = {
   tool: string;
   selected: number | null;
   draft: Point[];
+  candidate?: { points: Point[]; error: boolean };
   height: number;
   preview?: Placement | null;
   connection?: Point[];
@@ -119,34 +119,7 @@ const guestMotion = new WeakMap<
 >();
 const motors = new WeakMap<Building, Spin & { time: number }>();
 const trains = new WeakMap<Building, TrainMotor & { track: Point[] }>();
-const routes = new WeakMap<Point[], RouteMotion>();
 const service = new WeakMap<Building, { served: number; time: number; value: number }>();
-const displayTracks = new WeakMap<Point[], Point[]>();
-function displayTrack(track: Point[]) {
-  if (track[0]?.smooth || track.length < 4) return track;
-  const cached = displayTracks.get(track);
-  if (cached) return cached;
-  const ring = track.slice(0, -1),
-    out: Point[] = [];
-  const mix = (a: Point, b: Point, t: number): Point => ({
-    x: a.x + (b.x - a.x) * t,
-    y: a.y + (b.y - a.y) * t,
-    z: (a.z ?? 0) + ((b.z ?? 0) - (a.z ?? 0)) * t,
-    smooth: true,
-  });
-  for (let i = 0; i < ring.length; i++) {
-    const p = ring[i],
-      a = mix(p, ring[(i + ring.length - 1) % ring.length], 0.32),
-      b = mix(p, ring[(i + 1) % ring.length], 0.32);
-    for (let j = 0; j < 8; j++) {
-      const t = j / 8;
-      out.push(mix(mix(a, p, t), mix(p, b, t), t));
-    }
-  }
-  out.push({ ...out[0] });
-  displayTracks.set(track, out);
-  return out;
-}
 export function draw(
   ctx: CanvasRenderingContext2D,
   w: number,
@@ -306,7 +279,7 @@ export function draw(
     );
     ctx.restore();
   };
-  const rail = (a: Point, b: Point, ghost = false) => {
+  const rail = (a: Point, b: Point, ghost = false, ties = true) => {
     const wood = a.style === "wood",
       launch = a.style === "launch";
     const pa = project(a.x, a.y, a.z ?? 0),
@@ -317,7 +290,7 @@ export function draw(
       nx = (-dy / len) * 3.3 * scale,
       ny = (dx / len) * 3.3 * scale;
     line(pa, pb, ghost ? "#ffc652" : wood ? "#7c522c" : "#334f4f", 7);
-    for (let t = 0.1; t < 1; t += Math.max(0.24, (7 * scale) / len)) {
+    for (let t = 0.1; ties && t < 1; t += Math.max(0.24, (7 * scale) / len)) {
       const x = pa.x + dx * t,
         y = pa.y + dy * t;
       line(
@@ -476,12 +449,17 @@ export function draw(
     const firstObject = objects.length;
     if (b.id === v.selected) for (const p of footprint(b)) tile(p.x, p.y, "#ffef9166", "#fff0bb");
     if (b.kind === "coaster") {
-      const pts = displayTrack(b.track ?? []);
+      const track = b.track ?? [];
+      const shared = prepareRoute(track);
+      const pts = shared.points;
       for (let i = 1; i < pts.length; i++) {
         const a = pts[i - 1],
           b = pts[i],
           depth = (a.x + a.y + b.x + b.y) / 2;
-        if ((a.z ?? 0) > 0 && (!a.smooth || i % 8 === 0))
+        if (
+          (a.z ?? 0) > 0 &&
+          Math.floor(shared.distance[i - 1] / 1.3) !== Math.floor(shared.distance[i] / 1.3)
+        )
           objects.push({
             depth: a.x + a.y - 0.02,
             draw: () => {
@@ -509,46 +487,46 @@ export function draw(
           });
         objects.push({
           depth: depth + Math.max(a.z ?? 0, b.z ?? 0) * 0.035,
-          draw: () => rail(a, b),
+          draw: () =>
+            rail(
+              a,
+              b,
+              false,
+              Math.floor(shared.distance[i - 1] / 0.24) !== Math.floor(shared.distance[i] / 0.24),
+            ),
         });
       }
       if (pts.length > 1) {
-        let route = routes.get(pts);
-        if (!route) {
-          route = prepareRoute(pts);
-          routes.set(pts, route);
-        }
+        const route = shared;
         const progress = b.testing
-          ? 1 - b.testing / 8
+          ? 1 - b.testing / (b.testDuration ?? 8)
           : b.open && b.riders.length && access(s, b, net)
             ? 1 - b.cycle / rideDuration(b)
             : 0;
-        const desired = trainDistance(route, progress),
-          running = !!b.testing || !!(b.open && b.riders.length && access(s, b, net));
-        const cached = trains.get(b);
-        const previous =
-          cached?.track === pts
-            ? cached
-            : {
-                angle: desired,
-                velocity: 0,
-                target: desired,
-                time: s.time,
-              };
-        const motor = advanceTrain(previous, desired, running, s.time, route.length);
-        trains.set(b, { ...motor, track: pts });
-        const head = motor.angle;
-        for (let car = 0; car < 4; car++) {
+        const running = !!b.testing || !!(b.open && b.riders.length && access(s, b, net));
+        const previous = trains.get(b),
+          dt = previous ? Math.max(0, s.time - previous.time) : 0;
+        const desired = trainDistance(route, progress);
+        const velocity = running
+          ? routePosition(route, desired).speed / 5
+          : (previous?.velocity ?? 0) * Math.exp(-dt / 0.35);
+        const head = running
+          ? desired
+          : previous?.track === track
+            ? (previous.angle + velocity * dt) % route.length
+            : 0;
+        trains.set(b, { angle: head, velocity, time: s.time, target: desired, track });
+        for (let car = 0; car < Math.ceil(rideCapacity(b) / 2); car++) {
           const q = routePosition(route, head - car * 0.74);
           objects.push({
             depth: q.x + q.y + (q.z ?? 0) * 0.035 + 0.15,
             draw: () =>
               frame(
-                `car-${pts[0]?.style ?? "steel"}-${heading(q.dx, q.dy)}`,
+                `car-${pts[0]?.style ?? "steel"}-${heading(q.dx * (q.up.z < 0 ? -1 : 1), q.dy * (q.up.z < 0 ? -1 : 1))}`,
                 project(q.x, q.y, q.z),
                 { width: 48, height: 40, anchorX: 24, anchorY: 30 },
                 1,
-                -Math.atan(q.pitch) * 0.8 * Math.sign(q.dx - q.dy),
+                Math.atan2((q.up.x - q.up.y) * 24, q.up.z * 24 - (q.up.x + q.up.y) * 12),
               ),
           });
         }
@@ -764,6 +742,15 @@ export function draw(
       "#fff1a6",
       3,
     );
+  }
+  if (v.candidate && v.tool === "coaster") {
+    const points = v.candidate.points;
+    for (let i = 1; i < points.length; i++) {
+      const a = project(points[i - 1].x, points[i - 1].y, points[i - 1].z),
+        b = project(points[i].x, points[i].y, points[i].z);
+      line(a, b, v.candidate.error ? "#c44a42" : "#2f8b69", 9);
+      line(a, b, v.candidate.error ? "#ffd6c9" : "#aeffe0", 3);
+    }
   }
   const hover = v.adjustment ? v.adjustment.geometry : v.hover;
   if (hover && v.tool !== "select") {

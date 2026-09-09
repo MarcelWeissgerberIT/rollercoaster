@@ -60,10 +60,44 @@ export function appendPiece(track: Point[], piece: Piece): Point[] {
   }
   return [...track, ...points];
 }
+export function isClosedTrack(t: Point[]) {
+  return (
+    t.length > 8 &&
+    Math.hypot(t[0].x - t.at(-1)!.x, t[0].y - t.at(-1)!.y, (t[0].z ?? 0) - (t.at(-1)!.z ?? 0)) <
+      0.001 &&
+    Math.cos((t[0].heading ?? 0) - (t.at(-1)!.heading ?? 0)) > 0.999
+  );
+}
 export function pieceError(s: Park, old: Point[], next: Point[], clear: boolean): string | null {
+  if (isClosedTrack(old)) return "Der Rundkurs ist geschlossen. Du kannst ihn jetzt bauen.";
   if (next.length > 2048) return "Maximal 2.048 Streckenpunkte pro Bahn.";
   if (next.some((p) => (p.z ?? 0) < 0 || (p.z ?? 0) > (next[0]?.style === "wood" ? 4 : 8)))
     return "Diese Höhe ist für den Bahntyp nicht möglich.";
+  if (next[0]?.style === "wood" && next.some((p) => p.inversion))
+    return "Holzbahnen unterstützen keine Loopings.";
+  const start = next[0],
+    last = next.at(-1)!;
+  const distances = [0];
+  for (let i = 1; i < next.length; i++)
+    distances.push(
+      distances[i - 1] +
+        Math.hypot(
+          next[i].x - next[i - 1].x,
+          next[i].y - next[i - 1].y,
+          (next[i].z ?? 0) - (next[i - 1].z ?? 0),
+        ),
+    );
+  const closed = isClosedTrack(next);
+  for (let i = Math.max(1, old.length); i < next.length; i++)
+    for (let j = 0; j < i; j++) {
+      const gap = distances[i] - distances[j];
+      if (gap < 2.5 || (closed && distances.at(-1)! - gap < 2.5)) continue;
+      if (
+        Math.hypot(next[i].x - next[j].x, next[i].y - next[j].y) < 0.35 &&
+        Math.abs((next[i].z ?? 0) - (next[j].z ?? 0)) < 0.6
+      )
+        return "Dieses Bauteil kreuzt deine Strecke. Ändere Richtung oder Höhe.";
+    }
   const added = next.slice(Math.max(0, old.length - 1));
   for (const p of trackFootprint(added)) {
     if (p.x < 0 || p.y < 0 || p.x >= 30 || p.y >= 30) return "Das Bauteil ragt aus dem Park.";

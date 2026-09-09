@@ -1,11 +1,8 @@
 import fs from "node:fs";
 import assert from "node:assert/strict";
 import ts from "typescript";
-const output = ts.transpileModule(
-  fs.readFileSync(new URL("../game/simulation.ts", import.meta.url), "utf8"),
-  { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } },
-).outputText;
-const M = await import("data:text/javascript;base64," + Buffer.from(output).toString("base64"));
+import { moduleURL } from "./ts-loader.mjs";
+const M = await import(moduleURL("game/simulation.ts"));
 Math.random = () => 0.5;
 const json = (v) => JSON.parse(JSON.stringify(v));
 let failed = 0;

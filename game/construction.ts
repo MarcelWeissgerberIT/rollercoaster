@@ -1,5 +1,7 @@
 import {
+  rideDuration,
   CATALOG,
+  isUnlocked,
   trackCost,
   buildingBaseCost,
   SIZE,
@@ -63,6 +65,8 @@ export function planPlacement(
         ? unique(footprint({ kind: tool as Kind, x: p.x, y: p.y, track }))
         : [p];
   const plan: Placement = { points, clearIds: [], cost: 0, error: null };
+  if (tool in CATALOG && !isUnlocked(s, tool as Kind, track?.[0]?.style))
+    return { ...plan, error: "Durch Forschung freischalten" };
   if (!points.length || points.some((t) => !inside(t)))
     return { ...plan, error: "Außerhalb des Parkgeländes" };
   if (tool === "erase") {
@@ -263,7 +267,10 @@ export function connectBuilding(s: Park, b: Building, clear = true): string | nu
   if (plan.clearIds.length) spend(s, plan.clearIds.length * 10);
   for (const p of plan.points) paint(s, p.x, p.y, isRide(b.kind) ? "queue" : "path");
   if (b.kind === "coaster" && !b.tested) {
-    b.testing = b.testing || 8;
+    if (!b.testing) {
+      b.testing = rideDuration(b);
+      b.testDuration = b.testing;
+    }
     b.autoOpen = true;
   } else b.open = true;
   return null;
@@ -435,6 +442,7 @@ function releaseBuildingGuests(s: Park, b: Building) {
   b.riders = [];
   b.cycle = 0;
   b.testing = undefined;
+  b.testDuration = undefined;
   b.autoOpen = false;
   b.open = false;
 }

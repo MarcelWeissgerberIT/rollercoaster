@@ -23,7 +23,7 @@ const sim = await import(moduleURL("game/simulation.ts")),
   ride = await import(moduleURL("game/ride-path.ts")),
   audio = await import(moduleURL("game/audio.ts"));
 function empty() {
-  const s = sim.newPark();
+  const s = sim.newPark("sandbox");
   s.buildings = [];
   s.guests = [];
   s.tiles = s.tiles.map((r) => r.map(() => "grass"));

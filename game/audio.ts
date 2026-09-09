@@ -1,3 +1,5 @@
+import type { RidePhase } from "./motion";
+import type { CoasterType } from "./simulation";
 export type AudioSettings = { enabled: boolean; master: number; music: number; effects: number };
 export const AUDIO_KEY = "coaster-grove-audio-v1";
 export const DEFAULT_AUDIO: AudioSettings = {
@@ -36,6 +38,10 @@ export class ParkAudio {
   private active = true;
   private riding = false;
   private note = 0;
+  private phase: RidePhase = "station";
+  private speed = 0;
+  private coasterType: CoasterType = "steel";
+  private nextMechanic = 0;
   private nextNote = 0;
   private lastFX = -10;
   settings = { ...DEFAULT_AUDIO };
@@ -131,7 +137,10 @@ export class ParkAudio {
       this.levels();
     }
   }
-  ride(speed: number, enabled: boolean) {
+  ride(speed: number, enabled: boolean, phase: RidePhase = "coast", style: CoasterType = "steel") {
+    this.phase = enabled ? phase : "station";
+    this.speed = enabled ? Math.max(0, speed) : 0;
+    this.coasterType = style;
     if (this.riding !== enabled) {
       this.riding = enabled;
       this.levels();
@@ -212,20 +221,76 @@ export class ParkAudio {
     )
       return;
     if (this.nextNote < ctx.currentTime) this.nextNote = ctx.currentTime + 0.03;
-    // Eight-bar, three-beat original park melody, independent of simulation speed.
-    const melody = [
-      72, 76, 79, 76, 74, 71, 69, 72, 76, 74, 71, 67, 65, 69, 72, 74, 72, 69, 67, 71, 74, 76, 74,
-      71,
+    // A 32-bar theme: four distinct eight-bar phrases, harmony changes, rests and a quieter bridge.
+    const phrases = [
+      [
+        72, 76, 79, 76, 74, 71, 69, 72, 76, 74, 71, 67, 65, 69, 72, 74, 72, 69, 67, 71, 74, 76, 74,
+        71,
+      ],
+      [79, 0, 76, 81, 79, 76, 74, 77, 81, 79, 0, 74, 76, 79, 84, 83, 79, 76, 74, 71, 67, 72, 0, 0],
+      [69, 72, 76, 0, 74, 72, 67, 71, 74, 0, 72, 71, 65, 69, 72, 0, 74, 76, 67, 71, 74, 0, 72, 0],
+      [
+        76, 79, 84, 83, 81, 79, 77, 74, 71, 72, 76, 79, 81, 77, 74, 79, 76, 72, 74, 71, 67, 72, 0,
+        0,
+      ],
     ];
     while (this.nextNote < ctx.currentTime + 0.12) {
-      const midi = melody[this.note % melody.length];
-      this.tone(440 * 2 ** ((midi - 69) / 12), this.nextNote, 0.55, 0.1, this.music, "triangle");
-      if (this.note % 3 === 0)
-        this.tone(440 * 2 ** ((midi - 24 - 69) / 12), this.nextNote, 1.4, 0.12, this.music);
+      const section = Math.floor(this.note / 24) % 4,
+        beat = this.note % 24,
+        midi = phrases[section][beat],
+        soft = section === 2;
+      if (midi)
+        this.tone(
+          440 * 2 ** ((midi - 69) / 12),
+          this.nextNote,
+          soft ? 0.85 : 0.5,
+          soft ? 0.065 : 0.09,
+          this.music,
+          "triangle",
+        );
+      if (this.note % 3 === 0) {
+        const root = [48, 45, 53, 43][Math.floor(beat / 6) % 4];
+        this.tone(440 * 2 ** ((root - 69) / 12), this.nextNote, 1.55, 0.085, this.music);
+        for (const interval of [7, 12])
+          this.tone(
+            440 * 2 ** ((root + interval - 69) / 12),
+            this.nextNote + 0.045,
+            1.1,
+            0.022,
+            this.music,
+          );
+      }
       this.note++;
-      this.nextNote += 60 / 82;
+      this.nextNote += 60 / (soft ? 76 : 82);
+    }
+    if (this.effects && this.riding && this.speed > 0.1 && ctx.currentTime >= this.nextMechanic) {
+      const t = ctx.currentTime,
+        wood = this.coasterType === "wood";
+      if (this.phase === "lift") {
+        this.tone(185, t, 0.035, 0.06, this.effects, "square");
+        this.tone(95, t + 0.045, 0.05, 0.045, this.effects, "triangle");
+        this.nextMechanic = t + 0.16;
+      } else if (this.phase === "launch") {
+        this.tone(70 + this.speed * 13, t, 0.16, 0.07, this.effects, "sawtooth");
+        this.nextMechanic = t + 0.11;
+      } else if (this.phase === "brake") {
+        this.tone(750 + this.speed * 18, t, 0.13, 0.025, this.effects, "triangle");
+        this.tone(140, t, 0.08, 0.04, this.effects);
+        this.nextMechanic = t + 0.12;
+      } else {
+        this.tone(
+          wood ? 100 : 145,
+          t,
+          0.045,
+          Math.min(0.075, this.speed * 0.003),
+          this.effects,
+          "triangle",
+        );
+        this.nextMechanic = t + Math.max(0.06, 3.7 / this.speed);
+      }
     }
   }
+
   dispose() {
     this.disposed = true;
     clearInterval(this.timer);

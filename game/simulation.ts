@@ -1,3 +1,4 @@
+import { prepareRoute } from "./motion";
 export type CoasterType = "steel" | "wood" | "launch";
 export type Point = {
   x: number;
@@ -68,6 +69,7 @@ export type Building = {
   track?: Point[];
   tested: boolean;
   testing?: number;
+  testDuration?: number;
   autoOpen?: boolean;
 };
 export type Guest = {
@@ -84,6 +86,11 @@ export type Guest = {
   rides: number;
   skin: number;
   thought: string;
+  profile?: "family" | "thrill" | "budget";
+  wallet?: number;
+  bladder?: number;
+  servicePrice?: number;
+  visited?: number[];
 };
 export type Park = {
   version: 1;
@@ -107,7 +114,187 @@ export type Park = {
   won: boolean;
   staff: number;
   mode: "scenario" | "sandbox";
+  operatingIncomeToday?: number;
+  operatingExpensesToday?: number;
+  operatingProfit?: number;
+  scenario?: ScenarioId;
+  research?: { completed: ResearchId[]; active: ResearchId | null; remaining: number };
+  draft?: {
+    track: Point[];
+    history: number[];
+    rotation: number;
+    style: CoasterType;
+    piece?: "straight" | "rise" | "fall" | "left" | "right" | "loop";
+  };
 };
+export const SCENARIOS = {
+  waldhain: {
+    name: "Waldhain Park",
+    subtitle: "Ein Park für alle",
+    description: "Baue deinen ersten Publikumsliebling mit vier geöffneten Attraktionen.",
+    cash: 16000,
+    arrivals: 150,
+    rides: 4,
+    rating: 75,
+    value: 0,
+    profit: 0,
+    coasters: 0,
+  },
+  lakeside: {
+    name: "Seeblick Park",
+    subtitle: "Familien am Wasser",
+    description:
+      "Weniger Startkapital und ein zweiter See: Plane kurze Wege und einen vielseitigen Familienpark.",
+    cash: 12000,
+    arrivals: 250,
+    rides: 5,
+    rating: 80,
+    value: 26000,
+    profit: 200,
+    coasters: 0,
+  },
+  summit: {
+    name: "Gipfelrausch",
+    subtitle: "Die Achterbahn-Challenge",
+    description:
+      "Drei Achterbahnen, zufriedene Gäste und ein rentabler Betrieb. Der Startpark hat nur eine Bahn.",
+    cash: 20000,
+    arrivals: 350,
+    rides: 5,
+    rating: 82,
+    value: 34000,
+    profit: 350,
+    coasters: 3,
+  },
+} as const;
+export type ScenarioId = keyof typeof SCENARIOS;
+export const RESEARCH = {
+  family: {
+    name: "Familienfestival",
+    description: "Holzexpress, Wellenflug und Piratenschaukel",
+    cost: 1200,
+    duration: 90,
+    requires: null,
+  },
+  thrill: {
+    name: "Hoch hinaus",
+    description: "Himmelssturz mit freiem Fall",
+    cost: 1800,
+    duration: 120,
+    requires: null,
+  },
+  launch: {
+    name: "Magnetischer Start",
+    description: "Blitzstart mit Launch und Loopings",
+    cost: 2800,
+    duration: 180,
+    requires: "thrill",
+  },
+} as const;
+export type ResearchId = keyof typeof RESEARCH;
+export const scenarioOf = (s: Park) => SCENARIOS[s.scenario ?? "waldhain"];
+export function isUnlocked(s: Park, kind: Kind, style: CoasterType = "steel") {
+  if (s.mode === "sandbox" || !s.research) return true;
+  if (
+    s.buildings.some(
+      (b) => b.kind === kind && (kind !== "coaster" || (b.track?.[0]?.style ?? "steel") === style),
+    )
+  )
+    return true;
+  const project =
+    kind === "coaster"
+      ? style === "launch"
+        ? "launch"
+        : style === "wood"
+          ? "family"
+          : null
+      : kind === "drop"
+        ? "thrill"
+        : ["swing", "pirate"].includes(kind)
+          ? "family"
+          : null;
+  return !project || s.research.completed.includes(project as ResearchId);
+}
+export function startResearch(s: Park, id: ResearchId): string | null {
+  migratePark(s);
+  const r = s.research!,
+    project = RESEARCH[id];
+  if (!project) return "Unbekanntes Forschungsprojekt.";
+  if (s.mode === "sandbox" || r.completed.includes(id)) return "Bereits freigeschaltet.";
+  if (r.active) return "Es läuft bereits ein Forschungsprojekt.";
+  if (project.requires && !r.completed.includes(project.requires))
+    return "Erforsche zuerst Hoch hinaus.";
+  if (!spend(s, project.cost)) return "Das Budget reicht für diese Forschung noch nicht.";
+  r.active = id;
+  r.remaining = project.duration;
+  return null;
+}
+/** Old parks retain all previously available content; new scenarios start with research. */
+export function migratePark(s: Park): Park {
+  s.scenario ??= "waldhain";
+  s.operatingIncomeToday ??= 0;
+  s.operatingExpensesToday ??= 0;
+  s.operatingProfit ??= 0;
+  s.research ??= { completed: Object.keys(RESEARCH) as ResearchId[], active: null, remaining: 0 };
+  for (const g of s.guests) {
+    g.profile ??= (["family", "thrill", "budget"] as const)[g.id % 3];
+    g.wallet ??= 60;
+    g.bladder ??= 10;
+    g.visited ??= [];
+  }
+  return s;
+}
+export function parkValue(s: Park) {
+  return Math.round(
+    s.cash +
+      s.buildings.reduce(
+        (sum, b) => sum + (b.track ? trackCost(b.track) : CATALOG[b.kind].cost) * 0.8,
+        0,
+      ),
+  );
+}
+export function expectedWait(b: Building) {
+  return (
+    Math.max(0, b.cycle) +
+    Math.floor(b.queue.length / Math.max(1, rideCapacity(b))) * rideDuration(b)
+  );
+}
+export function rideAppeal(b: Building, profile: Guest["profile"] = "family") {
+  const stats = b.track ? trackStats(b.track) : null;
+  const fun = stats ? Number(stats.excitement) : CATALOG[b.kind].appeal;
+  const intensity = stats
+    ? Number(stats.intensity)
+    : (({ drop: 8, pirate: 6, swing: 4, wheel: 1, carousel: 1 } as Partial<Record<Kind, number>>)[
+        b.kind
+      ] ?? 2);
+  const ideal = profile === "thrill" ? 7 : profile === "family" ? 3 : 4;
+  return Math.max(0.5, fun + 2 - Math.abs(intensity - ideal) * 0.9);
+}
+export function guestScore(b: Building, g: Guest) {
+  const desire = isRide(b.kind)
+    ? rideAppeal(b, g.profile)
+    : b.kind === "burger"
+      ? g.hunger * 0.17
+      : b.kind === "drink"
+        ? g.thirst * 0.17
+        : (g.bladder ?? 10) * 0.15 - 4;
+  return (
+    desire -
+    b.price * (g.profile === "budget" ? 0.65 : 0.32) -
+    expectedWait(b) / 18 -
+    Math.hypot(b.x - g.x, b.y - g.y) * 0.09 -
+    (g.visited?.includes(b.id) ? 3.5 : 0)
+  );
+}
+export function entryDemand(s: Park) {
+  const rides = s.buildings.filter((b) => b.open && b.tested && isRide(b.kind) && access(s, b));
+  if (!rides.length) return 0;
+  const value = rides.reduce((n, b) => n + rideAppeal(b, "family"), 0) * 0.62;
+  return Math.min(
+    1,
+    Math.max(0, (1 / (1 + Math.exp((s.ticket - value) / 3.5))) * (0.5 + s.rating / 150)),
+  );
+}
 export const SIZE = 30,
   ENTRANCE = { x: 15, y: 29 };
 export const CATALOG: Record<
@@ -420,7 +607,9 @@ export const buildingBaseCost = (b: Pick<Building, "kind" | "track">) =>
   b.kind === "coaster" ? COASTER_TYPES[b.track?.[0]?.style ?? "steel"].cost : CATALOG[b.kind].cost;
 export const rideDuration = (b: Building) =>
   b.kind === "coaster"
-    ? COASTER_TYPES[b.track?.[0]?.style ?? "steel"].duration
+    ? b.track
+      ? prepareRoute(b.track).duration
+      : COASTER_TYPES.steel.duration
     : CATALOG[b.kind].duration;
 export const rideCapacity = (b: Building) =>
   b.kind === "coaster"
@@ -435,27 +624,39 @@ export function trackCost(track: Point[]) {
     );
   return COASTER_TYPES[track[0]?.style ?? "steel"].cost + Math.round(units * 65);
 }
+const statsCache = new WeakMap<
+  Point[],
+  { length: number; height: number; speed: number; excitement: string; intensity: string }
+>();
 export function trackStats(track: Point[]) {
-  let length = 0,
-    drop = 0,
-    height = 0;
-  for (let i = 1; i < track.length; i++) {
-    const a = track[i - 1],
-      b = track[i];
-    length += Math.hypot(b.x - a.x, b.y - a.y, (b.z ?? 0) - (a.z ?? 0)) * 5;
-    drop = Math.max(drop, (a.z ?? 0) - (b.z ?? 0));
-    height = Math.max(height, b.z ?? 0);
+  const cached = statsCache.get(track);
+  if (cached) return cached;
+  const route = prepareRoute(track),
+    height = Math.max(0, ...track.map((p) => p.z ?? 0)) * 5;
+  let peak = track[0]?.z ?? 0,
+    drop = 0;
+  for (const p of track) {
+    const z = p.z ?? 0;
+    if (z > peak) peak = z;
+    else drop = Math.max(drop, peak - z);
   }
-  const style = track[0]?.style,
-    inversion = track.some((p) => p.inversion);
-  return {
-    length: Math.round(length),
-    height: height * 5,
-    speed:
-      style === "launch" ? 86 : Math.round((style === "wood" ? 21 : 25) + Math.sqrt(height * 98)),
-    excitement: Math.min(9.9, 3 + height * 0.7 + length / 180 + (inversion ? 1 : 0)).toFixed(1),
-    intensity: Math.min(9.9, 2 + drop * 1.3 + height * 0.3 + (inversion ? 2 : 0)).toFixed(1),
+  const speed = Math.max(0, ...route.speeds) * 3.6,
+    inversions = track.some((p) => p.inversion) ? 1 : 0;
+  const stats = {
+    length: Math.round(route.length * 5),
+    height,
+    speed: Math.round(speed),
+    excitement: Math.min(
+      9.9,
+      2.5 + height * 0.1 + route.length / 40 + inversions * 1.2 + speed / 100,
+    ).toFixed(1),
+    intensity: Math.min(
+      9.9,
+      1.5 + drop * 0.55 + height * 0.05 + inversions * 2 + speed / 70,
+    ).toFixed(1),
   };
+  statsCache.set(track, stats);
+  return stats;
 }
 export function validateTrack(s: Park, track: Point[]): string | null {
   if (track.length < 9) return "Baue mindestens 8 Streckenabschnitte.";
@@ -540,6 +741,8 @@ export function build(
   y: number,
   track?: Point[],
 ): { error?: string; id?: number } {
+  if (!isUnlocked(s, kind, track?.[0]?.style))
+    return { error: "Diese Attraktion wird durch Forschung freigeschaltet." };
   const proto = { kind, x, y, track };
   if (kind === "coaster") {
     const err = validateTrack(s, track ?? []);
@@ -628,15 +831,23 @@ function newGuest(s: Park) {
     rides: 0,
     skin: s.nextId % 3,
     thought: "Mal sehen, was der Park zu bieten hat!",
+    profile: (["family", "thrill", "budget"] as const)[s.nextId % 3],
+    wallet: Math.max(0, 55 + Math.floor(Math.random() * 50) - s.ticket),
+    visited: [],
+    bladder: 10,
   };
   s.guests.push(g);
   s.arrivals++;
   s.cash += s.ticket;
   s.income += s.ticket;
   s.dayIncome += s.ticket;
+  s.operatingIncomeToday = (s.operatingIncomeToday ?? 0) + s.ticket;
   return g;
 }
-export function newPark(mode: "scenario" | "sandbox" = "scenario"): Park {
+export function newPark(
+  mode: "scenario" | "sandbox" = "scenario",
+  scenario: ScenarioId = "waldhain",
+): Park {
   const s: Park = {
     version: 1,
     cash: 16000,
@@ -659,6 +870,15 @@ export function newPark(mode: "scenario" | "sandbox" = "scenario"): Park {
     won: false,
     staff: 2,
     mode,
+    operatingIncomeToday: 0,
+    operatingExpensesToday: 0,
+    operatingProfit: 0,
+    scenario,
+    research: {
+      completed: mode === "sandbox" ? (Object.keys(RESEARCH) as ResearchId[]) : [],
+      active: null,
+      remaining: 0,
+    },
   };
   for (let y = 6; y < SIZE; y++) s.tiles[y][15] = "path";
   for (let x = 5; x <= 25; x++) {
@@ -736,6 +956,23 @@ export function newPark(mode: "scenario" | "sandbox" = "scenario"): Park {
   s.income = 0;
   s.dayIncome = 0;
   s.arrivals = 26;
+  s.operatingIncomeToday = 0;
+  if (mode === "scenario") {
+    s.cash = SCENARIOS[scenario].cash;
+    if (scenario === "lakeside") {
+      s.buildings = s.buildings.filter((b) => b.kind !== "coaster");
+      for (let y = 21; y < 28; y++)
+        for (let x = 20; x < 28; x++)
+          if ((x - 24) ** 2 / 15 + (y - 24) ** 2 / 9 < 1 && s.tiles[y][x] === "grass") {
+            s.buildings = s.buildings.filter(
+              (b) => !(b.x === x && b.y === y && decorative(b.kind)),
+            );
+            if (!occupant(s, x, y)) s.tiles[y][x] = "water";
+          }
+    }
+    if (scenario === "summit")
+      s.buildings = s.buildings.filter((b) => !["wheel", "carousel"].includes(b.kind));
+  }
   return s;
 }
 function choose(s: Park, g: Guest, net: Set<string>) {
@@ -744,41 +981,39 @@ function choose(s: Park, g: Guest, net: Set<string>) {
       b.open &&
       !decorative(b.kind) &&
       access(s, b, net) &&
-      b.price <= CATALOG[b.kind].price * 2 + 2 &&
+      b.price <= (g.wallet ?? 60) &&
       (!isRide(b.kind) || b.tested) &&
-      b.queue.length < queueCapacity(s, b) + (!isRide(b.kind) ? 5 : 0),
+      b.queue.length < (isRide(b.kind) ? queueCapacity(s, b) : 6),
   );
   const ranked = options
-    .map((b) => ({
-      b,
-      score:
-        (isRide(b.kind)
-          ? CATALOG[b.kind].appeal * (1 - g.rides * 0.07)
-          : b.kind === "burger"
-            ? g.hunger / 5
-            : b.kind === "drink"
-              ? g.thirst / 5
-              : 1) +
-        Math.random() * 7 -
-        b.price * 0.5 -
-        b.queue.length * 0.7,
-    }))
+    .map((b) => ({ b, score: guestScore(b, g) + Math.random() * 1.4 }))
+    .filter((o) => o.score > -0.5)
     .sort((a, b) => b.score - a.score);
-  if (!s.open || g.rides >= 4 || g.happiness < 25 || (s.time > 30 && ranked.length === 0)) {
+  if (
+    !s.open ||
+    g.rides >= 5 ||
+    g.happiness < 25 ||
+    (g.wallet ?? 60) < 3 ||
+    (s.time > 30 && !ranked.length)
+  ) {
     g.state = "leave";
     g.route = findRoute(s, g, ENTRANCE);
     g.target = null;
-    g.thought = "Zeit, nach Hause zu gehen.";
+    g.thought =
+      (g.wallet ?? 60) < 3
+        ? "Mein Ausflugsbudget ist aufgebraucht."
+        : !ranked.length
+          ? "Preise, Wartezeit oder Fahrten passen heute nicht zu mir."
+          : "Zeit, nach Hause zu gehen.";
     return;
   }
   const b = ranked[0]?.b;
   if (!b) {
     g.timer = 3;
-    g.thought = "Ich suche eine offene Attraktion mit einem Weg.";
+    g.thought = "Ich suche eine passende, offene Attraktion.";
     return;
   }
-  const a = access(s, b, net)!;
-  g.route = findRoute(s, g, a);
+  g.route = findRoute(s, g, access(s, b, net)!);
   g.target = b.id;
   g.thought = `Auf dem Weg: ${b.name}`;
 }
@@ -794,24 +1029,31 @@ export function tick(s: Park, dt: number) {
     return;
   }
   dt *= s.speed;
+  migratePark(s);
+  const research = s.research!;
+  if (research.active) {
+    research.remaining = Math.max(0, research.remaining - dt);
+    if (research.remaining === 0) {
+      research.completed.push(research.active);
+      research.active = null;
+    }
+  }
   const oldDay = Math.floor(s.time / 90);
   s.time += dt;
   const net = connected(s);
   const active = s.buildings.filter((b) => b.open && !decorative(b.kind) && access(s, b, net));
   s.spawnClock += dt;
   const interval = Math.max(
-    0.7,
-    4 -
-      active.filter((b) => isRide(b.kind)).length * 0.5 +
-      s.ticket * 0.05 +
-      (100 - s.rating) * 0.02,
+    2.2,
+    4.5 - active.filter((b) => isRide(b.kind)).length * 0.2 + (100 - s.rating) * 0.035,
   );
-  if (s.open && s.ticket <= 25 && s.spawnClock >= interval && s.guests.length < 220) {
+  if (s.open && s.spawnClock >= interval && s.guests.length < 220) {
     s.spawnClock = 0;
-    newGuest(s);
+    if (Math.random() < entryDemand(s)) newGuest(s);
   }
   for (const b of s.buildings) {
     if (b.testing) {
+      b.testDuration ??= b.testing;
       b.testing = Math.max(0, b.testing - dt);
       if (b.testing === 0) b.tested = true;
     }
@@ -844,37 +1086,101 @@ export function tick(s: Park, dt: number) {
           g.state = "walk";
           g.target = null;
           g.timer = 2;
-          g.rides++;
-          g.happiness = Math.min(100, g.happiness + 12);
-          g.thought = "Das hat Spaß gemacht!";
+          if (isRide(b.kind)) {
+            g.rides++;
+            (g.visited ??= []).push(b.id);
+            g.visited = g.visited.slice(-8);
+            const appeal = rideAppeal(b, g.profile),
+              change = (appeal - 4) * 2 - b.price * 0.12;
+            g.happiness = Math.max(0, Math.min(100, g.happiness + change));
+            g.thought =
+              change > 2
+                ? "Genau mein Geschmack – diese Fahrt hat sich gelohnt!"
+                : change < 0
+                  ? "Die Fahrt war für mich zu heftig, zu zahm oder zu teuer."
+                  : "Eine nette Runde.";
+          } else {
+            if (b.kind === "burger") g.hunger = 0;
+            if (b.kind === "drink") g.thirst = 0;
+            if (b.kind === "toilet") g.bladder = 0;
+            const price = g.servicePrice ?? Math.min(b.price, g.wallet ?? 60);
+            g.servicePrice = undefined;
+            g.wallet = Math.max(0, (g.wallet ?? 60) - price);
+            b.served++;
+            b.revenue += price;
+            s.cash += price;
+            s.income += price;
+            s.dayIncome += price;
+            s.operatingIncomeToday! += price;
+            const supplies = b.kind === "burger" ? 3 : b.kind === "drink" ? 1.5 : 0.4;
+            s.cash -= supplies;
+            s.expenses += supplies;
+            s.dayExpenses += supplies;
+            s.operatingExpensesToday! += supplies;
+            g.happiness = Math.min(100, g.happiness + (b.kind === "toilet" ? 1 : 4));
+            g.thought =
+              b.kind === "burger"
+                ? "Frisch zubereitet – jetzt bin ich satt."
+                : b.kind === "drink"
+                  ? "Endlich ein kühles Getränk!"
+                  : "Eine erholsame Pause.";
+          }
         }
       }
       b.riders = [];
     }
     if (!b.riders.length && b.queue.length && b.cycle <= 0) {
-      b.riders = b.queue.splice(0, rideCapacity(b));
-      b.cycle = rideDuration(b);
-      for (const id of b.riders) {
-        const g = s.guests.find((g) => g.id === id);
-        if (g) g.state = "ride";
-        b.served++;
-        b.revenue += b.price;
-        s.cash += b.price;
-        s.income += b.price;
-        s.dayIncome += b.price;
+      b.riders = [];
+      while (b.queue.length && b.riders.length < rideCapacity(b)) {
+        const id = b.queue.shift()!,
+          g = s.guests.find((g) => g.id === id);
+        if (!g) continue;
+        if ((g.wallet ?? 60) < b.price) {
+          g.state = "walk";
+          g.target = null;
+          g.timer = 1;
+          g.thought = "Der neue Preis übersteigt mein Budget.";
+          continue;
+        }
+        b.riders.push(id);
+        g.state = "ride";
+        if (!isRide(b.kind)) g.servicePrice = b.price;
+        if (isRide(b.kind)) {
+          g.wallet = Math.max(0, (g.wallet ?? 60) - b.price);
+          b.served++;
+          b.revenue += b.price;
+          s.cash += b.price;
+          s.income += b.price;
+          s.dayIncome += b.price;
+          s.operatingIncomeToday! += b.price;
+        }
       }
+      b.cycle = b.riders.length ? rideDuration(b) : 0;
     }
   }
   for (const g of s.guests) {
     g.hunger = Math.min(100, g.hunger + dt * 0.14);
     g.thirst = Math.min(100, g.thirst + dt * 0.2);
-    g.happiness = Math.max(0, g.happiness - dt * (g.hunger > 70 || g.thirst > 70 ? 0.22 : 0.012));
+    g.bladder = Math.min(100, (g.bladder ?? 10) + dt * 0.17);
+    g.happiness = Math.max(
+      0,
+      g.happiness - dt * (g.hunger > 70 || g.thirst > 70 || (g.bladder ?? 0) > 80 ? 0.22 : 0.012),
+    );
     if (g.state === "ride") continue;
     if (g.state === "queue") {
       g.timer += dt;
-      if (g.timer > 45) {
+      if (g.timer > 30) {
         g.happiness -= dt * 0.15;
         g.thought = "Die Schlange ist ganz schön lang.";
+      }
+      const patience = g.profile === "thrill" ? 80 : g.profile === "family" ? 55 : 65;
+      if (g.timer > patience) {
+        const b = s.buildings.find((b) => b.id === g.target);
+        if (b) b.queue = b.queue.filter((id) => id !== g.id);
+        g.state = "walk";
+        g.target = null;
+        g.timer = 2;
+        g.thought = "Zu lange gewartet. Ich suche etwas anderes.";
       }
       continue;
     }
@@ -925,30 +1231,18 @@ export function tick(s: Park, dt: number) {
           }
           continue;
         }
-        if (isRide(b.kind) && b.queue.length < queueCapacity(s, b)) {
+        if (
+          (g.wallet ?? 60) >= b.price &&
+          b.queue.length < (isRide(b.kind) ? queueCapacity(s, b) : 6)
+        ) {
           b.queue.push(g.id);
           g.state = "queue";
           g.timer = 0;
           g.thought = `Ich warte auf ${b.name}.`;
           continue;
         }
-        if (!isRide(b.kind)) {
-          g.hunger = b.kind === "burger" ? 0 : g.hunger;
-          g.thirst = b.kind === "drink" ? 0 : g.thirst;
-          g.happiness = Math.min(100, g.happiness + 7);
-          s.cash += b.price;
-          s.income += b.price;
-          s.dayIncome += b.price;
-          b.revenue += b.price;
-          b.served++;
-          g.timer = 4;
-          g.thought =
-            b.kind === "burger"
-              ? "Der Burger war richtig gut."
-              : b.kind === "drink"
-                ? "Endlich etwas Kaltes trinken!"
-                : "Eine gute Pause.";
-        }
+        g.thought = "Hier ist die Schlange voll oder der Preis zu hoch.";
+        g.timer = 2;
       }
       g.target = null;
     } else choose(s, g, net);
@@ -958,23 +1252,47 @@ export function tick(s: Park, dt: number) {
     s.rating = Math.round(s.guests.reduce((a, g) => a + g.happiness, 0) / s.guests.length);
   if (Math.floor(s.time / 90) !== oldDay) {
     const cost =
-      s.staff * 45 +
-      s.buildings.filter((b) => b.open).reduce((a, b) => a + CATALOG[b.kind].upkeep, 0);
+      s.staff * 80 +
+      s.buildings
+        .filter((b) => !decorative(b.kind))
+        .reduce(
+          (a, b) =>
+            a +
+            Math.round(
+              (b.track ? trackCost(b.track) : CATALOG[b.kind].cost) * 0.022 * (b.open ? 1 : 0.25),
+            ),
+          0,
+        );
     s.cash -= cost;
     s.expenses += cost;
     s.dayExpenses += cost;
+    s.operatingExpensesToday! += cost;
+    s.operatingProfit = s.operatingIncomeToday! - s.operatingExpensesToday!;
+    s.operatingIncomeToday = 0;
+    s.operatingExpensesToday = 0;
     s.lastProfit = s.dayIncome - s.dayExpenses;
     s.dayIncome = 0;
     s.dayExpenses = 0;
-    const green = s.buildings.filter((b) => decorative(b.kind)).length;
-    for (const g of s.guests)
-      g.happiness = Math.min(100, g.happiness + Math.min(6, green * 0.1) + s.staff);
+    const staffing = Math.min(1, s.staff / Math.max(1, s.guests.length / 25));
+    for (const g of s.guests) {
+      const nearby = s.buildings.filter(
+        (b) => decorative(b.kind) && Math.hypot(b.x - g.x, b.y - g.y) < 4,
+      ).length;
+      g.happiness = Math.max(0, Math.min(100, g.happiness + (nearby ? 1 : 0) - (1 - staffing) * 3));
+    }
   }
+  const goal = scenarioOf(s),
+    openRides = s.buildings.filter(
+      (b) => isRide(b.kind) && b.open && b.tested && access(s, b, net),
+    );
   if (
     !s.won &&
-    s.arrivals >= 150 &&
-    s.rating >= 75 &&
-    s.buildings.filter((b) => isRide(b.kind) && b.open && b.tested && access(s, b, net)).length >= 4
+    s.arrivals >= goal.arrivals &&
+    s.rating >= goal.rating &&
+    openRides.length >= goal.rides &&
+    (!goal.value || parkValue(s) >= goal.value) &&
+    (!goal.profit || (s.operatingProfit ?? 0) >= goal.profit) &&
+    openRides.filter((b) => b.kind === "coaster").length >= goal.coasters
   )
     s.won = true;
 }
@@ -1050,6 +1368,55 @@ export function validSave(v: unknown): v is Park {
       s.guests.length > 220
     )
       return false;
+    if (
+      s.scenario !== undefined &&
+      (typeof s.scenario !== "string" || !Object.hasOwn(SCENARIOS, s.scenario))
+    )
+      return false;
+    if (s.research !== undefined) {
+      const r = s.research;
+      if (
+        !r ||
+        !Array.isArray(r.completed) ||
+        !r.completed.every((id) => typeof id === "string" && Object.hasOwn(RESEARCH, id)) ||
+        new Set(r.completed).size !== r.completed.length ||
+        !(
+          r.active === null ||
+          (typeof r.active === "string" && Object.hasOwn(RESEARCH, r.active))
+        ) ||
+        !num(r.remaining) ||
+        r.remaining < 0 ||
+        r.remaining > 180 ||
+        (r.active !== null && r.completed.includes(r.active))
+      )
+        return false;
+    }
+    if (s.draft !== undefined) {
+      const d = s.draft;
+      if (
+        !d ||
+        (d.piece !== undefined &&
+          !["straight", "rise", "fall", "left", "right", "loop"].includes(d.piece)) ||
+        !Array.isArray(d.track) ||
+        d.track.length > 2048 ||
+        !d.track.every(trackPoint) ||
+        !Array.isArray(d.history) ||
+        d.history.length > 128 ||
+        !d.history.every((n) => Number.isInteger(n) && n >= 0 && n < d.track.length) ||
+        typeof d.style !== "string" ||
+        !Object.hasOwn(COASTER_TYPES, d.style) ||
+        !Number.isInteger(d.rotation) ||
+        d.rotation < 0 ||
+        d.rotation > 3
+      )
+        return false;
+    }
+    if (
+      [s.operatingIncomeToday, s.operatingExpensesToday, s.operatingProfit].some(
+        (v) => v !== undefined && !num(v),
+      )
+    )
+      return false;
     const ids = new Set<number>();
     for (const b of s.buildings) {
       if (
@@ -1063,7 +1430,9 @@ export function validSave(v: unknown): v is Park {
         typeof b.open !== "boolean" ||
         typeof b.tested !== "boolean" ||
         (b.autoOpen !== undefined && typeof b.autoOpen !== "boolean") ||
-        (b.testing !== undefined && (!num(b.testing) || b.testing < 0 || b.testing > 8)) ||
+        (b.testing !== undefined && (!num(b.testing) || b.testing < 0 || b.testing > 3600)) ||
+        (b.testDuration !== undefined &&
+          (!num(b.testDuration) || b.testDuration < 0 || b.testDuration > 3600)) ||
         !["price", "served", "revenue", "cycle"].every((k) =>
           num((b as unknown as Record<string, unknown>)[k]),
         ) ||
@@ -1080,12 +1449,37 @@ export function validSave(v: unknown): v is Park {
             !b.track.every(trackPoint)))
       )
         return false;
+      if (b.track) {
+        const t = b.track,
+          first = t[0],
+          last = t.at(-1)!;
+        if (first.x !== last.x || first.y !== last.y || (first.z ?? 0) !== (last.z ?? 0))
+          return false;
+        let length = 0;
+        for (let i = 1; i < t.length; i++) {
+          const a = t[i - 1],
+            p = t[i],
+            distance = Math.hypot(p.x - a.x, p.y - a.y, (p.z ?? 0) - (a.z ?? 0));
+          if (distance < 1e-8 || distance > (first.smooth ? 1.5 : Math.SQRT2 + 0.001)) return false;
+          length += distance;
+        }
+        if (length < 8) return false;
+      }
       ids.add(b.id);
     }
     const buildingIds = new Set(ids);
     for (const g of s.guests) {
       if (
         !g ||
+        (g.profile !== undefined && !["family", "thrill", "budget"].includes(g.profile)) ||
+        (g.servicePrice !== undefined &&
+          (!num(g.servicePrice) || g.servicePrice < 0 || g.servicePrice > 30)) ||
+        (g.bladder !== undefined && (!num(g.bladder) || g.bladder < 0 || g.bladder > 100)) ||
+        (g.wallet !== undefined && (!num(g.wallet) || g.wallet < 0 || g.wallet > 200)) ||
+        (g.visited !== undefined &&
+          (!Array.isArray(g.visited) ||
+            g.visited.length > 8 ||
+            !g.visited.every(Number.isInteger))) ||
         !Number.isInteger(g.id) ||
         ids.has(g.id) ||
         !["x", "y", "timer", "happiness", "hunger", "thirst", "rides", "skin"].every((k) =>

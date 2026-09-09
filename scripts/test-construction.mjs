@@ -1,19 +1,10 @@
 import fs from "node:fs";
 import assert from "node:assert/strict";
 import ts from "typescript";
-function source(name) {
-  return ts.transpileModule(
-    fs.readFileSync(new URL(`../game/${name}.ts`, import.meta.url), "utf8"),
-    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } },
-  ).outputText;
-}
-const url = (code) => "data:text/javascript;base64," + Buffer.from(code).toString("base64");
-const simulationURL = url(source("simulation")),
-  M = await import(simulationURL);
-const C = await import(
-  url(source("construction").replace(/from ['"]\.\/simulation['"]/g, `from '${simulationURL}'`))
-);
-const A = await import(url(source("motion")));
+import { moduleURL } from "./ts-loader.mjs";
+const M = await import(moduleURL("game/simulation.ts")),
+  C = await import(moduleURL("game/construction.ts")),
+  A = await import(moduleURL("game/motion.ts"));
 let failed = 0;
 function test(name, fn) {
   try {
@@ -194,7 +185,7 @@ test("Coaster connector starts at station; auto-opening recovers after a tempora
   const entry = M.access(s, b);
   assert(Math.abs(entry.x - b.x) + Math.abs(entry.y - b.y) === 1);
   s.tiles[entry.y][entry.x] = "grass";
-  for (let i = 0; i < 40; i++) M.tick(s, 0.25);
+  M.tick(s, M.rideDuration(b) + 0.1);
   assert(b.tested);
   assert(!b.open);
   s.tiles[entry.y][entry.x] = "queue";
@@ -234,14 +225,11 @@ test("Coaster travel accelerates, brakes, slows uphill and preserves car spacing
   const crest = r.points.findIndex((p) => p.x === 1),
     bottom = r.points.findIndex((p) => p.x === 2);
   assert(r.cost[crest] > r.cost[bottom] - r.cost[crest]);
-  const speeds = r.distance
-    .slice(1)
-    .map((d, i) => (d - r.distance[i]) / (r.cost[i + 1] - r.cost[i]));
-  for (let i = 1; i < speeds.length; i++)
-    assert(
-      Math.max(speeds[i] / speeds[i - 1], speeds[i - 1] / speeds[i]) < 1.6,
-      "Speed must blend over track crests",
-    );
+  for (let i = 1; i < r.speeds.length; i++) {
+    const acceleration =
+      (r.speeds[i] ** 2 - r.speeds[i - 1] ** 2) / (2 * (r.distance[i] - r.distance[i - 1]) * 5);
+    assert(Math.abs(acceleration) <= 3.001, "Acceleration and braking must remain bounded");
+  }
   assert.equal(A.trainDistance(r, 0), 0);
   assert.equal(A.trainDistance(r, 1), r.length);
   for (let i = 0; i <= 100; i++) {
@@ -284,7 +272,7 @@ test("Screenshot regression: paths directly beside a station work without conver
   assert(b.autoOpen);
   assert.equal(s.cash, cash);
   assert.equal(JSON.stringify(s.tiles), tiles);
-  for (let i = 0; i < 40; i++) M.tick(s, 0.25);
+  M.tick(s, M.rideDuration(b) + 0.1);
   assert(b.tested && b.open);
   assert(M.validSave(s));
 });
@@ -303,7 +291,7 @@ test("Direct boarding still requires the park entrance; a dedicated queue takes 
   s.tiles[11][13] = "queue";
   assert.equal(M.queueCapacity(s, b), 8);
 });
-test("Every eligible station shift preserves the entire circuit, hills, track stats and identity", () => {
+test("Every eligible station shift preserves geometry, hills and identity while recomputing ride speed", () => {
   const s = empty(),
     b = add(s, "coaster", 10, 10, C.blueprint({ x: 10, y: 10 })),
     initial = JSON.stringify(b.track),
@@ -331,7 +319,9 @@ test("Every eligible station shift preserves the entire circuit, hills, track st
     assert.equal(b.x, p.x);
     assert.equal(b.y, p.y);
     assert.deepEqual(edges(b.track), beforeEdges);
-    assert.deepEqual(M.trackStats(b.track), stats);
+    assert.equal(M.trackStats(b.track).length, stats.length);
+    assert.equal(M.trackStats(b.track).height, stats.height);
+    assert(M.trackStats(b.track).speed > 0); // Moving the station legitimately changes acceleration/braking locations.
     assert(M.validSave(s));
   }
 });
@@ -400,7 +390,9 @@ test("Rigid relocation rotates around the station, tolerates overlap with itself
     assert.notEqual(b.track, oldTrack);
     assert.equal(b.id, id);
     assert.equal(s.cash, cash);
-    assert.deepEqual(M.trackStats(b.track), stats);
+    assert.equal(M.trackStats(b.track).length, stats.length);
+    assert.equal(M.trackStats(b.track).height, stats.height);
+    assert(M.trackStats(b.track).speed > 0); // Moving the station legitimately changes acceleration/braking locations.
     assert(M.validSave(s));
   }
 });
@@ -492,7 +484,7 @@ test("Undo of a moved test ride allows a fresh automatic test instead of leaving
   assert(!b.testing);
   assert.equal(C.connectBuilding(s, b), null);
   assert(b.testing);
-  for (let i = 0; i < 40; i++) M.tick(s, 0.25);
+  M.tick(s, M.rideDuration(b) + 0.1);
   assert(b.tested && b.open);
   assert(M.validSave(s));
 });

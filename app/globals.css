@@ -1660,3 +1660,297 @@ button:hover:not(:disabled) {
 .coaster-types img {
   max-width: 100%;
 }
+
+/* Compact construction workspace: primary actions stay visible at laptop height. */
+.builder-panel {
+  top: 16px !important;
+  left: 16px !important;
+  bottom: 104px;
+  width: 324px !important;
+  max-height: none !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.builder-panel .panelhead {
+  padding: 14px 16px 8px;
+  flex-shrink: 0;
+}
+.builder-panel .panelbody {
+  padding: 0 14px 12px;
+  overflow: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.builder-panel .coaster-types button {
+  padding: 4px 2px;
+  min-height: 50px;
+}
+.builder-panel .coaster-types img {
+  height: 27px;
+  width: 40px;
+  object-fit: contain;
+}
+.builder-panel .coaster-types strong {
+  font-size: 10px;
+}
+.builder-panel .build-modes {
+  margin: 0;
+  padding: 3px;
+  min-height: 32px;
+}
+.builder-panel .build-modes button {
+  padding: 5px;
+  font-size: 12px;
+}
+.builder-panel .small,
+.builder-panel .buildnote {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.builder-panel .draftstats {
+  margin: 0;
+  padding: 3px 0;
+  font-size: 12px;
+}
+.builder-panel .prefab-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0;
+}
+.builder-panel .prefab-grid button {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding: 5px 2px;
+  min-height: 58px;
+}
+.builder-panel .piece-glyph {
+  font-size: 20px;
+  line-height: 20px;
+}
+.builder-panel .prefab-grid strong {
+  font-size: 11px;
+}
+.builder-panel .prefab-grid small {
+  font-size: 8px;
+}
+.candidate-status {
+  padding: 6px 8px;
+  background: #e6f0df;
+  color: #2b634b;
+  border-radius: 7px;
+  font-size: 11px;
+  line-height: 1.4;
+  min-height: 34px;
+}
+.candidate-status.invalid {
+  background: #fff0d5;
+  color: #8a4b34;
+}
+.builder-actions {
+  position: sticky;
+  bottom: -12px;
+  background: #fffef5;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 0;
+  z-index: 2;
+}
+.builder-actions button {
+  min-height: 30px;
+  padding: 7px 8px;
+  font-size: 12px;
+}
+.builder-row {
+  display: flex;
+  gap: 6px;
+}
+.builder-row .primary {
+  flex: 1;
+}
+.builder-row .secondary {
+  width: 42px !important;
+}
+.builder-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+}
+.builder-options label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.builder-options .text-action {
+  font-size: 10px;
+  padding: 2px;
+  min-height: 20px;
+}
+.builder-panel .blueprint-art {
+  height: 80px;
+}
+.builder-panel .blueprint-title {
+  margin: 0;
+  font-size: 18px;
+}
+.resume-draft {
+  position: absolute;
+  top: 79px;
+  left: 28px;
+  z-index: 6;
+  font-size: 12px;
+  padding: 8px 12px;
+}
+.research-link {
+  width: 100%;
+  font-size: 11px;
+  padding: 8px;
+  margin-top: 12px;
+}
+.research-card {
+  border: 1px solid #d7e1ce;
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+.research-card h3 {
+  font-size: 17px;
+  margin: 0;
+}
+.research-card p {
+  font-size: 14px;
+  margin: 5px 0;
+}
+.research-card small {
+  color: #6f7e66;
+}
+.research-card progress {
+  width: 100%;
+  accent-color: #2f6b50;
+}
+.scenario-card {
+  display: flex !important;
+  flex-direction: column;
+  align-items: flex-start !important;
+  gap: 6px;
+  text-align: left;
+  white-space: normal !important;
+}
+.scenario-card span {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.guestrow small {
+  display: block;
+  font-size: 10px;
+  color: #738269;
+}
+.asset-card:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+@media (max-width: 700px) {
+  .builder-panel {
+    width: 290px !important;
+    left: 8px !important;
+    bottom: 90px;
+  }
+  .builder-panel .panelhead {
+    padding-top: 8px;
+  }
+  .resume-draft {
+    top: 64px;
+    left: 12px;
+  }
+}
+
+.ride-timeline {
+  width: calc(100% - 48px);
+  margin: 7px 24px 0;
+  accent-color: #2d6c53;
+  cursor: pointer;
+}
+
+.builder-panel {
+  top: 8px !important;
+  bottom: 80px;
+}
+.builder-panel .panelhead {
+  padding: 9px 14px 6px;
+  min-height: 36px;
+}
+.builder-panel .panelbody {
+  gap: 4px;
+  padding-bottom: 6px;
+}
+.builder-panel .coaster-types {
+  margin: 0;
+}
+.builder-panel .coaster-types button {
+  min-height: 36px;
+  padding: 2px;
+}
+.builder-panel .coaster-types img {
+  height: 20px;
+}
+.builder-panel .build-modes {
+  min-height: 28px;
+}
+.builder-panel .prefab-grid button {
+  min-height: 48px;
+  padding: 3px 2px;
+  gap: 0;
+}
+.builder-panel .prefab-grid small {
+  line-height: 10px;
+}
+.builder-panel .candidate-status {
+  min-height: 28px;
+  padding: 5px 7px;
+}
+.builder-panel .builder-actions {
+  bottom: -6px;
+  gap: 4px;
+  padding: 4px 0;
+}
+.builder-panel .builder-actions button {
+  min-height: 28px;
+  line-height: 14px;
+  padding: 5px 7px;
+}
+.builder-panel .builder-options button {
+  min-height: 20px;
+  padding: 2px;
+  font-size: 10px;
+}
+.builder-panel .panelbody > .secondary {
+  padding: 5px;
+  min-height: 28px;
+  font-size: 11px;
+}
+.builder-panel .buildnote {
+  font-size: 10px;
+}
+
+.resume-draft {
+  top: 18px;
+  left: 354px;
+}
+@media (max-width: 700px) {
+  .resume-draft {
+    top: auto;
+    bottom: 150px;
+    left: auto;
+    right: 12px;
+  }
+}

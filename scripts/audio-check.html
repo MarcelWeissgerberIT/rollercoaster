@@ -3,10 +3,10 @@ import {ParkAudio,DEFAULT_AUDIO} from '../game/audio.ts';
 document.querySelector('#run').onclick=async()=>{
  const output=[];const Original=window.AudioContext;
  try {
-  for(const [name,levels] of [['Mix',{master:.55,music:.28,effects:.65}],['Stumm',{master:0,music:.28,effects:.65}],['Nur Musik',{master:.55,music:.28,effects:0}],['Nur Effekte',{master:.55,music:0,effects:.65}]]){
+  for(const [name,levels] of [['Mix',{master:.55,music:.28,effects:.65}],['Stumm',{master:0,music:.28,effects:.65}],['Nur Musik',{master:.55,music:.28,effects:0}],['Nur Effekte',{master:.55,music:0,effects:.65}],['Kettenlift',{master:.55,music:0,effects:.65}],['Launch',{master:.55,music:0,effects:.65}],['Bremse',{master:.55,music:0,effects:.65}]]){
    const context=new OfflineAudioContext(1,24000,24000);
    window.AudioContext=class{constructor(){return new Proxy(context,{get(target,key){if(key==='state')return 'running';if(['resume','suspend','close'].includes(key))return ()=>Promise.resolve();const v=Reflect.get(target,key,target);return typeof v==='function'?v.bind(target):v;}})}};
-   const engine=new ParkAudio();engine.setSettings({...DEFAULT_AUDIO,...levels,enabled:true});await engine.unlock();engine.effect('build');engine.ride(18,true);
+   const engine=new ParkAudio();engine.setSettings({...DEFAULT_AUDIO,...levels,enabled:true});await engine.unlock();engine.effect('build');engine.ride(18,true,name==='Kettenlift'?'lift':name==='Launch'?'launch':name==='Bremse'?'brake':'coast');
    await new Promise(r=>setTimeout(r,100));const rendered=await context.startRendering();engine.dispose();
    const samples=rendered.getChannelData(0);let sum=0,peak=0;for(const x of samples){if(!Number.isFinite(x))throw Error('Nichtendlicher Audiowert');sum+=x*x;peak=Math.max(peak,Math.abs(x));}const rms=Math.sqrt(sum/samples.length);
    if(name==='Stumm'?peak!==0:rms<.0001||peak>.9)throw Error(name+' ungültig: '+rms+'/'+peak);
