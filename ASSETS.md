@@ -44,7 +44,7 @@ Zwei neue **OpenArt-MCP**-Generierungen mit GPT Image 2.5 Flare liefern zehn Lau
 
 Die Sportrakete nutzt 48 × 40 logische Pixel mit Anker (24, 30). OpenArt lieferte Tandemsitze; diese Anordnung ist in 2D und 3D übernommen. Eine Materialmaske färbt Karosserie, Akzente und Sitze um und erhält Schattierung, Transparenz und dunkle Mechanik. Die drei 3D-Wagenmodelle sind eigenständige Spielgeometrie mit passenden Sitzankern, Radgruppen, Haltebügeln und Modellmerkmalen.
 
-Mülleimer und Personal nutzen 24 × 32 logische Pixel mit Fußpunkt (12, 28), jeweils exakt vierfach vergrößert. Reinigungskräfte besitzen eine Pose pro Richtung mit leichter Lauf-/Kehrbewegung zur Laufzeit; dies ist kein vollständiger Gehzyklus. Müllteile, Smileys und Analysemarkierungen zeichnet die Engine. Schreie und Jubel werden ausschließlich prozedural über Web Audio erzeugt; es werden keine aufgenommenen Stimmen verwendet.
+Die ursprünglichen Mülleimer- und Personalbilder nutzen 24 × 32 logische Pixel mit Fußpunkt (12, 28), jeweils exakt vierfach vergrößert. Die Personalbilder dienen weiterhin als Porträts. Im Park und in 3D werden Mitarbeiter jetzt als gegliederte Figuren mit gemeinsamen Bewegungsposen gezeichnet (`staff-animation.ts`, `staff-canvas.ts`, `staff-model.ts`): laufende Beine und Arme, aufgabengebundene Werkzeuge, Müllbeutel und Übergaben sowie Pflege- und Bedienbewegungen. `staffLocation` liefert beiden Ansichten und der Ortungsfunktion dieselbe Position; Wegfortschritt und Arbeitszustand steuern die Animation. Müllteile, Smileys und Analysemarkierungen zeichnet die Engine. Schreie und Jubel werden ausschließlich prozedural über Web Audio erzeugt; es werden keine aufgenommenen Stimmen verwendet.
 
 ## Zoo-Erweiterung v7
 

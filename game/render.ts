@@ -6,7 +6,10 @@ import { drawStationDirection } from "./station-direction";
 import { makeRidePath } from "./ride-path";
 import { photoHardwarePoints, isPhotoPoint } from "./coaster-photo";
 import { GATES, gateStyle } from "./entrance";
-import { operatorState } from "./operations";
+import { staffLocation, type StaffRef } from "./staff";
+import { staffMotion } from "./staff-visual";
+import { drawStaff } from "./staff-canvas";
+import { cleanerTransfer, staffBagLocal, staffLocalWorld } from "./staff-work";
 import lifeSpecs from "./life-sprites.json";
 import { bumperPose, balloonPose } from "./family-rides";
 import { FOOD, isFood, restPose, PATH_STYLES, pathStyleAt } from "./park-life";
@@ -53,6 +56,7 @@ import {
 } from "./motion";
 const photoPaths = new WeakMap<Point[], ReturnType<typeof makeRidePath>>();
 export type View = {
+  staffFocus?: { ref: StaffRef; until: number };
   stationDirection?: Building;
   showMoods?: boolean;
   issues?: ParkIssue[];
@@ -965,9 +969,30 @@ export function draw(
               alpha,
             );
         });
-    } else if (b.kind === "bin")
+    } else if (b.kind === "bin") {
       frame((b.binFill ?? 0) >= 12 ? "bin-full" : "bin-empty", p, specs["bin-empty"], alpha);
-    else frame(CATALOG[b.kind].sprite, p, specs[CATALOG[b.kind].sprite], alpha);
+      const worker = s.cleanliness?.workers.find(
+        (worker) =>
+          worker.target?.id === b.id && (worker.mode === "empty" || worker.mode === "deposit"),
+      );
+      const transfer = worker && cleanerTransfer(s, worker);
+      if (transfer && transfer.lidOpen > 0.01) {
+        ctx.fillStyle = "#263e32";
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y - 17 * scale, 5 * scale, 2 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        poly(
+          [
+            { x: p.x - 5 * scale, y: p.y - 17 * scale },
+            { x: p.x + 5 * scale, y: p.y - 17 * scale },
+            { x: p.x + 4 * scale, y: p.y - (19 + 8 * transfer.lidOpen) * scale },
+            { x: p.x - 4 * scale, y: p.y - (19 + 8 * transfer.lidOpen) * scale },
+          ],
+          "#568c64",
+          "#294d3b",
+        );
+      }
+    } else frame(CATALOG[b.kind].sprite, p, specs[CATALOG[b.kind].sprite], alpha);
     if (b.design) {
       const emblem = { x: p.x - 38 * scale, y: p.y + 7 * scale };
       line(
@@ -1493,74 +1518,116 @@ export function draw(
       },
     });
   }
-  for (const b of s.buildings) {
-    const staff = operatorState(b);
-    if (!staff) continue;
-    const pod = podPose(b, CATALOG[b.kind].size, effectivePods(s, b).entry);
-    const x = pod.x - pod.dy * 0.23,
-      y = pod.y + pod.dx * 0.23;
+  const staffRefs: StaffRef[] = [
+    ...s.buildings.map((b) => ({ kind: "operator" as const, id: b.id })),
+    ...(s.zoo?.workers ?? []).map((worker) => ({ kind: "keeper" as const, id: worker.id })),
+    ...(s.cleanliness?.workers ?? []).map((worker) => ({
+      kind: "cleaner" as const,
+      id: worker.id,
+    })),
+  ];
+  for (const ref of staffRefs) {
+    const location = staffLocation(s, ref),
+      motion = staffMotion(s, ref);
+    if (!location || !motion) continue;
+    if (ref.kind === "operator" && location.control) {
+      const building = s.buildings.find((b) => b.id === ref.id)!,
+        pod = podPose(building, CATALOG[building.kind].size, effectivePods(s, building).entry),
+        c = { x: location.control.x - pod.dx * 0.11, y: location.control.y - pod.dy * 0.11 };
+      objects.push({
+        depth: c.x + c.y + 0.14,
+        draw: () => {
+          const p = project(c.x, c.y);
+          line({ x: p.x, y: p.y }, { x: p.x, y: p.y - 12 * scale }, "#405950", 1.6);
+          ctx.fillStyle = "#2c5650";
+          ctx.fillRect(p.x - 4 * scale, p.y - 16 * scale, 8 * scale, 5 * scale);
+          ctx.fillStyle = motion.action === "console" ? "#c8ef85" : "#ead29a";
+          ctx.fillRect(p.x - 2 * scale, p.y - 15 * scale, 2 * scale, 2 * scale);
+          ctx.fillStyle = "#d78368";
+          ctx.fillRect(p.x + scale, p.y - 15 * scale, 1.4 * scale, 1.4 * scale);
+        },
+      });
+    }
     objects.push({
-      depth: x + y + 0.2,
+      depth: location.x + location.y + 0.13,
       draw: () => {
-        const p = project(x, y);
-        frame("keeper-se", p, specs["keeper-se"]);
-        ctx.fillStyle = "#325875";
-        ctx.fillRect(p.x - 3 * scale, p.y - 18 * scale, 6 * scale, 5 * scale);
-        ctx.fillStyle = staff.phase === "running" ? "#8acf85" : "#f2cc74";
-        ctx.fillRect(p.x + 4 * scale, p.y - 12 * scale, 5 * scale, 4 * scale);
-        if (staff.phase === "boarding" || staff.phase === "checking") {
-          ctx.strokeStyle = "#e0b285";
-          ctx.lineWidth = 2 * scale;
-          ctx.beginPath();
-          ctx.moveTo(p.x + 3 * scale, p.y - 12 * scale);
-          ctx.lineTo(p.x + 7 * scale, p.y - (13 + Math.sin(s.time * 5) * 3) * scale);
-          ctx.stroke();
-        }
+        const p = project(location.x, location.y);
+        drawStaff(ctx, motion, p.x, p.y, scale);
       },
     });
   }
-  for (const worker of s.zoo?.workers ?? [])
+  const collectionPoints = new Set<string>();
+  for (const worker of s.cleanliness?.workers ?? []) {
+    const transfer = cleanerTransfer(s, worker);
+    if (!transfer) continue;
+    const target = project(transfer.target.x, transfer.target.y);
+    if (transfer.collection && !collectionPoints.has(`${transfer.target.x},${transfer.target.y}`)) {
+      collectionPoints.add(`${transfer.target.x},${transfer.target.y}`);
+      objects.push({
+        depth: transfer.target.x + transfer.target.y,
+        draw: () => {
+          poly(
+            [
+              { x: target.x - 8 * scale, y: target.y - 13 * scale },
+              { x: target.x + 6 * scale, y: target.y - 13 * scale },
+              { x: target.x + 5 * scale, y: target.y - 2 * scale },
+              { x: target.x - 6 * scale, y: target.y - 2 * scale },
+            ],
+            "#617b63",
+            "#344c3c",
+          );
+          line(
+            { x: target.x - 7 * scale, y: target.y - 14 * scale },
+            { x: target.x + 8 * scale, y: target.y - 14 * scale },
+            "#d4c392",
+            2,
+          );
+          for (const side of [-1, 1]) {
+            ctx.fillStyle = "#34423b";
+            ctx.beginPath();
+            ctx.arc(target.x + side * 5 * scale, target.y, 2 * scale, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        },
+      });
+    }
+    if (!transfer.showTransfer) continue;
+    const ref: StaffRef = { kind: "cleaner", id: worker.id },
+      location = staffLocation(s, ref),
+      motion = staffMotion(s, ref);
+    if (!location || !motion) continue;
+    const base = project(location.x, location.y),
+      local = staffLocalWorld(staffBagLocal(motion), motion),
+      hand = {
+        x: base.x + (local[0] - local[2]) * 9 * scale,
+        y: base.y + ((local[0] + local[2]) * 4.5 - local[1] * 15) * scale,
+      },
+      bin = { x: target.x, y: target.y - (transfer.collection ? 13 : 18) * scale },
+      a = transfer.empty ? bin : hand,
+      b = transfer.empty ? hand : bin,
+      bag = {
+        x: a.x + (b.x - a.x) * transfer.t,
+        y: a.y + (b.y - a.y) * transfer.t - Math.sin(transfer.t * Math.PI) * 5 * scale,
+      };
     objects.push({
-      depth: worker.x + worker.y + 0.13,
+      depth: Math.max(location.x + location.y, transfer.target.x + transfer.target.y) + 0.25,
       draw: () => {
-        const next = worker.route[0],
-          dir = next ? heading(next.x - worker.x, next.y - worker.y) : "se",
-          p = project(worker.x, worker.y);
-        if (worker.mode === "walk") p.y -= Math.abs(Math.sin(s.time * 7 + worker.id)) * scale;
-        frame(
-          `keeper-${dir}`,
-          p,
-          specs[`keeper-${dir}`],
+        ctx.fillStyle = "#4c5c49";
+        ctx.strokeStyle = "#2b4034";
+        ctx.lineWidth = 0.5 * scale;
+        ctx.beginPath();
+        ctx.ellipse(bag.x, bag.y, 2.4 * scale, 3.3 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        line(
+          { x: bag.x, y: bag.y - 3 * scale },
+          { x: bag.x, y: bag.y - 4.3 * scale },
+          "#c1c99b",
           1,
-          worker.mode === "care" ? Math.sin(s.time * 4) * 0.05 : 0,
         );
       },
     });
-  for (const worker of s.cleanliness?.workers ?? [])
-    objects.push({
-      depth: worker.x + worker.y + 0.13,
-      draw: () => {
-        const next = worker.route[0],
-          dir = next ? heading(next.x - worker.x, next.y - worker.y) : "se",
-          p = project(worker.x, worker.y);
-        const walking = worker.mode === "walk",
-          sweeping = worker.mode === "sweep" || worker.mode === "empty";
-        if (walking) p.y -= Math.abs(Math.sin(s.time * 7 + worker.id)) * scale;
-        frame(
-          `cleaner-${dir}`,
-          p,
-          specs[`cleaner-${dir}`],
-          1,
-          sweeping ? Math.sin(s.time * 6) * 0.07 : 0,
-        );
-        if (sweeping) {
-          ctx.fillStyle = "#fff0bf";
-          ctx.font = `bold ${9 * scale}px sans-serif`;
-          ctx.textAlign = "center";
-          ctx.fillText(worker.mode === "empty" ? "↓" : "✦", p.x, p.y - 28 * scale);
-        }
-      },
-    });
+  }
   for (const b of s.buildings) {
     const event = service.get(b) ?? { served: b.served, time: -10, value: 0 };
     if (event.served !== b.served) {
@@ -1597,6 +1664,37 @@ export function draw(
       o.draw();
     });
   hitOwner = undefined;
+  if (v.staffFocus && _realTime < v.staffFocus.until) {
+    const person = staffLocation(s, v.staffFocus.ref);
+    if (person) {
+      const p = project(person.x, person.y),
+        pulse = 1 + Math.sin(_realTime / 180) * 0.09;
+      ctx.save();
+      ctx.strokeStyle = "#fff9d8";
+      ctx.fillStyle = "#ffe18e55";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y + scale, 11 * scale * pulse, 5 * scale * pulse, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // Redraw only the selected person above scenery so they can be found behind a tree.
+      const motion = staffMotion(s, v.staffFocus.ref);
+      if (motion) drawStaff(ctx, motion, p.x, p.y, scale);
+      const label = `${person.name} · ${person.label}`;
+      ctx.font = "600 13px sans-serif";
+      ctx.textAlign = "center";
+      const width = Math.min(w - 32, ctx.measureText(label).width + 24),
+        lx = Math.max(width / 2 + 8, Math.min(w - width / 2 - 8, p.x)),
+        ly = Math.max(36, p.y - 34 * scale);
+      ctx.fillStyle = "#fffbed";
+      ctx.fillRect(lx - width / 2, ly - 21, width, 30);
+      ctx.strokeStyle = "#b69446";
+      ctx.strokeRect(lx - width / 2, ly - 21, width, 30);
+      ctx.fillStyle = "#294e42";
+      ctx.fillText(label, lx, ly - 1, width - 12);
+      ctx.restore();
+    }
+  }
   if (v.traffic)
     drawTrafficOverlay(
       ctx,

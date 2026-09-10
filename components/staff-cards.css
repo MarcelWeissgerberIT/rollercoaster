@@ -308,33 +308,84 @@
   gap: 8px;
   margin-top: 10px;
 }
-.sc details.sc-person {
+.sc .sc-person {
   border: 1px solid var(--sc-border);
   background: var(--sc-paper);
   border-radius: 12px;
   overflow: hidden;
 }
-.sc .sc-person > summary {
+.sc .sc-person-locate {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 10px;
   cursor: pointer;
-  list-style: none;
+  width: 100%;
+  border: 0;
+  border-radius: 11px 11px 0 0;
+  background: transparent;
+  text-align: left;
   padding: 10px;
-  min-height: 79px;
+  min-height: 88px;
 }
-.sc .sc-person summary::-webkit-details-marker,
+.sc .sc-person-locate:hover:not(:disabled) {
+  background: #f0f5e8;
+}
+.sc .sc-person-locate:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.sc .sc-locate-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 32px;
+  border-radius: 8px;
+  background: #edf3e2;
+  color: #789763;
+  flex-shrink: 0;
+}
+.sc .sc-person-intro > .sc-locate-hint {
+  color: #6a8957;
+  font-size: 9px;
+  font-weight: 600;
+  margin-top: 5px;
+}
+.sc .sc-person-locate:disabled .sc-locate-icon,
+.sc .sc-person-locate:disabled .sc-locate-hint {
+  color: #8d9882;
+}
+.sc details.sc-person-details {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid #e5eadb;
+  border-radius: 0 0 11px 11px;
+  background: #f8faf1;
+}
+.sc .sc-person-details > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 9px 12px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  color: #81936e;
+}
+.sc .sc-person-details summary::-webkit-details-marker,
 .sc .sc-specialists summary::-webkit-details-marker {
   display: none;
 }
-.sc .sc-person > summary > svg {
+.sc .sc-person-details > summary > svg {
   width: 14px;
   height: 14px;
   color: #92a185;
   margin-left: auto;
 }
-.sc .sc-person[open] > summary > svg {
+.sc .sc-person-details[open] > summary > svg {
   transform: rotate(180deg);
 }
 .sc .sc-portrait {
@@ -600,6 +651,9 @@
 .sc summary:focus-visible {
   outline: 3px solid #a6b784;
   outline-offset: 2px;
+}
+.sc .sc-person-locate:focus-visible {
+  outline-offset: -3px;
 }
 .sc .sc-counter button:focus-visible {
   outline-offset: -3px;

@@ -111,12 +111,16 @@ export type Keeper = {
   role?: SpecialistRole;
   /** Omitted means automatic job selection; qualification is always kept in role. */
   assignedHabitatId?: number;
+  /** Actual travelled grid distance and direction; absent in older saves. */
+  walked?: number;
+  heading?: number;
+  workTotal?: number;
   x: number;
   y: number;
   homeId: number;
   targetId: number | null;
   route: Point[];
-  mode: "idle" | "walk" | "care";
+  mode: "idle" | "walk" | "patrol" | "care";
   workLeft: number;
   retry: number;
 };
@@ -227,6 +231,7 @@ function reset(w: Keeper, retry = 1) {
   w.route = [];
   w.mode = "idle";
   w.workLeft = 0;
+  delete w.workTotal;
   w.retry = retry;
 }
 function reconcile(s: ZooPark, net: Set<string>, access?: ZooAccess): ZooState {
@@ -428,6 +433,7 @@ export function assignZooKeeperToHabitat(
   // Keep useful work already in progress. A new incompatible job starts from
   // the worker's actual location on the next simulation step, without teleporting.
   if (buildingId !== null && w.targetId !== null && w.targetId !== buildingId) reset(w, 0);
+  if (w.mode === "patrol") reset(w, 0);
   if (w.targetId === null) w.retry = 0;
   return null;
 }
@@ -646,6 +652,40 @@ function needsWorker(w: Keeper, b: ZooBuilding): boolean {
     ? (b.habitat?.safety?.condition ?? 100) < 80
     : qualified(w, b) && needsCare(b.habitat!);
 }
+/** Idle rounds follow public paths close to the employee's assigned habitat or
+ * home. They reserve no job and can be interrupted as soon as real care is due. */
+function patrolRoute(s: Park, w: Keeper, net: Set<string>, ports: Map<number, Point>): Point[] {
+  const assigned = s.buildings.find((b) => b.id === w.assignedHabitatId),
+    home = s.buildings.find((b) => b.id === w.homeId && b.kind === "keeperhut"),
+    anchorBuilding = assigned && ports.has(assigned.id) ? assigned : home,
+    anchor = (assigned && ports.get(assigned.id)) || (home && port(s, home, net));
+  if (!anchor || !anchorBuilding) return [];
+  const publicNet = new Set(
+    [...net].filter((k) => {
+      const [x, y] = k.split(",").map(Number);
+      return s.tiles[y]?.[x] === "path";
+    }),
+  );
+  // A legacy hut may have a queue as its entrance. Leave that starting cell,
+  // then stay on public path cells for the rest of the patrol.
+  if (net.has(key(cell(w)))) publicNet.add(key(cell(w)));
+  const candidates = [...publicNet]
+    .map((k) => {
+      const [x, y] = k.split(",").map(Number);
+      return { x, y };
+    })
+    .filter(
+      (p) =>
+        Math.abs(p.x - anchor.x) + Math.abs(p.y - anchor.y) <= 3 &&
+        s.tiles[p.y]?.[p.x] === "path" &&
+        Math.hypot(p.x - w.x, p.y - w.y) >= 1,
+    );
+  if (!candidates.length) return [];
+  const index = Math.abs(w.id + Math.round(w.x * 3 + w.y * 5)) % candidates.length,
+    destination = candidates[index],
+    found = routeToJob(s, w, [{ b: anchorBuilding, p: destination }], publicNet);
+  return found?.route ?? [];
+}
 function step(s: ZooPark, dt: number, access: ZooAccess) {
   const net = network(s),
     z = reconcile(s, net, access),
@@ -676,6 +716,12 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
       if (w.targetId !== null) reserved.delete(w.targetId);
       reset(w, retry);
     };
+    const eligible = (b: ZooBuilding) =>
+      !reserved.has(b.id) &&
+      needsWorker(w, b) &&
+      s.cash >= (w.role === "technical" ? HABITAT_INSPECTION_COST : serviceCost(b.habitat!)) &&
+      ports.has(b.id);
+    if (w.mode === "patrol" && list.some(eligible)) clear(0);
     if (
       w.targetId !== null &&
       (!target ||
@@ -688,11 +734,19 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
       let budget = dt * 1.35;
       while (w.route.length && budget > 0) {
         const p = w.route[0];
-        if (!net.has(key(p))) {
+        if (
+          !net.has(key(p)) ||
+          (w.mode === "patrol" && s.tiles[p.y]?.[p.x] !== "path" && !equal(p, cell(w)))
+        ) {
           clear();
           break;
         }
         const d = Math.hypot(p.x - w.x, p.y - w.y);
+        const moved = Math.min(d, budget);
+        if (moved > 1e-9) {
+          w.heading = Math.atan2(p.y - w.y, p.x - w.x);
+          w.walked = (w.walked ?? 0) + moved;
+        }
         if (d <= budget) {
           w.x = p.x;
           w.y = p.y;
@@ -705,8 +759,12 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
         }
       }
       if (w.route.length) {
-        w.mode = "walk";
+        if (w.mode !== "patrol") w.mode = "walk";
         continue;
+      }
+      if (w.mode === "patrol") {
+        w.mode = "idle";
+        w.retry = 1 + (w.id % 3) * 0.25;
       }
     }
     if (w.targetId !== null) {
@@ -716,7 +774,8 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
         clear();
         continue;
       }
-      if (w.workLeft <= 0) w.workLeft = 4 + target.habitat!.count * 0.6;
+      if (w.workLeft <= 0) w.workLeft = w.workTotal = 4 + target.habitat!.count * 0.6;
+      w.workTotal ??= Math.max(w.workLeft, 4 + target.habitat!.count * 0.6);
       w.mode = "care";
       w.workLeft = Math.max(0, w.workLeft - dt);
       if (w.workLeft === 0) {
@@ -731,13 +790,7 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
     w.retry = Math.max(0, w.retry - dt);
     if (w.retry > 0) continue;
     const jobs = list
-      .filter(
-        (b) =>
-          !reserved.has(b.id) &&
-          needsWorker(w, b) &&
-          s.cash >= (w.role === "technical" ? HABITAT_INSPECTION_COST : serviceCost(b.habitat!)) &&
-          ports.has(b.id),
-      )
+      .filter(eligible)
       .sort(
         (a, b) =>
           Math.min(a.habitat!.food, a.habitat!.water, a.habitat!.clean, a.habitat!.health) -
@@ -751,7 +804,14 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
       w.workLeft = 0;
       w.mode = found.route.length ? "walk" : "care";
       reserved.add(w.targetId);
-    } else w.retry = 1.5;
+    } else {
+      const patrol = patrolRoute(s, w, net, ports);
+      if (patrol.length) {
+        w.route = patrol;
+        w.mode = "patrol";
+      }
+      w.retry = 1.5;
+    }
   }
 }
 export function tickZoo(s: ZooPark, dt: number, access: ZooAccess): void {
@@ -831,6 +891,10 @@ export function validZoo(s: Park): boolean {
         !w ||
         !pos(w) ||
         (w.role !== undefined && !Object.hasOwn(SPECIALIST_ROLES, w.role)) ||
+        (w.walked !== undefined && (!num(w.walked) || w.walked < 0)) ||
+        (w.heading !== undefined && !num(w.heading)) ||
+        (w.workTotal !== undefined &&
+          (!num(w.workTotal) || w.workTotal < 0 || w.workLeft > w.workTotal)) ||
         !int(w.id) ||
         w.id < 1 ||
         ids.has(w.id) ||
@@ -839,7 +903,7 @@ export function validZoo(s: Park): boolean {
         (w.assignedHabitatId !== undefined &&
           (!int(w.assignedHabitatId) || w.assignedHabitatId < 1)) ||
         (w.targetId !== null && !int(w.targetId)) ||
-        !["idle", "walk", "care"].includes(w.mode) ||
+        !["idle", "walk", "patrol", "care"].includes(w.mode) ||
         !num(w.workLeft) ||
         w.workLeft < 0 ||
         !num(w.retry) ||

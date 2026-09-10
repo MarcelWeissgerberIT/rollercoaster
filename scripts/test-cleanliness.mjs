@@ -149,7 +149,8 @@ test("Unreachable litter is retained, not silently removed", () => {
   run(s, 20);
   assert.equal(C.cleanlinessStats(s).pieces, 1);
   assert.equal(s.cleanliness.cleaned, 0);
-  assert.equal(s.cleanliness.workers[0].mode, "idle");
+  assert.equal(s.cleanliness.workers[0].mode, "patrol");
+  assert(s.cleanliness.workers[0].y > 25, "Patrol stays on the reachable side of the broken path");
 });
 test("Removing an assigned bin leaves a valid save and cancels job", () => {
   const s = park();

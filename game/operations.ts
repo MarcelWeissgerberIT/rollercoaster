@@ -213,19 +213,30 @@ const CREW_NAMES = [
   "Mila",
 ];
 export const operatorName = (b: Building) => CREW_NAMES[Math.abs(b.id) % CREW_NAMES.length];
-/** Crew is attached to the ride's existing pod/console, not a guest-path actor.
- * A renderer can place this stable figure at entry while boarding/unloading and
- * at the console during checking/running; progress drives the hand/gate gesture. */
+/** Position along the crew's gate-to-console leg, driven only by existing
+ * simulation phases. Both transition endpoints meet without changing dispatch
+ * timing or adding a second clock that could continue while the park is paused. */
 export function operatorState(b: Building) {
   if (!needsOperator(b.kind) || !hasOperator(b)) return null;
-  const phase = operatorActivity(b);
+  const phase = operatorActivity(b),
+    progress = operationProgress(b),
+    consoleProgress =
+      phase === "checking"
+        ? progress
+        : phase === "running"
+          ? 1
+          : phase === "unloading"
+            ? 1 - progress
+            : 0;
   return {
     id: `operator-${b.id}`,
     buildingId: b.id,
     name: operatorName(b),
     phase,
     atGate: phase === "idle" || phase === "boarding" || phase === "unloading",
-    progress: operationProgress(b),
+    progress,
+    consoleProgress,
+    walking: (phase === "checking" || phase === "unloading") && progress < 1,
   };
 }
 export function operationsStats(s: Pick<Park, "buildings">) {

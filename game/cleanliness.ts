@@ -6,10 +6,20 @@ export type Litter = Cell & { id: number; kind: WasteKind; amount: number };
 export type Cleaner = Cell & {
   id: number;
   route: Cell[];
-  mode: "idle" | "walk" | "sweep" | "empty";
-  target: { kind: "litter" | "bin"; id: number } | null;
+  mode: "idle" | "walk" | "patrol" | "sweep" | "empty" | "deposit";
+  target: { kind: "litter" | "bin" | "deposit" | "collection"; id: number; point?: Cell } | null;
   workLeft: number;
   retry: number;
+  carried?: number;
+  /** Emptied bin bags go to staff collection, never straight into another public bin. */
+  toCollection?: boolean;
+  heading?: number;
+  walked?: number;
+  workTotal?: number;
+  patrolStep?: number;
+  transferred?: boolean;
+  serviceTarget?: Cell;
+  returning?: { from: Cell; left: number; total: number; distanceStart: number };
 };
 export type Cleanliness = {
   version: 1;
@@ -19,6 +29,8 @@ export type Cleanliness = {
   binned: number;
   cleaned: number;
   emptied: number;
+  /** Waste handed over to staff collection, including bags taken away by departing staff. */
+  disposed?: number;
 };
 export type WasteGuest = Cell & { id: number; state: string; happiness: number; waste?: Waste[] };
 export type CleanBuilding = Cell & { id: number; kind: string; binFill?: number };
@@ -62,9 +74,20 @@ export function initCleanliness(s: CleaningPark): Cleanliness {
     cleaned: 0,
     emptied: 0,
   });
+  c.disposed ??= 0;
   c.litter = c.litter.filter((l) => walkable(s, l));
   for (const b of bins(s)) b.binFill ??= 0;
   const count = Math.max(0, Math.min(8, Math.floor(s.staff)));
+  for (const w of c.workers) {
+    w.carried ??= 0;
+    w.toCollection ??= false;
+    w.heading ??= -Math.PI / 2;
+    w.walked ??= 0;
+    w.workTotal ??= Math.max(0, w.workLeft);
+    w.patrolStep ??= 0;
+    w.transferred ??= false;
+    if (w.id > count) c.disposed += w.carried;
+  }
   c.workers = c.workers.filter((w) => w.id <= count);
   const origin = { x: 15, y: 29 },
     spawn = walkable(s, origin) ? origin : walkCells(s)[0];
@@ -86,6 +109,12 @@ export function initCleanliness(s: CleaningPark): Cleanliness {
           target: null,
           workLeft: 0,
           retry: 0,
+          carried: 0,
+          toCollection: false,
+          heading: -Math.PI / 2,
+          walked: 0,
+          workTotal: 0,
+          patrolStep: 0,
         });
   return c;
 }
@@ -111,7 +140,7 @@ export function dropWaste(s: CleaningPark, point: Cell, kind: WasteKind, amount 
   return true;
 }
 
-type Job = { kind: "litter" | "bin"; id: number; cells: Cell[] };
+type Job = { kind: NonNullable<Cleaner["target"]>["kind"]; id: number; cells: Cell[] };
 function routeToJob(s: CleaningPark, from: Cell, jobs: Job[]): { job: Job; route: Cell[] } | null {
   const targets = new Map<string, Job>();
   for (const job of jobs)
@@ -120,6 +149,7 @@ function routeToJob(s: CleaningPark, from: Cell, jobs: Job[]): { job: Job; route
   const start = cell(from),
     queue = [start],
     previous = new Map<string, Cell | null>([[key(start), null]]);
+  if (!walkable(s, start)) return null;
   for (let i = 0; i < queue.length; i++) {
     const p = queue[i],
       job = targets.get(key(p));
@@ -145,15 +175,171 @@ function resetWorker(w: Cleaner) {
   w.route = [];
   w.target = null;
   w.workLeft = 0;
+  w.workTotal = 0;
+  w.transferred = false;
+  delete w.serviceTarget;
+  delete w.returning;
   w.mode = "idle";
   w.retry = 0.6;
 }
-function liveTarget(s: CleaningPark, w: Cleaner): Litter | CleanBuilding | undefined {
+function liveTarget(s: CleaningPark, w: Cleaner): Litter | CleanBuilding | Cell | undefined {
   return w.target?.kind === "litter"
     ? s.cleanliness!.litter.find((l) => l.id === w.target!.id)
-    : w.target?.kind === "bin"
+    : w.target?.kind === "bin" || w.target?.kind === "deposit"
       ? bins(s).find((b) => b.id === w.target!.id)
-      : undefined;
+      : w.target?.kind === "collection" && w.target.point && walkable(s, w.target.point)
+        ? w.target.point
+        : undefined;
+}
+/** Exact world point for facing a bin, swept pile or explicit staff collection stop. */
+export function cleanerWorkTarget(s: CleaningPark, w: Cleaner): Cell | null {
+  const target = liveTarget(s, w);
+  return target ? { x: target.x, y: target.y } : null;
+}
+export function cleanerWorkProgress(w: Cleaner): number {
+  return w.workTotal ? Math.max(0, Math.min(1, 1 - w.workLeft / w.workTotal)) : 0;
+}
+/** Canonical visible service approach shared by cards, camera and both renderers.
+ * The path anchor remains saved and walkable; the timed task supplies the short
+ * approach to the container and the return, with no independent animation clock. */
+export function cleanerServicePose(s: CleaningPark, w: Cleaner) {
+  if (w.returning) {
+    const back = w.returning,
+      dx = w.x - back.from.x,
+      dy = w.y - back.from.y,
+      distance = Math.hypot(dx, dy),
+      progress = Math.max(0, Math.min(1, 1 - back.left / back.total));
+    return {
+      x: back.from.x + dx * progress,
+      y: back.from.y + dy * progress,
+      walking: back.left > 0 && distance > 1e-7,
+      progress: 0,
+      dx: distance ? dx / distance : Math.cos(w.heading ?? 0),
+      dy: distance ? dy / distance : Math.sin(w.heading ?? 0),
+      distanceWalked: back.distanceStart + distance * progress,
+    };
+  }
+  const progress = cleanerWorkProgress(w),
+    moving = w.route.length > 0 && (w.mode === "walk" || w.mode === "patrol"),
+    workTarget = cleanerWorkTarget(s, w) ?? w.serviceTarget ?? null,
+    goal = moving ? w.route[0] : workTarget,
+    goalX = goal ? goal.x - w.x : 0,
+    goalY = goal ? goal.y - w.y : 0,
+    length = Math.hypot(goalX, goalY),
+    direction =
+      length > 1e-7
+        ? { dx: goalX / length, dy: goalY / length }
+        : { dx: Math.cos(w.heading ?? -Math.PI / 2), dy: Math.sin(w.heading ?? -Math.PI / 2) },
+    base = {
+      x: w.x,
+      y: w.y,
+      walking: moving,
+      progress,
+      ...direction,
+      distanceWalked: w.walked ?? 0,
+    };
+  if (
+    !workTarget ||
+    !w.workTotal ||
+    (w.mode !== "empty" && w.mode !== "deposit") ||
+    !w.target ||
+    !["bin", "deposit", "collection"].includes(w.target.kind)
+  )
+    return base;
+  const container =
+      w.target.kind === "collection"
+        ? { x: workTarget.x + 0.4, y: workTarget.y - 0.15 }
+        : workTarget,
+    dx = container.x - w.x,
+    dy = container.y - w.y,
+    distance = Math.hypot(dx, dy);
+  if (distance < 1e-7) return base;
+  const travel = Math.max(0, distance - 0.2),
+    returning = progress > 0.78,
+    fraction = Math.max(
+      0,
+      Math.min(1, progress < 0.22 ? progress / 0.22 : returning ? (1 - progress) / 0.22 : 1),
+    ),
+    sign = returning ? -1 : 1;
+  return {
+    x: w.x + (dx / distance) * travel * fraction,
+    y: w.y + (dy / distance) * travel * fraction,
+    walking: travel > 1e-7 && (progress < 0.22 || returning),
+    progress,
+    dx: (dx / distance) * sign,
+    dy: (dy / distance) * sign,
+    distanceWalked: (w.walked ?? 0) + travel * (returning ? 2 - fraction : fraction),
+  };
+}
+function reachableCells(s: CleaningPark, from: Cell): Cell[] {
+  const start = cell(from),
+    queue = walkable(s, start) ? [start] : [],
+    seen = new Set(queue.map(key));
+  for (let i = 0; i < queue.length; i++)
+    for (const p of adjacent(queue[i]))
+      if (walkable(s, p) && !seen.has(key(p))) {
+        seen.add(key(p));
+        queue.push(p);
+      }
+  return queue;
+}
+function assign(w: Cleaner, found: NonNullable<ReturnType<typeof routeToJob>>) {
+  w.target = {
+    kind: found.job.kind,
+    id: found.job.id,
+    ...(found.job.kind === "collection" ? { point: { ...found.job.cells[0] } } : {}),
+  };
+  w.route = found.route;
+  w.workLeft = 0;
+  w.workTotal = 0;
+  w.mode = found.route.length
+    ? "walk"
+    : found.job.kind === "litter"
+      ? "sweep"
+      : found.job.kind === "bin"
+        ? "empty"
+        : "deposit";
+}
+function disposalJob(s: CleaningPark, w: Cleaner) {
+  if (!w.toCollection) {
+    const found = routeToJob(
+      s,
+      w,
+      bins(s)
+        .filter((b) => (b.binFill ?? 0) < BIN_CAPACITY)
+        .map((b) => ({ kind: "deposit" as const, id: b.id, cells: adjacent(b) })),
+    );
+    if (found) return found;
+  }
+  const entrance = { x: 15, y: 29 };
+  const atEntrance = routeToJob(s, w, [{ kind: "collection", id: 0, cells: [entrance] }]);
+  if (atEntrance) return atEntrance;
+  // A disconnected path island receives a staff pickup at its nearest reachable
+  // edge toward the entrance; no worker or bag teleports across the missing path.
+  const point = reachableCells(s, w).sort(
+    (a, b) => distance(a, entrance) - distance(b, entrance) || a.y - b.y || a.x - b.x,
+  )[0];
+  return point ? routeToJob(s, w, [{ kind: "collection", id: 0, cells: [point] }]) : null;
+}
+function patrol(s: CleaningPark, w: Cleaner) {
+  const reachable = reachableCells(s, w),
+    preferred = reachable.filter(
+      (p) => s.tiles[p.y][p.x] === "path" && distance(p, cell(w)) >= 2 && distance(p, cell(w)) <= 9,
+    ),
+    candidates = preferred.length ? preferred : reachable.filter((p) => !same(p, cell(w)));
+  if (!candidates.length) {
+    w.mode = "idle";
+    w.retry = 1.2;
+    return;
+  }
+  const step = w.patrolStep ?? 0,
+    point = candidates[(w.id * 17 + step * 13) % candidates.length],
+    found = routeToJob(s, w, [{ kind: "collection", id: 0, cells: [point] }]);
+  if (!found) return;
+  w.patrolStep = step + 1;
+  w.route = found.route;
+  w.mode = "patrol";
+  w.retry = 0.8;
 }
 function update(s: CleaningPark, dt: number) {
   const c = initCleanliness(s),
@@ -186,21 +372,76 @@ function update(s: CleaningPark, dt: number) {
   const reserved = new Set(
     c.workers.filter((w) => w.target).map((w) => `${w.target!.kind}:${w.target!.id}`),
   );
+  const findWork = (w: Cleaner) => {
+    if ((w.carried ?? 0) > 0) return disposalJob(s, w);
+    const available = (kind: Job["kind"], id: number) => !reserved.has(`${kind}:${id}`);
+    const binJobs = containers
+      .filter((b) => (b.binFill ?? 0) >= BIN_CAPACITY * 0.75 && available("bin", b.id))
+      .map((b) => ({ kind: "bin" as const, id: b.id, cells: adjacent(b) }));
+    const litterJobs = c.litter
+      .filter((l) => available("litter", l.id))
+      .map((l) => ({ kind: "litter" as const, id: l.id, cells: [l] }));
+    return routeToJob(s, w, binJobs) ?? routeToJob(s, w, litterJobs);
+  };
   for (const w of c.workers) {
-    if (w.target && !liveTarget(s, w)) {
-      reserved.delete(`${w.target.kind}:${w.target.id}`);
+    if (w.returning) {
+      w.returning.left = Math.max(0, w.returning.left - dt);
+      if (!w.returning.left) {
+        w.walked = cleanerServicePose(s, w).distanceWalked;
+        delete w.returning;
+        w.mode = "idle";
+        w.retry = 0;
+      }
+      continue;
+    }
+    const release = () => {
+      const pose = cleanerServicePose(s, w),
+        distance = Math.hypot(pose.x - w.x, pose.y - w.y);
+      if (w.target) reserved.delete(`${w.target.kind}:${w.target.id}`);
+      w.walked = pose.distanceWalked;
       resetWorker(w);
+      if (distance > 1e-7) {
+        const total = Math.max(0.1, distance / 1.45);
+        w.returning = {
+          from: { x: pose.x, y: pose.y },
+          left: total,
+          total,
+          distanceStart: w.walked,
+        };
+        w.mode = "walk";
+      }
+    };
+    if (w.target && !liveTarget(s, w)) {
+      release();
+      if (w.returning) continue;
+    }
+    if (w.mode === "patrol") {
+      w.retry -= dt;
+      if (w.retry <= 0) {
+        const found = findWork(w);
+        if (found) {
+          assign(w, found);
+          reserved.add(`${w.target!.kind}:${w.target!.id}`);
+        } else w.retry = 0.8;
+      }
     }
     if (w.route.length) {
       let budget = dt * 1.45;
       while (w.route.length && budget > 0) {
-        const p = w.route[0];
-        if (!walkable(s, p)) {
-          if (w.target) reserved.delete(`${w.target.kind}:${w.target.id}`);
-          resetWorker(w);
+        const p = w.route[0],
+          dx = p.x - w.x,
+          dy = p.y - w.y;
+        if (
+          !walkable(s, p) ||
+          Math.abs(dx) + Math.abs(dy) > 1.001 ||
+          (Math.abs(dx) > 0.001 && Math.abs(dy) > 0.001)
+        ) {
+          release();
           break;
         }
-        const d = Math.hypot(p.x - w.x, p.y - w.y);
+        const d = Math.hypot(dx, dy);
+        if (d > 0.00001) w.heading = Math.atan2(dy, dx);
+        w.walked = (w.walked ?? 0) + Math.min(d, budget);
         if (d <= budget) {
           w.x = p.x;
           w.y = p.y;
@@ -213,60 +454,88 @@ function update(s: CleaningPark, dt: number) {
         }
       }
       if (w.route.length) {
-        w.mode = "walk";
+        if (w.mode !== "patrol") w.mode = "walk";
         continue;
       }
+      // Work time starts on the following update, after reaching the actual tile.
+      if (w.target) continue;
+      w.mode = "idle";
+      w.retry = 0;
     }
     if (w.target) {
       const target = liveTarget(s, w);
       if (
         !target ||
-        (w.target.kind === "litter"
+        (w.target.kind === "litter" || w.target.kind === "collection"
           ? Math.hypot(w.x - target.x, w.y - target.y) > 0.05
           : distance(cell(w), target) > 1)
       ) {
-        resetWorker(w);
+        release();
         continue;
       }
-      if (w.workLeft <= 0)
-        w.workLeft =
-          w.target.kind === "bin" ? 3 : 1.6 + ("amount" in target ? target.amount * 0.3 : 0);
-      w.mode = w.target.kind === "bin" ? "empty" : "sweep";
-      w.workLeft -= dt;
+      if (
+        !w.transferred &&
+        ((w.target.kind === "deposit" && (target as CleanBuilding).binFill! >= BIN_CAPACITY) ||
+          ((w.target.kind === "deposit" || w.target.kind === "collection") && !w.carried) ||
+          (w.target.kind === "bin" && !(target as CleanBuilding).binFill))
+      ) {
+        release();
+        continue;
+      }
       if (w.workLeft <= 0) {
+        w.workTotal =
+          w.target.kind === "bin"
+            ? 3
+            : w.target.kind === "deposit"
+              ? 1.4
+              : w.target.kind === "collection"
+                ? 2.4
+                : 1.6 + ("amount" in target ? target.amount * 0.3 : 0);
+        w.workLeft = w.workTotal;
+        w.transferred = false;
+        if (w.target.kind !== "litter") w.serviceTarget = { x: target.x, y: target.y };
+      }
+      w.mode = w.target.kind === "bin" ? "empty" : w.target.kind === "litter" ? "sweep" : "deposit";
+      w.workLeft -= dt;
+      if (
+        !w.transferred &&
+        (w.target.kind === "litter" ? w.workLeft <= 0 : cleanerWorkProgress(w) >= 0.78)
+      ) {
         if (w.target.kind === "litter") {
           const litter = target as Litter;
           c.cleaned += litter.amount;
+          w.carried = (w.carried ?? 0) + litter.amount;
+          w.toCollection = false;
           c.litter = c.litter.filter((l) => l.id !== litter.id);
-        } else {
-          (target as CleanBuilding).binFill = 0;
+        } else if (w.target.kind === "bin") {
+          const bin = target as CleanBuilding;
+          w.carried = (w.carried ?? 0) + (bin.binFill ?? 0);
+          w.toCollection = true;
+          bin.binFill = 0;
           c.emptied++;
+        } else if (w.target.kind === "deposit") {
+          const bin = target as CleanBuilding,
+            amount = Math.min(w.carried ?? 0, BIN_CAPACITY - (bin.binFill ?? 0));
+          bin.binFill = (bin.binFill ?? 0) + amount;
+          w.carried = (w.carried ?? 0) - amount;
+          c.binned += amount;
+        } else {
+          c.disposed = (c.disposed ?? 0) + (w.carried ?? 0);
+          w.carried = 0;
         }
-        reserved.delete(`${w.target.kind}:${w.target.id}`);
-        resetWorker(w);
+        if (!w.carried) w.toCollection = false;
+        w.transferred = true;
       }
+      if (w.workLeft <= 0) release();
       continue;
     }
     w.retry -= dt;
     if (w.retry > 0) continue;
-    const available = (kind: Job["kind"], id: number) => !reserved.has(`${kind}:${id}`);
-    const binJobs = containers
-      .filter((b) => (b.binFill ?? 0) >= BIN_CAPACITY * 0.75 && available("bin", b.id))
-      .map((b) => ({ kind: "bin" as const, id: b.id, cells: adjacent(b) }));
-    const litterJobs = c.litter
-      .filter((l) => available("litter", l.id))
-      .map((l) => ({ kind: "litter" as const, id: l.id, cells: [l] }));
-    const found = routeToJob(s, w, binJobs) ?? routeToJob(s, w, litterJobs);
+    const found = findWork(w);
     if (found) {
-      w.target = { kind: found.job.kind, id: found.job.id };
-      w.route = found.route;
-      w.workLeft = 0;
-      w.mode = found.route.length ? "walk" : found.job.kind === "bin" ? "empty" : "sweep";
-      reserved.add(`${w.target.kind}:${w.target.id}`);
-    } else {
-      w.mode = "idle";
-      w.retry = 1.2 + w.id * 0.1;
-    }
+      assign(w, found);
+      reserved.add(`${w.target!.kind}:${w.target!.id}`);
+    } else patrol(s, w);
   }
   // Small, local mood effect. Does not overwrite service/transit thoughts or navigation.
   for (const g of s.guests)
@@ -306,7 +575,10 @@ export function cleanlinessStats(s: CleaningPark) {
     binFill: containers.reduce((n, b) => n + (b.binFill ?? 0), 0),
     binCapacity: containers.length * BIN_CAPACITY,
     staff: s.cleanliness?.workers.length ?? 0,
-    busy: s.cleanliness?.workers.filter((w) => w.mode !== "idle").length ?? 0,
+    busy:
+      s.cleanliness?.workers.filter((w) => w.mode !== "idle" && w.mode !== "patrol").length ?? 0,
+    carried: s.cleanliness?.workers.reduce((sum, w) => sum + (w.carried ?? 0), 0) ?? 0,
+    disposed: s.cleanliness?.disposed ?? 0,
     binned: s.cleanliness?.binned ?? 0,
     cleaned: s.cleanliness?.cleaned ?? 0,
     emptied: s.cleanliness?.emptied ?? 0,
@@ -359,6 +631,7 @@ export function validCleanliness(s: CleaningPark): boolean {
       !integer(c.binned) ||
       !integer(c.cleaned) ||
       !integer(c.emptied) ||
+      (c.disposed !== undefined && !integer(c.disposed)) ||
       !Array.isArray(c.litter) ||
       !Array.isArray(c.workers) ||
       c.workers.length > 8 ||
@@ -387,14 +660,34 @@ export function validCleanliness(s: CleaningPark): boolean {
         w.id < 1 ||
         w.id > 8 ||
         ids.has(w.id) ||
-        !["idle", "walk", "sweep", "empty"].includes(w.mode) ||
+        !["idle", "walk", "patrol", "sweep", "empty", "deposit"].includes(w.mode) ||
         !Array.isArray(w.route) ||
         w.route.length > s.tiles.length * s.tiles[0].length ||
         !w.route.every(grid) ||
         !finite(w.workLeft) ||
         !finite(w.retry) ||
+        (w.carried !== undefined && !integer(w.carried)) ||
+        (w.toCollection !== undefined && typeof w.toCollection !== "boolean") ||
+        (w.heading !== undefined && !finite(w.heading)) ||
+        (w.walked !== undefined && !nonnegative(w.walked)) ||
+        (w.workTotal !== undefined && !nonnegative(w.workTotal)) ||
+        (w.patrolStep !== undefined && !integer(w.patrolStep)) ||
+        (w.transferred !== undefined && typeof w.transferred !== "boolean") ||
+        (w.serviceTarget !== undefined && !grid(w.serviceTarget)) ||
+        (w.returning !== undefined &&
+          (!w.returning ||
+            !position(w.returning.from) ||
+            !nonnegative(w.returning.left) ||
+            !finite(w.returning.total) ||
+            w.returning.total <= 0 ||
+            w.returning.left > w.returning.total ||
+            !nonnegative(w.returning.distanceStart))) ||
         (w.target !== null &&
-          (!w.target || !["litter", "bin"].includes(w.target.kind) || !integer(w.target.id)))
+          (!w.target ||
+            !["litter", "bin", "deposit", "collection"].includes(w.target.kind) ||
+            !integer(w.target.id) ||
+            (w.target.kind === "collection" &&
+              (w.target.id !== 0 || !w.target.point || !grid(w.target.point)))))
       )
         return false;
       ids.add(w.id);

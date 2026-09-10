@@ -12,6 +12,7 @@ import { ResearchTree } from "../components/research-tree";
 import { FinancePanel } from "../components/finance-panel";
 import { borrowLoan, repayLoan } from "../game/loans";
 import { StaffPanel } from "../components/staff-panel";
+import { staffLocation, type StaffRef } from "../game/staff";
 import { RideOperationsPanel } from "../components/ride-operations-panel";
 import { setRideStaffed, setRideRounds, hasOperator } from "../game/operations";
 import { PATH_STYLES, pathStyleAt, isAmenity, type PathStyle } from "../game/park-life";
@@ -482,6 +483,37 @@ export default function Home() {
       panX: v.panX + el.clientWidth * 0.6 - p.x,
       panY: v.panY + el.clientHeight * 0.48 - p.y,
     };
+  };
+  const locateStaff = (ref: StaffRef) => {
+    const s = park.current,
+      el = canvas.current;
+    if (!s || !el) return;
+    const person = staffLocation(s, ref);
+    if (!person) {
+      notify("Diese Person ist nicht mehr im Park eingesetzt.");
+      sync();
+      return;
+    }
+    setSettings(false);
+    setMenuOpen(false);
+    setCategory("");
+    setSelected(null);
+    setTool("select");
+    setTrafficMode(null);
+    const v = view.current,
+      targetZoom = Math.max(v.zoom, 1.6),
+      p = projection(el.clientWidth, el.clientHeight, { ...v, zoom: targetZoom }).project(
+        person.x,
+        person.y,
+      );
+    cameraTarget.current = {
+      zoom: targetZoom,
+      panX: v.panX + el.clientWidth * 0.5 - p.x,
+      panY: v.panY + el.clientHeight * 0.49 - p.y,
+    };
+    view.current.staffFocus = { ref, until: performance.now() + 12000 };
+    setZoom(Math.round(targetZoom * 100));
+    notify(`${person.name} · ${person.label}`);
   };
   const inspectTrafficZone = (zone: TrafficZone, focus = true) => {
     setTrafficPoint(zone.point);
@@ -1949,6 +1981,7 @@ export default function Home() {
                       "keeperhut",
                     ])}
                     <ZooOverview
+                      onLocateStaff={locateStaff}
                       park={snapshot}
                       onAssignKeeper={(workerId, habitatId) => {
                         const error = assignZooKeeperToHabitat(park.current!, workerId, habitatId);
@@ -2712,6 +2745,7 @@ export default function Home() {
                         )}
                         {b.kind === "keeperhut" && (
                           <ZooOverview
+                            onLocateStaff={locateStaff}
                             park={snapshot}
                             onAssignKeeper={(workerId, habitatId) => {
                               const error = assignZooKeeperToHabitat(
@@ -4618,6 +4652,7 @@ export default function Home() {
             <TabsContent value="personal">
               {snapshot && (
                 <StaffPanel
+                  onLocateStaff={locateStaff}
                   park={snapshot}
                   onAssignKeeper={(workerId, habitatId) => {
                     const error = assignZooKeeperToHabitat(park.current!, workerId, habitatId);

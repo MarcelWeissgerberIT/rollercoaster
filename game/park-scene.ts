@@ -1,13 +1,15 @@
 import { addPhotoHardware, isPhotoPoint } from "./coaster-photo";
-import { operatorState } from "./operations";
+import { operationsOf } from "./operations";
+import { staffLocation, type StaffRef } from "./staff";
+import { staffMotion } from "./staff-visual";
+import { createStaffModel } from "./staff-model";
 import { GATES, gateStyle } from "./entrance";
-import { podPose } from "./pods";
-import { effectivePods } from "./simulation";
 import { FOOD, isFood, restPose } from "./park-life";
 import { createHabitatModel } from "./zoo-model";
 import { isHabitat, initZoo, tickZoo } from "./zoo";
 import { access } from "./simulation";
 import { tickCleanliness, initCleanliness } from "./cleanliness";
+import { cleanerTransfer, staffBagLocal, staffLocalWorld } from "./staff-work";
 import { createCoasterCar } from "./coaster-car";
 import { vehicleFor, carSeat } from "./vehicles";
 import { addDriveHardware } from "./track-hardware";
@@ -93,32 +95,62 @@ export function populatePark(
   for (let i = -3; i <= 3; i++)
     mesh(sphere, gate.accent, gx + i, 5.8 - Math.abs(i) * 0.09, gz, 0.16, 0.16, 0.16);
   if (gateStyle(park) === "safari") mesh(cone, "#926737", gx, 6.3, gz, 6, 2, 2.4);
-  for (const b of park.buildings) {
-    const staff = operatorState(b);
-    if (!staff) continue;
-    const p = podPose(b, CATALOG[b.kind].size, effectivePods(park, b).entry);
-    const g = createGuestModel({ id: b.id + 21000, skin: 1 }, false);
-    g.name = `operator-${b.id}`;
-    g.position.set((p.x - p.dy * 0.23) * 5, 0, (p.y + p.dx * 0.23) * 5);
-    g.rotation.y = Math.atan2(p.dx, p.dy);
-    scene.add(g);
-    mesh(cube, "#325875", 0, 1.1, 0, 0.43, 0.55, 0.26, g);
-    mesh(cylinder, "#325875", 0, 1.73, 0, 0.24, 0.08, 0.23, g);
-    mesh(
-      cube,
-      "#24534d",
-      g.position.x + p.dx * 0.7,
-      0.9,
-      g.position.z + p.dy * 0.7,
-      0.45,
-      0.3,
-      0.4,
-    );
+  const addEmployee = (ref: StaffRef) => {
+    const motion = staffMotion(park, ref),
+      location = staffLocation(park, ref);
+    if (!motion || !location) return null;
+    const rig = createStaffModel(motion);
+    rig.root.position.set(location.x * 5, 0, location.y * 5);
+    scene.add(rig.root);
+    return { ref, rig };
+  };
+  const updateEmployee = (
+    state: Park,
+    employee: NonNullable<ReturnType<typeof addEmployee>>,
+    time: number,
+  ) => {
+    const location = staffLocation(state, employee.ref),
+      motion = staffMotion(state, employee.ref, time);
+    employee.rig.root.visible = !!location && !!motion;
+    if (!location || !motion) return;
+    employee.rig.root.position.set(location.x * 5, 0, location.y * 5);
+    employee.rig.update(motion);
+  };
+  // Preview only the remainder of an existing gate/console transition. Do not
+  // invent boarding, riders or a new dispatch while the live park is paused.
+  const operatorPark: Park = {
+    ...park,
+    buildings: park.buildings.map((b) => ({ ...b, operations: { ...operationsOf(b) } })),
+  };
+  for (const building of operatorPark.buildings) {
+    const employee = addEmployee({ kind: "operator", id: building.id });
+    if (!employee) continue;
+    const initial = operationsOf(building),
+      phase = initial.phase,
+      remaining = initial.phaseLeft;
+    const location = staffLocation(operatorPark, employee.ref)!;
+    if (location.control) {
+      // Face the console from its endpoint, not along an in-progress walk toward it.
+      building.operations!.phaseLeft = 0;
+      const facing = staffLocation(operatorPark, employee.ref)!;
+      building.operations!.phaseLeft = remaining;
+      mesh(
+        cube,
+        "#24534d",
+        location.control.x * 5 + facing.dx * 0.55,
+        0.9,
+        location.control.y * 5 + facing.dy * 0.55,
+        0.45,
+        0.3,
+        0.4,
+      );
+    }
     animations.push((t) => {
-      const head = g.getObjectByName("head");
-      if (head) head.rotation.z = staff.atGate ? Math.sin(t * 2) * 0.045 : 0;
-      g.rotation.y =
-        Math.atan2(p.dx, p.dy) + (staff.phase === "checking" ? Math.sin(t * 2) * 0.25 : 0);
+      operatorPark.time = park.time + t;
+      if (phase === "checking" || phase === "unloading") {
+        building.operations!.phaseLeft = Math.max(0, remaining - Math.max(0, t));
+      }
+      updateEmployee(operatorPark, employee, operatorPark.time);
     });
   }
   const groupAt = (x: number, y: number, z: number) => {
@@ -127,7 +159,8 @@ export function populatePark(
     scene.add(g);
     return g;
   };
-  const cleaningPark = {
+  const cleaningPark: Park = {
+    ...park,
     tiles: park.tiles,
     buildings: park.buildings.map((b) => ({ ...b })),
     guests: [],
@@ -153,27 +186,79 @@ export function populatePark(
     m.rotation.y = l.id;
     litterModels.set(l.id, m);
   }
-  const staffModels = (cleaningPark.cleanliness?.workers ?? []).map((w) => {
-    const g = createGuestModel({ id: w.id + 9000, skin: 1 }, false);
-    scene.add(g);
-    mesh(cylinder, "#edebd0", 0, 1.8, 0, 0.19, 0.12, 0.19, g);
-    mesh(cube, "#e7e9d0", 0, 1.77, -0.2, 0.26, 0.035, 0.2, g);
-    const broom = mesh(cylinder, "#9a7544", 0.32, 0.65, -0.22, 0.026, 1.3, 0.026, g);
-    broom.rotation.z = -0.2;
-    mesh(cube, "#c9ac62", 0.46, 0.05, -0.22, 0.38, 0.17, 0.17, g);
-    return { w, g };
+  const binParts = new Map<number, { lid: THREE.Group; overflow: THREE.Mesh[]; bin: Building }>();
+  const collectionCarts = new Map<string, THREE.Group>();
+  const transferBags = new Map<number, THREE.Group>();
+  const collectionCart = (x: number, y: number) => {
+    const key = `${x},${y}`,
+      existing = collectionCarts.get(key);
+    if (existing) return existing;
+    const cart = groupAt(x * 5, 0, y * 5);
+    cart.name = `staff-waste-collection-${key}`;
+    mesh(cube, "#426656", 0, 0.6, 0, 1.1, 0.9, 0.9, cart);
+    mesh(cube, "#263d34", 0, 1.07, 0, 0.88, 0.07, 0.7, cart);
+    mesh(cube, "#e1d7a9", 0, 0.65, -0.46, 0.25, 0.2, 0.02, cart);
+    for (const side of [-1, 1]) {
+      const wheel = mesh(cylinder, "#35433e", side * 0.59, 0.18, 0, 0.19, 0.09, 0.19, cart);
+      wheel.rotation.z = Math.PI / 2;
+      mesh(cylinder, "#82998a", side * 0.47, 1.16, 0.47, 0.035, 0.9, 0.035, cart);
+    }
+    mesh(cube, "#82998a", 0, 1.58, 0.47, 1, 0.075, 0.075, cart);
+    collectionCarts.set(key, cart);
+    return cart;
+  };
+  const transferBag = (id: number) => {
+    const existing = transferBags.get(id);
+    if (existing) return existing;
+    const bag = groupAt(0, 0, 0);
+    bag.name = `staff-waste-transfer-${id}`;
+    mesh(sphere, "#46554a", 0, 0, 0, 0.17, 0.21, 0.17, bag);
+    mesh(sphere, "#a3ac81", 0, 0.19, 0, 0.035, 0.05, 0.035, bag);
+    transferBags.set(id, bag);
+    return bag;
+  };
+  const staffModels = (park.cleanliness?.workers ?? []).flatMap((w) => {
+    const employee = addEmployee({ kind: "cleaner", id: w.id });
+    return employee ? [employee] : [];
   });
   animations.push((t) => {
     const dt = Math.max(0, Math.min(0.1, t - cleaningTime));
     cleaningTime = t;
+    cleaningPark.time = park.time + t;
     tickCleanliness(cleaningPark, dt);
     for (const [id, m] of litterModels)
       m.visible = !!cleaningPark.cleanliness?.litter.some((l) => l.id === id);
-    for (const { w, g } of staffModels) {
-      g.position.set(w.x * 5, w.mode === "walk" ? Math.abs(Math.sin(t * 8)) * 0.03 : 0, w.y * 5);
-      const next = w.route[0];
-      if (next) g.rotation.y = Math.atan2(-(next.x - w.x), -(next.y - w.y));
-      g.rotation.z = w.mode === "sweep" ? Math.sin(t * 6) * 0.05 : 0;
+    for (const employee of staffModels) updateEmployee(cleaningPark, employee, cleaningPark.time);
+    for (const { lid, overflow, bin } of binParts.values()) {
+      lid.rotation.x = 0;
+      for (const piece of overflow) piece.visible = (bin.binFill ?? 0) >= 12;
+    }
+    for (const cart of collectionCarts.values()) cart.visible = false;
+    for (const bag of transferBags.values()) bag.visible = false;
+    for (const worker of cleaningPark.cleanliness?.workers ?? []) {
+      const transfer = cleanerTransfer(cleaningPark, worker);
+      if (!transfer) continue;
+      if (transfer.collection) collectionCart(transfer.target.x, transfer.target.y).visible = true;
+      else {
+        const bin = binParts.get(worker.target!.id);
+        if (bin) bin.lid.rotation.x = transfer.lidOpen * 1.25;
+      }
+      if (!transfer.showTransfer) continue;
+      const ref = { kind: "cleaner", id: worker.id } as const,
+        location = staffLocation(cleaningPark, ref),
+        motion = staffMotion(cleaningPark, ref, cleaningPark.time);
+      if (!location || !motion) continue;
+      const local = staffLocalWorld(staffBagLocal(motion), motion),
+        handX = location.x * 5 + local[0],
+        handZ = location.y * 5 + local[2],
+        amount = transfer.empty ? 1 - transfer.t : transfer.t,
+        bag = transferBag(worker.id);
+      bag.visible = true;
+      bag.position.set(
+        handX + (transfer.target.x * 5 - handX) * amount,
+        local[1] + (1.4 - local[1]) * amount + Math.sin(transfer.t * Math.PI) * 0.3,
+        handZ + (transfer.target.y * 5 - handZ) * amount,
+      );
     }
   });
   for (const b of park.buildings) {
@@ -207,13 +292,25 @@ export function populatePark(
     }
     if (b.kind === "bin") {
       const g = groupAt(x, 0, z);
+      g.name = `bin-${b.id}`;
       mesh(cube, "#285e46", 0, 0.6, 0, 0.72, 1.2, 0.72, g);
-      mesh(cube, "#3c805b", 0, 1.3, 0, 0.85, 0.22, 0.85, g);
+      const lid = new THREE.Group();
+      lid.name = `bin-lid-${b.id}`;
+      lid.position.set(0, 1.3, 0.4);
+      g.add(lid);
+      mesh(cube, "#3c805b", 0, 0, -0.4, 0.85, 0.22, 0.85, lid);
       mesh(cube, "#152e29", 0, 1.07, -0.37, 0.49, 0.22, 0.03, g);
       mesh(cube, "#eedbae", 0, 0.65, -0.371, 0.25, 0.19, 0.03, g);
-      if ((b.binFill ?? 0) >= 12)
-        for (const side of [-1, 1])
-          mesh(cube, "#eae0bf", side * 0.13, 1.07, -0.38, 0.17, 0.17, 0.1, g);
+      const overflow = [-1, 1].map((side) => {
+        const piece = mesh(cube, "#eae0bf", side * 0.13, 1.07, -0.38, 0.17, 0.17, 0.1, g);
+        piece.visible = (b.binFill ?? 0) >= 12;
+        return piece;
+      });
+      binParts.set(b.id, {
+        lid,
+        overflow,
+        bin: cleaningPark.buildings.find((bin) => bin.id === b.id)!,
+      });
       continue;
     }
     if (isRide(b.kind) && b.kind !== "coaster") {
@@ -471,23 +568,16 @@ export function populatePark(
   const zooPark = structuredClone(park);
   initZoo(zooPark);
   let zooTime = 0;
-  const keeperModels = (zooPark.zoo?.workers ?? []).map((w) => {
-    const g = createGuestModel({ id: w.id + 12000, skin: 1 }, false);
-    scene.add(g);
-    mesh(cylinder, "#c6b075", 0, 1.85, 0, 0.23, 0.14, 0.23, g);
-    mesh(cylinder, "#546f46", 0.4, 0.4, 0, 0.15, 0.3, 0.15, g);
-    return { w, g };
+  const keeperModels = (park.zoo?.workers ?? []).flatMap((w) => {
+    const employee = addEmployee({ kind: "keeper", id: w.id });
+    return employee ? [employee] : [];
   });
   animations.push((t) => {
     const dt = Math.max(0, Math.min(0.1, t - zooTime));
     zooTime = t;
+    zooPark.time = park.time + t;
     tickZoo(zooPark, dt, (s, b) => access(s, b));
-    for (const { w, g } of keeperModels) {
-      g.position.set(w.x * 5, 0, w.y * 5);
-      const next = w.route[0];
-      if (next) g.rotation.y = Math.atan2(-(next.x - w.x), -(next.y - w.y));
-      g.rotation.z = w.mode === "care" ? Math.sin(t * 3) * 0.07 : 0;
-    }
+    for (const employee of keeperModels) updateEmployee(zooPark, employee, zooPark.time);
   });
   // Animated visitors follow their existing path segments, with no mutations to the paused park.
   const guests = park.guests.filter(

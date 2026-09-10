@@ -43,6 +43,7 @@ import { access, type Park, type Building, type Kind } from "../game/simulation"
 import { ANIMAL_NAMES, animalName, animalSex } from "../game/zoo-motion";
 import { assetUrl } from "../game/assets";
 import { difficultyCost, difficultyEuro } from "../game/difficulty";
+import { staffLocation, type StaffRef } from "../game/staff";
 import "./staff-cards.css";
 
 const euro = (v: number) =>
@@ -118,30 +119,64 @@ export function StaffCounter({
   );
 }
 
-const keeperNames = [
-  "Mila",
-  "Emil",
-  "Jasmin",
-  "Noah",
-  "Clara",
-  "Samir",
-  "Leni",
-  "Finn",
-  "Nora",
-  "Elias",
-  "Lara",
-  "Kian",
-];
+/** The location action is outside the native disclosure: assignments never move the camera. */
+export function StaffIdentityButton({
+  staffRef,
+  name,
+  qualification,
+  activity,
+  sprite,
+  busy,
+  onLocateStaff,
+}: {
+  staffRef: StaffRef;
+  name: string;
+  qualification: string;
+  activity: string;
+  sprite: string;
+  busy: boolean;
+  onLocateStaff?: (ref: StaffRef) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="sc-person-locate"
+      onClick={() => onLocateStaff?.(staffRef)}
+      disabled={!onLocateStaff}
+      aria-label={`${name} im Park zeigen`}
+      data-testid={`staff-locate-${staffRef.kind}-${staffRef.id}`}
+    >
+      <span className="sc-portrait">
+        <img src={assetUrl(sprite)} alt={`Spielfigur von ${name}, ${qualification}`} />
+      </span>
+      <span className="sc-person-intro">
+        <strong>{name}</strong>
+        <span>{qualification}</span>
+        <small className={busy ? "sc-state sc-state--busy" : "sc-state"}>{activity}</small>
+        <span className="sc-locate-hint">
+          {onLocateStaff ? "Im Park zeigen" : "Position nicht verfügbar"}
+        </span>
+      </span>
+      <span className="sc-locate-icon">
+        <MapPin aria-hidden="true" />
+      </span>
+    </button>
+  );
+}
+
 function KeeperEmployeeCard({
   park,
   worker,
   onAssignKeeper,
+  onLocateStaff,
 }: {
   park: Park;
   worker: Keeper;
   onAssignKeeper?: ZooKeeperAssignmentHandler;
+  onLocateStaff?: (ref: StaffRef) => void;
 }) {
   const [error, setError] = useState("");
+  const location = staffLocation(park, { kind: "keeper", id: worker.id });
   const home = park.buildings.find((b) => b.id === worker.homeId);
   const target = park.buildings.find((b) => b.id === worker.targetId);
   const assigned = park.buildings.find((b) => b.id === worker.assignedHabitatId);
@@ -151,120 +186,118 @@ function KeeperEmployeeCard({
     : "Versorgt Zebras, Giraffen, Flamingos und Pinguine mit Futter, Wasser und Pflege.";
   const eligible = keeperAssignments(park, worker);
   const wage = difficultyCost(park, worker.role ? ZOO_SPECIALIST_WAGE : KEEPER_WAGE, "wages");
-  const activity =
-    worker.mode === "walk"
-      ? "Unterwegs zum Einsatz"
-      : worker.mode === "care"
-        ? worker.role === "technical"
-          ? "Prüft die Sicherung"
-          : "Versorgt die Tiere"
-        : "Bereit für einen Auftrag";
-  const name = `${keeperNames[Math.abs(worker.id - 1) % keeperNames.length]} · #${worker.id}`;
+  const activity = location?.label ?? "Position nicht verfügbar";
+  const name = location?.name ?? `Tierpflege #${worker.id}`;
   const assign = (id: number | null) => {
     const result = onAssignKeeper?.(worker.id, id);
     setError(typeof result === "string" ? result : "");
   };
   return (
-    <details className="sc-person sc-person--keeper" data-testid={`staff-keeper-${worker.id}`}>
-      <summary>
-        <span className="sc-portrait">
-          <img src={assetUrl("keeper-se")} alt={`Spielfigur von ${name}, ${qualification}`} />
-        </span>
-        <span className="sc-person-intro">
-          <strong>{name}</strong>
-          <span>{qualification}</span>
-          <small className={worker.mode === "idle" ? "sc-state" : "sc-state sc-state--busy"}>
-            {activity}
-          </small>
-        </span>
-        <ChevronDown aria-hidden="true" />
-      </summary>
-      <div className="sc-person-body">
-        <dl className="sc-facts">
-          <div>
-            <dt>Qualifikation</dt>
-            <dd>{qualification}</dd>
-          </div>
-          <div>
-            <dt>Lohn / Spieltag</dt>
-            <dd>{difficultyEuro(wage)}</dd>
-          </div>
-          <div className="sc-fact-wide">
-            <dt>Station</dt>
-            <dd>{home?.name ?? "Keine Station zugeordnet"}</dd>
-          </div>
-          <div className="sc-fact-wide">
-            <dt>Aktueller Auftrag</dt>
-            <dd>
-              {target?.name ?? "Wartet auf Pflege- oder Wartungsbedarf"}
-              {worker.mode === "care" && worker.workLeft > 0
-                ? ` · noch ${Math.ceil(worker.workLeft)} s`
-                : ""}
-            </dd>
-          </div>
-        </dl>
-        <p className="sc-qualification">
-          <ShieldCheck aria-hidden="true" />
-          <span>{description}</span>
-        </p>
-        <div className="sc-assignment">
-          <h5>
-            <MapPin aria-hidden="true" />
-            Einsatzgebiet
-          </h5>
-          <p>
-            {worker.assignedHabitatId == null
-              ? "Automatisch: sucht passende Aufträge im Park."
-              : assigned
-                ? `Fest zugeteilt: ${assigned.name}`
-                : "Das zugeteilte Gehege ist nicht mehr vorhanden."}
+    <article className="sc-person sc-person--keeper" data-testid={`staff-keeper-${worker.id}`}>
+      <StaffIdentityButton
+        staffRef={{ kind: "keeper", id: worker.id }}
+        name={name}
+        qualification={qualification}
+        activity={activity}
+        sprite="keeper-se"
+        busy={worker.mode !== "idle"}
+        onLocateStaff={location ? onLocateStaff : undefined}
+      />
+      <details className="sc-person-details" data-testid={`staff-details-keeper-${worker.id}`}>
+        <summary>
+          <span>Qualifikation & Einsatz</span>
+          <ChevronDown aria-hidden="true" />
+        </summary>
+        <div className="sc-person-body">
+          <dl className="sc-facts">
+            <div>
+              <dt>Qualifikation</dt>
+              <dd>{qualification}</dd>
+            </div>
+            <div>
+              <dt>Lohn / Spieltag</dt>
+              <dd>{difficultyEuro(wage)}</dd>
+            </div>
+            <div className="sc-fact-wide">
+              <dt>Station</dt>
+              <dd>{home?.name ?? "Keine Station zugeordnet"}</dd>
+            </div>
+            <div className="sc-fact-wide">
+              <dt>Aktueller Auftrag</dt>
+              <dd>
+                {target?.name ??
+                  (worker.mode === "patrol"
+                    ? "Kontrollrunde auf den Parkwegen"
+                    : "Wartet auf Pflege- oder Wartungsbedarf")}
+                {worker.mode === "care" && worker.workLeft > 0
+                  ? ` · noch ${Math.ceil(worker.workLeft)} s`
+                  : ""}
+              </dd>
+            </div>
+          </dl>
+          <p className="sc-qualification">
+            <ShieldCheck aria-hidden="true" />
+            <span>{description}</span>
           </p>
-          <div
-            className="sc-assignment-options"
-            role="group"
-            aria-label={`Einsatzgebiet für ${name}`}
-          >
-            <button
-              type="button"
-              aria-pressed={worker.assignedHabitatId == null}
-              disabled={!onAssignKeeper}
-              onClick={() => assign(null)}
-              data-testid={`keeper-assignment-${worker.id}-auto`}
+          <div className="sc-assignment">
+            <h5>
+              <MapPin aria-hidden="true" />
+              Einsatzgebiet
+            </h5>
+            <p>
+              {worker.assignedHabitatId == null
+                ? "Automatisch: sucht passende Aufträge im Park."
+                : assigned
+                  ? `Fest zugeteilt: ${assigned.name}`
+                  : "Das zugeteilte Gehege ist nicht mehr vorhanden."}
+            </p>
+            <div
+              className="sc-assignment-options"
+              role="group"
+              aria-label={`Einsatzgebiet für ${name}`}
             >
-              Automatisch {worker.assignedHabitatId == null && <Check aria-hidden="true" />}
-            </button>
-            {eligible.map((habitat) => (
               <button
-                key={habitat.id}
                 type="button"
-                aria-pressed={worker.assignedHabitatId === habitat.id}
+                aria-pressed={worker.assignedHabitatId == null}
                 disabled={!onAssignKeeper}
-                onClick={() => assign(habitat.id)}
-                data-testid={`keeper-assignment-${worker.id}-${habitat.id}`}
+                onClick={() => assign(null)}
+                data-testid={`keeper-assignment-${worker.id}-auto`}
               >
-                <span>{habitat.name}</span>
-                {worker.assignedHabitatId === habitat.id && <Check aria-hidden="true" />}
+                Automatisch {worker.assignedHabitatId == null && <Check aria-hidden="true" />}
               </button>
-            ))}
-          </div>
-          {!eligible.length && (
+              {eligible.map((habitat) => (
+                <button
+                  key={habitat.id}
+                  type="button"
+                  aria-pressed={worker.assignedHabitatId === habitat.id}
+                  disabled={!onAssignKeeper}
+                  onClick={() => assign(habitat.id)}
+                  data-testid={`keeper-assignment-${worker.id}-${habitat.id}`}
+                >
+                  <span>{habitat.name}</span>
+                  {worker.assignedHabitatId === habitat.id && <Check aria-hidden="true" />}
+                </button>
+              ))}
+            </div>
+            {!eligible.length && (
+              <p className="sc-hint">
+                Kein passendes Gehege erreichbar. Verbinde eine Anlage, die zu dieser Qualifikation
+                passt, mit den Parkwegen.
+              </p>
+            )}
             <p className="sc-hint">
-              Kein passendes Gehege erreichbar. Verbinde eine Anlage, die zu dieser Qualifikation
-              passt, mit den Parkwegen.
+              Gezeigt werden passende, erreichbare Gehege. Die Qualifikation bleibt bei der
+              Zuteilung erhalten.
             </p>
-          )}
-          <p className="sc-hint">
-            Gezeigt werden passende, erreichbare Gehege. Die Qualifikation bleibt bei der Zuteilung
-            erhalten.
-          </p>
-          {error && (
-            <p className="sc-feedback" role="alert">
-              {error}
-            </p>
-          )}
+            {error && (
+              <p className="sc-feedback" role="alert">
+                {error}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
-    </details>
+      </details>
+    </article>
   );
 }
 
@@ -274,11 +307,13 @@ export function ZooTeamControls({
   onKeepers,
   onSpecialists,
   onAssignKeeper,
+  onLocateStaff,
 }: {
   park: Park;
   onKeepers: (count: number) => void;
   onSpecialists?: ZooSpecialistsHandler;
   onAssignKeeper?: ZooKeeperAssignmentHandler;
+  onLocateStaff?: (ref: StaffRef) => void;
 }) {
   const [error, setError] = useState("");
   const team = zooTeamTotals(park);
@@ -362,7 +397,7 @@ export function ZooTeamControls({
       )}
       <div className="sc-roster-heading">
         <h5>Deine Mitarbeitenden</h5>
-        <span>Aufklappen & zuteilen</span>
+        <span>Bild anklicken · im Park zeigen</span>
       </div>
       {workers.length > 0 ? (
         <div className="sc-roster">
@@ -372,6 +407,7 @@ export function ZooTeamControls({
               park={park}
               worker={worker}
               onAssignKeeper={onAssignKeeper}
+              onLocateStaff={onLocateStaff}
             />
           ))}
         </div>
@@ -392,12 +428,14 @@ export function ZooOverview({
   onBuild,
   onSpecialists,
   onAssignKeeper,
+  onLocateStaff,
 }: {
   park: Park;
   onKeepers: (n: number) => void;
   onBuild: (k: Kind) => void;
   onSpecialists?: ZooSpecialistsHandler;
   onAssignKeeper?: ZooKeeperAssignmentHandler;
+  onLocateStaff?: (ref: StaffRef) => void;
 }) {
   const stats = zooStats(park);
   const habitats = park.buildings.filter((b) => isHabitat(b.kind));
@@ -443,6 +481,7 @@ export function ZooOverview({
         onKeepers={onKeepers}
         onSpecialists={onSpecialists}
         onAssignKeeper={onAssignKeeper}
+        onLocateStaff={onLocateStaff}
       />
       <button className="secondary z9-wide" onClick={() => onBuild("keeperhut")}>
         Tierpflegerstation bauen · 450 €
