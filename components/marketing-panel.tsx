@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   MARKETING_TYPES,
+  MARKETING_DAY,
   quoteMarketing,
   campaignStatus,
   marketingReport,
@@ -63,7 +64,9 @@ export default function MarketingPanel({
             onClick={() => setKind(id as MarketingKind)}
           >
             <strong>{c.name}</strong>
-            <span>{euro(c.dailyCost)} / Spieltag</span>
+            <span>
+              {euro(c.dailyCost)} / {MARKETING_DAY} s
+            </span>
           </button>
         ))}
       </div>
@@ -77,7 +80,7 @@ export default function MarketingPanel({
           >
             {[1, 2, 3].map((d) => (
               <option key={d} value={d}>
-                {d} {d === 1 ? "Spieltag" : "Spieltage"} · {d * 90} s
+                {d} {d === 1 ? "Abrechnungsperiode" : "Abrechnungsperioden"} · {d * MARKETING_DAY} s
               </option>
             ))}
           </select>

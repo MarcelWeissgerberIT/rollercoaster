@@ -1,11 +1,31 @@
 import type { Guest } from "./simulation";
 import { guestAppearance } from "./visitors";
+import { headBitmap } from "./person-head";
 
 type Person = Pick<Guest, "id" | "skin"> & Partial<Guest>;
 const cache = new WeakMap<HTMLImageElement, Map<string, HTMLCanvasElement>>();
 const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 
-/** Reuse the authored walking poses, preserving transparency, outlines and material shading. */
+/** The authored neck anchor follows each actual step frame, including its small
+ * lateral shifts. Bodies and seated/standing poses retain their original artwork.
+ */
+export function guestHeadAnchor(src: string, seated = false) {
+  const match = src.match(/-(se|sw|ne|nw)(?:-(\d))?\.png/);
+  if (!match) return null;
+  const direction = match[1], frame = Number(match[2] ?? 0),
+    right = direction === "se" || direction === "ne",
+    back = direction === "ne" || direction === "nw";
+  // Sprite directions map to world +X,+Z,-Z,-X respectively.
+  const yaw = { se: -Math.PI / 2, sw: Math.PI, ne: 0, nw: Math.PI / 2 }[direction]!;
+  if (seated) return { x: right ? 38 : 46, y: back ? 39 : 35, yaw, cut: back ? 48 : 44 };
+  const x = (direction === "ne" && frame === 2) ||
+    (direction === "nw" && frame >= 2) ||
+    ((direction === "se" || direction === "sw") && frame === 3) ||
+    (direction === "sw" && frame === 1) ? 52 : 48;
+  return { x, y: (frame % 2 && direction !== "ne") ? 27 : 31, yaw, cut: 40 };
+}
+
+/** Keep authored body motion/shading; replace the coarse head with shared 3D anatomy. */
 export function paintedGuest(
   image: HTMLImageElement,
   guest: Person,
@@ -66,6 +86,20 @@ export function paintedGuest(
       color = rgb("#93613c");
     if (material === 3 && look.accessory === "cap" && y < (seated ? 0.24 : 0.23)) color = colors[0];
     for (let k = 0; k < 3; k++) px[i + k] = Math.min(255, color[k] * shade);
+  }
+  const anchor = guestHeadAnchor(image.src, seated);
+  // Only known authored pose dimensions carry this neck convention.
+  if (anchor && ((seated && canvas.width === 80 && canvas.height === 96) ||
+    (!seated && canvas.width === 96 && canvas.height === 128))) {
+    const head = headBitmap({ ...look, hat: look.shirt, brim: look.pants }, anchor.yaw);
+    for (let y = 0; y < anchor.cut; y++)
+      data.data.fill(0, y * canvas.width * 4, (y + 1) * canvas.width * 4);
+    for (let y = 0; y < head.height; y++) for (let x = 0; x < head.width; x++) {
+      const source = (y * head.width + x) * 4,
+        px = anchor.x + x - head.width / 2, py = anchor.y + y - 18;
+      if (!head.data[source + 3] || px < 0 || px >= canvas.width || py < 0 || py >= canvas.height) continue;
+      data.data.set(head.data.subarray(source, source + 4), (py * canvas.width + px) * 4);
+    }
   }
   ctx.putImageData(data, 0, 0);
   // A park holds at most 220 visitors. The bound retains all current looks per pose.

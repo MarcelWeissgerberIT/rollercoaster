@@ -1,3 +1,6 @@
+import { isWeatherObject } from "./weather-objects";
+import { addCoasterStructure } from "./coaster-structure";
+import { createWeatherObjectModel } from "./weather-object-model";
 import { RESTROOM_SIZE } from "./restroom";
 import { addPhotoHardware, isPhotoPoint } from "./coaster-photo";
 import { operationsOf, OPERATOR_POSTS } from "./operations";
@@ -32,7 +35,6 @@ import {
   type Park,
   type Building,
   CATALOG,
-  COASTER_TYPES,
   rideCapacity,
   rideDuration,
   isRide,
@@ -315,58 +317,10 @@ export function populatePark(
       continue;
     }
     if (b.kind === "coaster" && b.track) {
-      const path = makeRidePath(b.track),
-        color = COASTER_TYPES[b.track[0].style ?? "steel"].color;
+      const path = makeRidePath(b.track);
+      addCoasterStructure(scene, park, b, path);
       addDriveHardware(scene, path);
       if (isPhotoPoint(b.photoPoint)) addPhotoHardware(scene, path, b.photoPoint);
-      for (const side of [-0.58, 0.58])
-        scene.add(
-          new THREE.Mesh(
-            new THREE.TubeGeometry(
-              new THREE.CatmullRomCurve3(
-                path.points
-                  .slice(0, -1)
-                  .map((p, i) => p.clone().addScaledVector(path.rights[i], side)),
-                true,
-                "centripetal",
-              ),
-              Math.min(1200, path.count),
-              0.11,
-              5,
-              true,
-            ),
-            mat(color),
-          ),
-        );
-      const ties = new THREE.InstancedMesh(cube, mat("#486466"), Math.ceil(path.length / 1.2)),
-        matrix = new THREE.Matrix4();
-      for (let i = 0; i < ties.count; i++) {
-        const f = path.at(i / ties.count);
-        matrix.compose(f.position, f.quaternion, new THREE.Vector3(1.5, 0.13, 0.22));
-        ties.setMatrixAt(i, matrix);
-      }
-      scene.add(ties);
-      for (let d = 0; d < path.length; d += 6) {
-        const f = path.at(d / path.length);
-        if (f.position.y > 1.6) {
-          mesh(
-            cylinder,
-            b.track[0].style === "wood" ? "#8b673a" : "#468481",
-            f.position.x,
-            f.position.y / 2,
-            f.position.z,
-            0.19,
-            f.position.y,
-            0.19,
-          );
-          mesh(cube, "#c4bfac", f.position.x, 0.1, f.position.z, 0.8, 0.2, 0.8);
-        }
-      }
-      const station = groupAt(b.x * 5, 0, b.y * 5);
-      station.quaternion.copy(path.at(0).quaternion);
-      mesh(cube, "#d5c596", 1.7, 0.5, 0, 2.1, 0.4, 6, station);
-      mesh(cube, color, 1.7, 3.7, 0, 2.5, 0.3, 6, station);
-      for (const dz of [-2.5, 2.5]) mesh(cylinder, "#267b7e", 2.6, 2, dz, 0.1, 3.5, 0.1, station);
       const carts = Array.from({ length: Math.ceil(rideCapacity(b) / 2) }, (_, i) => {
         const g = createCoasterCar(vehicleFor(b), i);
         scene.add(g);
@@ -422,6 +376,10 @@ export function populatePark(
       mesh(cube, "#31564c", 0, 4.39, 0.08, 0.05, 0.25, 0.04, station);
       mesh(cube, "#31564c", 0.12, 4.25, 0.08, 0.25, 0.05, 0.04, station);
       if (b.kind === "shuttle") mesh(cube, "#417f9e", 1.6, 1.6, 1.5, 0.65, 1.2, 0.15, station);
+    } else if (isWeatherObject(b.kind)) {
+      const object = createWeatherObjectModel(b);
+      scene.add(object);
+      animations.push(() => object.userData.updateWeatherObject());
     } else if (b.kind === "toilet") {
       const room = groupAt(x, 0, z),
         roofGeometry = new THREE.ConeGeometry(1, 1, 4).rotateY(Math.PI / 4);

@@ -1,3 +1,6 @@
+import { SaveSlots } from "../components/save-slots";
+import { ParkCalendar, ParkWeather } from "../components/park-weather";
+import { calendarOf, DAY_SECONDS, DAYS_PER_YEAR } from "../game/calendar";
 import { supportsBuildingRotation } from "@/game/building-orientation";
 import { assignCleanerArea, cleanerAreaInfo, type CleanerArea } from "@/game/cleanliness";
 import { AttractionDirectory } from "@/components/attraction-directory";
@@ -11,7 +14,7 @@ import {
   commitStationReverse,
   stationOrientation,
 } from "../game/station-direction";
-import { suggestExit, applyExitSuggestion } from "../game/exit-assist";
+import { suggestExit, applyExitSuggestion, exitHelpAt } from "../game/exit-assist";
 import { closestPhotoPoint } from "../game/coaster-photo";
 import { makeRidePath } from "../game/ride-path";
 import { GATES, gateStyle, changeGate, type GateStyle } from "../game/entrance";
@@ -488,6 +491,7 @@ export default function Home() {
   const [assets, setAssets] = useState(false);
   const [assetError, setAssetError] = useState(false);
   const [saved, setSaved] = useState("");
+  const [saveSlotsOpen, setSaveSlotsOpen] = useState(false);
   const [zoom, setZoom] = useState(100);
   const [tab, setTab] = useState("park");
   const announced = useRef(false);
@@ -867,29 +871,36 @@ export default function Home() {
       pathStyle,
     ],
   );
+  const [exitHelpPoint, setExitHelpPoint] = useState<Point | null>(null);
+  useEffect(() => {
+    if (tool !== "exit") setExitHelpPoint(null);
+    else if (hoverTile) setExitHelpPoint(placement?.error ? hoverTile : null);
+  }, [tool, hoverTile, placement?.error]);
+  const exitHelp = useMemo(
+    () =>
+      snapshot && tool === "exit" && exitHelpPoint
+        ? exitHelpAt(snapshot, exitHelpPoint, autoClear)
+        : null,
+    [tool, exitHelpPoint, worldRevision, autoClear, snapshot?.cash],
+  );
   const save = useCallback(() => {
-    if (!park.current) return;
-    try {
-      localStorage.setItem(PARK_SAVE_KEY, JSON.stringify(park.current));
-      setSaved("Gespeichert");
-      notify("Dein Park wurde in diesem Browser gespeichert.");
-    } catch {
-      notify("Speichern fehlgeschlagen. Der Browserspeicher ist nicht verfügbar.");
-    }
-  }, [notify]);
+    setSaveSlotsOpen(true);
+    setSettings(false);
+    setMenuOpen(false);
+  }, []);
   function switchPark(next: Park) {
-    if (!park.current) return;
+    if (!park.current) return false;
     let storage: Storage;
     try {
       storage = localStorage;
     } catch {
       notify("Der Browserspeicher ist nicht verfügbar. Dein aktueller Park bleibt geöffnet.");
-      return;
+      return false;
     }
     const error = saveParkSwitch(storage, park.current, next);
     if (error) {
       notify(error);
-      return;
+      return false;
     }
     setPreviousPark(readPreviousPark(storage));
     park.current = next;
@@ -941,6 +952,7 @@ export default function Home() {
         ? "Dein freier Park ist bereit. Baue los – alle Inhalte sind freigeschaltet."
         : `Willkommen in ${scenarioOf(next).name}.`,
     );
+    return true;
   }
   useEffect(() => {
     let initial = newPark();
@@ -1871,16 +1883,18 @@ export default function Home() {
               <span>Zufriedenheit</span>
             </div>
           </div>
-          <div className="metric weather">
-            <Sun style={{ color: "#cfa056" }} />
-            <div>
-              <strong>24°</strong>
-              <span>Sonniger Parktag</span>
-            </div>
-          </div>
+          <ParkWeather
+            park={snapshot}
+            onBuild={() => {
+              pickTool("select", "nature");
+              setMenuOpen(false);
+            }}
+          />
         </div>
         <div className="topactions">
-          <span className="save-label">{saved}</span>
+          <span className="save-label" title={saved}>
+            {saved}
+          </span>
         </div>
       </header>
       <section
@@ -2549,6 +2563,13 @@ export default function Home() {
                 )}
                 {category === "nature" && (
                   <>
+                    <div className="hintbox">
+                      <Sun />
+                      <span>
+                        Für jedes Wetter: trockene Plätze, Schatten und kostenloses Wasser.
+                      </span>
+                    </div>
+                    {catalog(["shelter", "parasol", "fountain"])}
                     {catalog(["tree", "pine", "flowers", "bench", "picnic", "playground", "bin"])}
                     <button
                       className="secondary"
@@ -4573,7 +4594,7 @@ export default function Home() {
               )}
               {goal.profit > 0 && (
                 <div className="goalrow">
-                  <span>Betriebsgewinn / Tag</span>
+                  <span>Betriebsgewinn / 90 s</span>
                   <b>
                     {EUR(snapshot?.operatingProfit ?? 0)} / {EUR(goal.profit)}
                   </b>
@@ -4631,6 +4652,62 @@ export default function Home() {
                             : "Klick baut · Shift für mehrere · Esc beendet"))}
               </span>
             </div>
+            {exitHelp && (
+              <div className="exit-build-help">
+                <strong>{exitHelp.name}: Anschluss finden</strong>
+                <span>
+                  {exitHelp.proposal
+                    ? `${exitHelp.proposal.moved ? "Pod an eine freie Seite versetzen. " : "Pod bleibt an seinem Platz. "}${exitHelp.proposal.underpass.length ? "Der Weg führt unter ausreichend hohen Gleisen hindurch." : "Rote Wege verbinden den Ausgang mit dem Parkweg."}`
+                    : "Hier fehlt Platz. Versetze den Pod an eine andere Seite oder ziehe einen Parkweg näher heran."}
+                </span>
+                {exitHelp.proposal ? (
+                  <button
+                    className="secondary"
+                    disabled={!snapshot || !canAfford(snapshot, exitHelp.proposal.cost)}
+                    onMouseEnter={() => {
+                      view.current.connection = exitHelp.proposal!.points;
+                    }}
+                    onMouseLeave={() => {
+                      view.current.connection = undefined;
+                    }}
+                    onClick={() => {
+                      const help = exitHelp;
+                      edit("Ausgang automatisch verbinden", () => {
+                        const live = park.current?.buildings.find((b) => b.id === help.buildingId);
+                        if (!live || !park.current) return;
+                        const error = applyExitSuggestion(
+                          park.current,
+                          live,
+                          help.proposal!,
+                          autoClear,
+                        );
+                        notify(error ?? "Ausgang verbunden. Der neue Weg ist bereit.");
+                        if (!error) {
+                          setExitHelpPoint(null);
+                          view.current.connection = undefined;
+                        }
+                      });
+                    }}
+                  >
+                    <Route size={16} />
+                    Lösung bauen · {EUR(exitHelp.proposal.cost)}
+                  </button>
+                ) : (
+                  <button
+                    className="secondary"
+                    onClick={() => {
+                      const b = park.current?.buildings.find((b) => b.id === exitHelp.buildingId);
+                      if (b) {
+                        selectAttraction(b.id);
+                        beginPod(b, "exit");
+                      }
+                    }}
+                  >
+                    Ausgangspod anpassen
+                  </button>
+                )}
+              </div>
+            )}
             <label className="clear-toggle">
               <input
                 type="checkbox"
@@ -4684,10 +4761,7 @@ export default function Home() {
           </div>
         )}
         <div className="timebar">
-          <div className="day">
-            Tag {1 + Math.floor((snapshot?.time ?? 0) / 90)}
-            <span>Sommer · Jahr {Math.floor((snapshot?.time ?? 0) / 1080) + 1}</span>
-          </div>
+          <ParkCalendar park={snapshot} />
           <div className="speeds">
             {[0, 1, 3].map((n) => (
               <button
@@ -4956,8 +5030,9 @@ export default function Home() {
             <kbd>⌘/Strg Z</kbd> Bau rückgängig · <kbd>R</kbd> Vorlage drehen · <kbd>Leertaste</kbd>{" "}
             Pause · <kbd>Esc</kbd> Auswahl · <kbd>⌘/Strg S</kbd> Speichern
             <br />
-            Karte ziehen: Auswahlwerkzeug oder rechte Maustaste. Mausrad: Zoom. Ein Spieltag dauert
-            90 Sekunden.
+            Karte ziehen: Auswahlwerkzeug oder rechte Maustaste. Mausrad: Zoom. Ein Spieltag dauert{" "}
+            {Math.round(DAY_SECONDS)} Sekunden. Ein Jahr hat {DAYS_PER_YEAR} Parktage und dauert bei
+            1× genau 20 Minuten. Löhne und Betriebskosten werden alle 90 Spielsekunden abgerechnet.
           </p>
           <footer>
             Originale Spielgrafiken: OpenArt, Projekt „Coaster Grove – Park Assets“. Eigenständiges
@@ -5436,7 +5511,7 @@ export default function Home() {
               </p>
               <div className="stack">
                 <button className="primary" onClick={save}>
-                  <Save /> Jetzt speichern
+                  <Save /> Zehn Speicherplätze öffnen
                 </button>
                 <button
                   className="secondary"
@@ -5465,7 +5540,7 @@ export default function Home() {
                     }
                   }}
                 >
-                  <FolderOpen /> Letzten Spielstand laden
+                  <FolderOpen /> Automatische Sicherung laden
                 </button>
                 <button
                   className="secondary"
@@ -5481,6 +5556,16 @@ export default function Home() {
           </Tabs>
         </DialogContent>
       </Dialog>
+      <SaveSlots
+        open={saveSlotsOpen}
+        onOpenChange={setSaveSlotsOpen}
+        getPark={() => park.current}
+        onLoad={switchPark}
+        onSaved={(name) => {
+          setSaved(`Gespeichert: ${name}`);
+          notify(`Spielstand „${name}“ gespeichert.`);
+        }}
+      />
       <Dialog open={newDialog} onOpenChange={setNewDialog}>
         <DialogContent className="manual">
           <DialogTitle>Dein nächster Park</DialogTitle>
@@ -5534,7 +5619,8 @@ export default function Home() {
                 <strong>Vorherigen Park fortsetzen</strong>
                 <small>
                   {hasUnlimitedBudget(previousPark) ? "Freier Park" : scenarioOf(previousPark).name}{" "}
-                  · Tag {Math.floor(previousPark.time / 90) + 1}
+                  · {calendarOf(previousPark).weekday} · Tag {calendarOf(previousPark).day}, Jahr{" "}
+                  {calendarOf(previousPark).year}
                 </small>
               </span>
             </button>

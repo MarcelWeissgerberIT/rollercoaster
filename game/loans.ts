@@ -1,11 +1,13 @@
 import type { Park } from "./simulation";
+import { BILLING_PERIOD_SECONDS, billingPeriodAt } from "./calendar";
 import { hasUnlimitedBudget, spendCash, creditCash } from "./budget";
 
 export const LOAN_LIMIT = 20000;
 export const LOAN_STEP = 1000;
 /** Fixed game rate, independent of the selected economic difficulty. */
 export const LOAN_DAILY_RATE = 0.0025;
-export const LOAN_DAY_SECONDS = 90;
+/** Legacy API name: this is a billing period, independent of calendar days. */
+export const LOAN_DAY_SECONDS = BILLING_PERIOD_SECONDS;
 export type LoanState = {
   principal: number;
   lastInterestDay: number;
@@ -20,7 +22,7 @@ const validMoney = (value: unknown): value is number =>
   value >= 0 &&
   value <= Number.MAX_SAFE_INTEGER / 100 &&
   Math.abs(value * 100 - Math.round(value * 100)) < 0.00001;
-const dayOf = (s: Pick<LoanPark, "time">) => Math.floor(s.time / LOAN_DAY_SECONDS);
+const dayOf = (s: Pick<LoanPark, "time">) => billingPeriodAt(s.time);
 
 /** Old saves with no loan remain valid and carry no debt or retroactive fees. */
 export function validateLoan(s: Pick<LoanPark, "loan" | "time">): boolean {
@@ -41,7 +43,7 @@ export function validateLoan(s: Pick<LoanPark, "loan" | "time">): boolean {
   );
 }
 
-/** Displayed next daily charge at today's balance. Principal never compounds. */
+/** Displayed next billing charge at the current balance. Principal never compounds. */
 export function loanDailyCost(s: Pick<LoanPark, "loan">): number {
   const principal = s.loan?.principal ?? 0;
   return validMoney(principal) && principal <= LOAN_LIMIT
@@ -77,10 +79,10 @@ export function repayLoan(s: LoanPark, amount: number): string | null {
   return null;
 }
 
-/** Call inside the simulation's once-per-day bill. Only loan bookkeeping changes
+/** Call inside the simulation's once-per-period bill. Only loan bookkeeping changes
  * here; the caller adds the returned interest to its actual cash/expense bill.
- * The outstanding balance at day-end determines the charge, with no compounding
- * or automatic principal repayment. Repeated calls in the same day return zero. */
+ * The outstanding balance at period-end determines the charge, with no compounding
+ * or automatic principal repayment. Repeated calls in the same period return zero. */
 export function tickLoanDay(s: LoanPark): number {
   const loan = s.loan;
   if (!loan || !validateLoan(s)) return 0;

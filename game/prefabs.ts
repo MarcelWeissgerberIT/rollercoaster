@@ -1,3 +1,4 @@
+import { trackGroundCompatible } from "./ground-clearance";
 import { insideMap } from "./grid";
 import {
   type Point,
@@ -158,7 +159,7 @@ export function pieceError(
       field = `Feld (${p.x}, ${p.y})`;
     if (tile === "water")
       return `Wasser blockiert ${field}. Das Bauteil braucht auch seitlich freie Landfläche. Die Einpasshilfe sucht einen anderen Verlauf.`;
-    if (tile !== "grass")
+    if (!trackGroundCompatible(next, p.x, p.y, tile))
       return `${tile === "queue" ? "Ein blauer Eingangsweg" : tile === "exit" ? "Ein roter Ausgangsweg" : "Ein Parkweg"} blockiert ${field}. Die Einpasshilfe versucht, den Weg zu umgehen.`;
     if (b && (!clear || !(decorative(b.kind) && b.kind !== "keeperhut")))
       return `${b.name || CATALOG[b.kind].name} blockiert ${field}.${decorative(b.kind) && b.kind !== "keeperhut" ? " Aktiviere „Deko freiräumen“." : " Die Einpasshilfe sucht einen freien Verlauf."}`;

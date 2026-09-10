@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { guestAppearance } from "./visitors";
 import { createSouvenirModel } from "./souvenir-model";
+import { personHeadParts } from "./person-head";
 import type { Guest } from "./simulation";
 type GuestSource = Pick<Guest, "id" | "skin"> &
   Partial<Pick<Guest, "food" | "souvenir" | "ageGroup" | "appearance" | "party">>;
@@ -43,33 +44,9 @@ export function personParts(
   };
   add(c.shirt, [0, hip + 0.29, 0.035], [0.225, 0.285, 0.14]);
   add(c.pants, [0, hip, 0.025], [0.205, 0.14, 0.135]);
-  add(c.skin, [0, neck + 0.06, 0], [0.06, 0.09, 0.055]);
-  add(c.skin, [0, headY, 0], [0.145, 0.175, 0.14], true);
-  add(
-    c.hair,
-    [0, headY + (c.hairStyle === 2 ? 0.07 : 0.113), c.hairStyle === 2 ? 0.07 : 0.026],
-    c.hairStyle === 2 ? [0.163, 0.15, 0.13] : [0.15, 0.089, 0.133],
-    true,
-  );
-  add(
-    c.hair,
-    [c.hairStyle % 2 ? 0.075 : -0.075, headY + 0.065, -0.102],
-    c.hairStyle === 1 ? [0.095, 0.075, 0.06] : [0.077, 0.065, 0.05],
-    true,
-  );
-  // One fixed slot provides longer hair or a ponytail. Hidden slots keep every
-  // person's instanced geometry count identical, regardless of outfit or age.
-  add(
-    c.hair,
-    [0, headY - (c.hairStyle === 2 ? 0.06 : 0.025), 0.135],
-    c.hairStyle === 2 ? [0.15, 0.145, 0.07] : c.hairStyle === 3 ? [0.073, 0.145, 0.095] : [0, 0, 0],
-    true,
-  );
+  for (const part of personHeadParts({ ...c, hat: c.shirt, brim: c.pants }))
+    add(part.color, [part.p[0], headY + part.p[1], part.p[2]], part.s, true);
   for (const side of [-1, 1]) {
-    add(c.skin, [side * 0.145, headY - 0.01, 0.012], [0.029, 0.051, 0.031], true);
-    add("#fef9ed", [side * 0.055, headY + 0.012, -0.132], [0.034, 0.024, 0.013], true);
-    add("#343531", [side * 0.055, headY + 0.012, -0.144], [0.011, 0.016, 0.006], true);
-    add(c.hair, [side * 0.055, headY + 0.052, -0.128], [0.04, 0.01, 0.011], true);
     const swing = seated || !walking ? 0 : Math.sin(phase + (side > 0 ? Math.PI : 0));
     const shoulder = [side * 0.215, neck - 0.06, 0.03],
       elbow = [side * 0.27, hip + 0.27, seated ? -0.14 : 0.03 + swing * 0.12],
@@ -92,23 +69,12 @@ export function personParts(
     add(c.shoes, [side * 0.11, ankle[1] - 0.058, ankle[2] - 0.065], [0.084, 0.074, 0.15]);
     add("#eae2cc", [side * 0.11, ankle[1] - 0.105, ankle[2] - 0.065], [0.085, 0.022, 0.151]);
   }
-  add(c.skin, [0, headY - 0.017, -0.146], [0.025, 0.041, 0.027], true);
-  add("#9d6252", [0, headY - 0.075, -0.126], [0.035, 0.009, 0.009], true);
   const striped = c.pattern === "stripe" ? 1 : 0;
   for (const y of [hip + 0.25, hip + 0.39])
     add("#f5f0dc", [0, y, -0.103], [0.215 * striped, 0.025 * striped, 0.043 * striped]);
-  // Accessories reuse exactly three geometry slots. Backpacks are tucked away
-  // in ride seats so their volume cannot penetrate the backrest.
-  const accessory = c.accessory === "backpack" && seated ? "none" : c.accessory;
-  if (accessory === "cap") {
-    add(c.shirt, [0, headY + 0.16, 0.015], [0.17, 0.07, 0.155], true);
-    add(c.pants, [0, headY + 0.135, -0.13], [0.165, 0.019, 0.095], true);
-    add(c.shirt, [0, headY + 0.22, 0.015], [0.022, 0.015, 0.022], true);
-  } else if (accessory === "glasses") {
-    for (const side of [-1, 1])
-      add("#344351", [side * 0.055, headY + 0.012, -0.156], [0.043, 0.031, 0.013], true);
-    add("#344351", [0, headY + 0.018, -0.158], [0.023, 0.007, 0.009], true);
-  } else if (accessory === "backpack") {
+  // Backpack slots stay fixed and are tucked away when sitting. Head accessories
+  // already come from the same anatomy used by staff and the park canvas.
+  if (c.accessory === "backpack" && !seated) {
     add(c.pants, [0, hip + 0.3, 0.17], [0.165, 0.19, 0.095]);
     for (const side of [-1, 1])
       add(c.pants, [side * 0.15, hip + 0.32, -0.078], [0.025, 0.2, 0.043]);

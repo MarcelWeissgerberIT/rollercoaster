@@ -109,7 +109,7 @@ const person = (id, ageGroup = "adult") => ({
   ageGroup,
 });
 
-test("Tinted guest poses preserve every alpha value and dark outline in all four directions", () => {
+test("New heads preserve authored body alpha, dark outlines and gait in all four directions", () => {
   let changed = 0,
     preservedOutline = 0;
   for (const direction of ["se", "sw", "ne", "nw"])
@@ -119,6 +119,9 @@ test("Tinted guest poses preserve every alpha value and dark outline in all four
         painted = P.paintedGuest(im, person(24 + frame));
       for (let i = 0; i < im.bitmap.data.length; i += 4) {
         const original = im.bitmap.data;
+        // Head/neck silhouettes intentionally change. The authored body, arms,
+        // hands and legs below them must stay pixel-exact in transparency.
+        if (Math.floor(i / 4 / im.bitmap.width) < 52) continue;
         assert.equal(painted.bitmap.data[i + 3], original[i + 3]);
         if (original[i + 3] < 16 || Math.max(original[i], original[i + 1], original[i + 2]) < 40) {
           assert.deepEqual(painted.bitmap.data.slice(i, i + 4), original.slice(i, i + 4));
@@ -130,7 +133,7 @@ test("Tinted guest poses preserve every alpha value and dark outline in all four
           changed++;
       }
       assert.equal(digest(im.bitmap.data), before, "Tinting mutated the source pose");
-      assert.deepEqual(bounds(painted.bitmap), bounds(im.bitmap));
+      assert.equal(bounds(painted.bitmap).maxY, bounds(im.bitmap).maxY, "Head edit moved the feet");
     }
   assert(changed > 5000);
   assert(preservedOutline > 50);

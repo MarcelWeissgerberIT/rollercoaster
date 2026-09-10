@@ -1,4 +1,8 @@
+import { groundFootprint, pedestrianTile, trackGroundCompatible } from "./ground-clearance";
+import { parkWeather } from "./weather";
+import { guestWeatherComfort, seeksWeatherSeat, weatherSeatScore } from "./weather-comfort";
 import { tickLoanDay, validateLoan, type LoanState } from "./loans";
+import { billingPeriodAt, validCalendar, type CalendarState } from "./calendar";
 import { spendCash, creditCash } from "./budget";
 import { difficultyCost, validDifficulty } from "./difficulty";
 import { validEntrance, type GateStyle } from "./entrance";
@@ -153,6 +157,9 @@ export const COASTER_TYPES = {
   },
 };
 export type Kind =
+  | "shelter"
+  | "parasol"
+  | "fountain"
   | "hotdog"
   | "icecream"
   | "popcorn"
@@ -252,6 +259,7 @@ export type Guest = {
   souvenir?: "balloon" | "plush";
 };
 export type Park = {
+  calendar?: CalendarState;
   unlimitedBudget?: boolean;
   crewPool?: RideCrewPool;
   difficulty?: import("./difficulty").Difficulty;
@@ -654,6 +662,44 @@ export const CATALOG: Record<
     description: string;
   }
 > = {
+  shelter: {
+    name: "Regenpavillon",
+    cost: 180,
+    size: 1,
+    price: 0,
+    duration: 0,
+    capacity: 0,
+    appeal: 0,
+    upkeep: 0,
+    sprite: "weather-shelter",
+    description:
+      "Zwei trockene Sitzplätze unter einem festen Dach. Bei Regen suchen Gäste hier Schutz.",
+  },
+  parasol: {
+    name: "Schattenplatz",
+    cost: 140,
+    size: 1,
+    price: 0,
+    duration: 0,
+    capacity: 0,
+    appeal: 0,
+    upkeep: 0,
+    sprite: "weather-parasol",
+    description:
+      "Vier Picknickplätze unter einem Sonnenschirm. Schatten hilft bei Hitze und eine kurze Pause bei leichtem Regen.",
+  },
+  fountain: {
+    name: "Trinkbrunnen",
+    cost: 160,
+    size: 1,
+    price: 0,
+    duration: 3,
+    capacity: 1,
+    appeal: 1,
+    upkeep: 2,
+    sprite: "weather-fountain",
+    description: "Kostenloses Trinkwasser gegen Durst. Direkt an einen Parkweg stellen und öffnen.",
+  },
   hotdog: {
     name: "Hotdog-Ecke",
     cost: 520,
@@ -1137,6 +1183,15 @@ export function footprint(b: Pick<Building, "x" | "y" | "kind" | "track">): Poin
 export function occupant(s: Park, x: number, y: number) {
   return s.buildings.find((b) => footprint(b).some((p) => p.x === x && p.y === y));
 }
+/** Ground construction leaves elevated track selectable without treating it as a solid wall. */
+export function groundOccupant(s: Park, x: number, y: number) {
+  const hits = s.buildings.filter((b) =>
+    groundFootprint(b, footprint(b)).some((p) => p.x === x && p.y === y),
+  );
+  // A removable tree must never hide a low rail or a solid building on the same cell.
+  return hits.find((b) => !canAutoClear(b.kind)) ?? hits[0];
+}
+
 export function accessNeighbors(b: Building): Point[] {
   const n = CATALOG[b.kind].size;
   const adjacent: Point[] = [];
@@ -1162,7 +1217,7 @@ export function effectivePods(
   const port = (p: (typeof slots)[number]) => podPort(b, size, p);
   const viable = (p: (typeof slots)[number]) => {
     const q = port(p),
-      obstacle = occupant(s, q.x, q.y);
+      obstacle = groundOccupant(s, q.x, q.y);
     return (
       inBounds(q.x, q.y, s) &&
       s.tiles[q.y][q.x] !== "water" &&
@@ -1421,7 +1476,10 @@ export function validateTrack(s: Park, track: Point[]): string | null {
       return "Ungültige Gleisgeometrie.";
     if (
       trackFootprint(track).some(
-        (p) => !inBounds(p.x, p.y, s) || s.tiles[p.y][p.x] !== "grass" || occupant(s, p.x, p.y),
+        (p) =>
+          !inBounds(p.x, p.y, s) ||
+          !trackGroundCompatible(track, p.x, p.y, s.tiles[p.y][p.x]) ||
+          occupant(s, p.x, p.y),
       )
     )
       return "Die Strecke braucht freie Landfelder.";
@@ -1450,8 +1508,12 @@ export function validateTrack(s: Park, track: Point[]): string | null {
   }
   for (let i = 0; i < track.length; i++) {
     const p = track[i];
-    if (!inBounds(p.x, p.y, s) || s.tiles[p.y][p.x] !== "grass" || occupant(s, p.x, p.y))
-      return "Die Strecke braucht freie Landfelder.";
+    if (
+      !inBounds(p.x, p.y, s) ||
+      !trackGroundCompatible(track, p.x, p.y, s.tiles[p.y][p.x]) ||
+      occupant(s, p.x, p.y)
+    )
+      return "Die Strecke braucht freie Landfelder oder mindestens 5 m Abstand über einem Weg.";
     if (i) {
       const prev = track[i - 1];
       if (
@@ -1490,7 +1552,12 @@ export function build(
   }
   if (
     footprint(proto).some(
-      (p) => !inBounds(p.x, p.y, s) || s.tiles[p.y][p.x] !== "grass" || occupant(s, p.x, p.y),
+      (p) =>
+        !inBounds(p.x, p.y, s) ||
+        !(kind === "coaster" && track
+          ? trackGroundCompatible(track, p.x, p.y, s.tiles[p.y][p.x])
+          : s.tiles[p.y][p.x] === "grass") ||
+        occupant(s, p.x, p.y),
     )
   )
     return { error: "Hier ist kein Platz. Wähle freie Wiese." };
@@ -1532,7 +1599,8 @@ export function paint(s: Park, x: number, y: number, type: Tile, style?: PathSty
   if (!inBounds(x, y, s)) return "Außerhalb des Parkgeländes.";
   if (x === ENTRANCE.x && y === ENTRANCE.y && type !== "path")
     return "Der Parkeingang muss ein normaler Weg bleiben.";
-  if (occupant(s, x, y)) return "Dieses Feld ist bereits bebaut.";
+  if (pedestrianTile(type) ? groundOccupant(s, x, y) : occupant(s, x, y))
+    return "Dieses Feld ist bereits bebaut oder das Gleis liegt zu tief (5 m Durchfahrtshöhe nötig).";
   const resurfacing =
     type === "path" &&
     s.tiles[y][x] === "path" &&
@@ -1651,6 +1719,7 @@ export function newPark(
 ): Park {
   const s: Park = {
     version: 1,
+    calendar: { version: 1, offsetSeconds: 0 },
     difficulty: "normal",
     cash: 16000,
     tiles: Array.from({ length: SIZE }, () => Array(SIZE).fill("grass")),
@@ -1879,6 +1948,7 @@ function choose(s: Park, g: Guest, net: Set<string>) {
     .map((b) => ({ b, score: guestScore(b, g, s) + Math.random() * 1.4 }))
     .filter((o) => o.score > -0.5)
     .sort((a, b) => b.score - a.score);
+  const weather = parkWeather(s);
   const resting = s.buildings
     .filter(
       (b) =>
@@ -1896,9 +1966,9 @@ function choose(s: Park, g: Guest, net: Set<string>) {
             members.length) &&
         (b.kind === "playground"
           ? g.profile === "family" && !g.visited?.includes(b.id)
-          : (g.energy ?? 80) < 50 || !!g.food),
+          : (g.energy ?? 80) < 50 || !!g.food || seeksWeatherSeat(b, g, weather)),
     )
-    .sort((a, b) => Math.hypot(a.x - g.x, a.y - g.y) - Math.hypot(b.x - g.x, b.y - g.y))[0];
+    .sort((a, b) => weatherSeatScore(b, g, weather) - weatherSeatScore(a, g, weather))[0];
   if (
     !s.open ||
     g.rides >= 5 ||
@@ -1925,7 +1995,11 @@ function choose(s: Park, g: Guest, net: Set<string>) {
     g.thought =
       resting.kind === "playground"
         ? "Eine Runde auf den Spielplatz!"
-        : "Ich suche mir einen gemütlichen Sitzplatz.";
+        : resting.kind === "shelter" && weather.rain > 0.25
+          ? "Ich suche einen trockenen Platz unter dem Dach."
+          : resting.kind === "parasol" && weather.heat > 0.2
+            ? "Eine Pause im Schatten wäre jetzt schön."
+            : "Ich suche mir einen gemütlichen Sitzplatz.";
     return;
   }
   const b = ranked[0]?.b;
@@ -1962,10 +2036,11 @@ export function tick(s: Park, dt: number) {
       research.active = null;
     }
   }
-  const oldDay = Math.floor(s.time / 90);
+  const oldBillingPeriod = billingPeriodAt(s.time);
   s.time += dt;
   const net = connected(s),
     exits = exitNetwork(s, net);
+  const weatherNow = parkWeather(s);
   tickMaintenance(s, dt);
   const active = s.buildings.filter(
     (b) => b.open && hasOperator(b) && !decorative(b.kind) && access(s, b, net),
@@ -2118,7 +2193,9 @@ export function tick(s: Park, dt: number) {
   }
   for (const g of s.guests) {
     g.hunger = Math.min(100, g.hunger + dt * 0.14);
-    g.thirst = Math.min(100, g.thirst + dt * 0.2);
+    const comfort = guestWeatherComfort(s, g, weatherNow);
+    g.thirst = Math.min(100, g.thirst + dt * (0.2 + comfort.extraThirst));
+    g.happiness = Math.max(0, Math.min(100, g.happiness + dt * comfort.moodPerSecond));
     g.bladder = Math.min(100, (g.bladder ?? 10) + dt * 0.17);
     g.happiness = Math.max(
       0,
@@ -2330,9 +2407,13 @@ export function tick(s: Park, dt: number) {
         g.thought =
           b.kind === "playground"
             ? "Klettern und rutschen!"
-            : g.food
-              ? `Pause mit ${FOOD[g.food.kind].name}.`
-              : "Ich ruhe mich auf der Bank aus.";
+            : b.kind === "shelter" && weatherNow.rain > 0.25
+              ? "Hier unter dem Dach bleibe ich trocken."
+              : b.kind === "parasol" && weatherNow.heat > 0.2
+                ? "Der Schatten tut bei dieser Hitze gut."
+                : g.food
+                  ? `Pause mit ${FOOD[g.food.kind].name}.`
+                  : "Ich ruhe mich auf der Bank aus.";
         continue;
       }
       if (b && isHabitat(b.kind)) {
@@ -2401,7 +2482,7 @@ export function tick(s: Park, dt: number) {
     );
   else if (dirtPenalty > 0) s.rating = Math.min(s.rating, Math.round(100 - dirtPenalty));
   let researchDailyProfit = 0;
-  if (Math.floor(s.time / 90) !== oldDay) {
+  if (billingPeriodAt(s.time) !== oldBillingPeriod) {
     const payroll = s.staff * 80 + zooWages(s) + operatorWages(s);
     const upkeep = s.buildings
       .filter((b) => !decorative(b.kind))
@@ -2489,6 +2570,7 @@ export function validSave(v: unknown): v is Park {
         : point(p));
     if (
       !validateLoan(s) ||
+      !validCalendar(s) ||
       !validDifficulty(s) ||
       (s.unlimitedBudget !== undefined && typeof s.unlimitedBudget !== "boolean") ||
       s.version !== 1 ||

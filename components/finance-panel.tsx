@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, Banknote, Landmark, Wallet } from "lucide-react";
 import type { Park } from "../game/simulation";
+import { BILLING_PERIOD_SECONDS } from "../game/calendar";
 import { canAfford, hasUnlimitedBudget } from "../game/budget";
 import {
   LOAN_DAILY_RATE,
@@ -81,7 +82,7 @@ export function FinancePanel({
         {(!unlimited || debt > 0) && (
           <article>
             <Banknote aria-hidden="true" />
-            <span>Zinsen / Spieltag</span>
+            <span>Zinsen / 90 s</span>
             <strong>{money(dailyInterest)}</strong>
           </article>
         )}
@@ -152,10 +153,13 @@ export function FinancePanel({
             )}
           </section>
           <aside className="fp-terms">
-            <strong>{(LOAN_DAILY_RATE * 100).toLocaleString("de-DE")} % Zins je Spieltag</strong>
+            <strong>
+              {(LOAN_DAILY_RATE * 100).toLocaleString("de-DE")} % Zins je Abrechnungsperiode
+            </strong>
             <p>
-              Zinsen werden am Tagesende auf die dann offene Summe berechnet. Ein Spieltag dauert 90
-              Sekunden Simulationszeit. Der Zins bleibt in jeder Schwierigkeit gleich.
+              Zinsen werden alle {BILLING_PERIOD_SECONDS} Sekunden Simulationszeit auf die dann
+              offene Summe berechnet. Diese Abrechnungsperiode ist unabhängig vom Kalendertag. Der
+              Zins bleibt in jeder Schwierigkeit gleich.
             </p>
             <p>
               {unlimited
@@ -168,26 +172,30 @@ export function FinancePanel({
           </aside>
         </>
       )}
-      <section className="fp-day" aria-label="Tatsächliche Tagesfinanzen">
+      <section className="fp-day" aria-label="Finanzen der Abrechnungsperiode">
         <h4>Deine tatsächlichen Zahlen</h4>
         <dl>
           <div>
-            <dt>Einnahmen heute</dt>
+            <dt>Einnahmen dieser Periode</dt>
             <dd>{money(park.dayIncome)}</dd>
           </div>
           <div>
-            <dt>Ausgaben heute</dt>
+            <dt>Ausgaben dieser Periode</dt>
             <dd>{money(park.dayExpenses)}</dd>
           </div>
           <div>
-            <dt>Saldo letzter abgeschlossener Spieltag</dt>
-            <dd>{park.time >= 90 ? money(park.lastProfit) : "Noch kein Tagesabschluss"}</dd>
+            <dt>Saldo der letzten Abrechnungsperiode</dt>
+            <dd>
+              {park.time >= BILLING_PERIOD_SECONDS
+                ? money(park.lastProfit)
+                : "Noch keine Abrechnung"}
+            </dd>
           </div>
         </dl>
         <small>
           {unlimited
             ? "Die gebuchten Einnahmen und Kosten laufen zur Übersicht weiter. Dein unbegrenztes Budget schränken sie nicht ein."
-            : "Der Tagessaldo enthält die tatsächlich gebuchten Kosten einschließlich Kreditzinsen und Bauausgaben."}
+            : "Der Periodensaldo enthält die tatsächlich gebuchten Kosten einschließlich Kreditzinsen und Bauausgaben."}
         </small>
       </section>
       {feedback && (

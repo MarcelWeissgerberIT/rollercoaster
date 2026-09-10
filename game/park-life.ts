@@ -3,6 +3,7 @@ import { buildingOrientation, furniturePoint } from "./building-orientation";
 import { furnitureSeat } from "./furniture";
 
 export const FOOD = {
+  fountain: { name: "Wasser", color: "#b7e0e7", supplies: 0, duration: 10, drink: true },
   burger: { name: "Burger", color: "#dba544", supplies: 3, duration: 24, drink: false },
   hotdog: { name: "Hotdog", color: "#dc8055", supplies: 2.5, duration: 22, drink: false },
   icecream: { name: "Eis", color: "#efb6cf", supplies: 1.4, duration: 28, drink: false },
@@ -14,6 +15,8 @@ export type FoodKind = keyof typeof FOOD;
 export const isFood = (kind: string): kind is FoodKind => Object.hasOwn(FOOD, kind);
 export type Food = { kind: FoodKind; remaining: number; total: number };
 export const AMENITIES = {
+  shelter: { seats: 2, duration: 20, energy: 28, joy: 4 },
+  parasol: { seats: 4, duration: 24, energy: 34, joy: 5 },
   bench: { seats: 2, duration: 18, energy: 26, joy: 3 },
   picnic: { seats: 4, duration: 24, energy: 34, joy: 5 },
   playground: { seats: 8, duration: 32, energy: 12, joy: 12 },
@@ -49,7 +52,7 @@ export function restPose(
       height: Math.max(0, 1 - f * 1.5) * 1.3,
     };
   }
-  const seat = furnitureSeat(b.kind === "picnic" ? "picnic" : "bench", slot);
+  const seat = furnitureSeat(b.kind === "picnic" || b.kind === "parasol" ? "picnic" : "bench", slot);
   return {
     ...furniturePoint(b, seat.x / 5, seat.y / 5),
     yaw: seat.yaw - (buildingOrientation(b) * Math.PI) / 2,

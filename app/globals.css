@@ -5217,3 +5217,9 @@ body:has(.manual[data-slot="dialog-content"] .free-play-card) [data-slot="dialog
     grid-template-columns: 1fr;
   }
 }
+
+.build-status:has(.exit-build-help) { flex-wrap: wrap; max-width: 650px; }
+.build-status .exit-build-help { flex: 1 1 100%; border-top: 1px solid #c5d5bb; padding-top: 10px; display: grid; gap: 6px; }
+.exit-build-help .secondary { justify-self: start; font-size: 12px; padding: 8px 12px; }
+
+.save-label { max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

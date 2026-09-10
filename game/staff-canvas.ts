@@ -1,4 +1,5 @@
-import { staffPose, staffYaw, type StaffMotion, type V3 } from "./staff-animation";
+import { staffHeadLook, staffPose, staffYaw, type StaffMotion, type V3 } from "./staff-animation";
+import { drawPersonHead } from "./person-head";
 
 /** Project articulated joints into the same isometric view as the park sprites. */
 export function drawStaff(
@@ -36,6 +37,12 @@ export function drawStaff(
   );
   ctx.lineCap = "round";
   for (const { part, a, b } of parts) {
+    if (part.head) {
+      if (part.id === "head")
+        drawPersonHead(ctx, staffHeadLook(m), yaw, a.x, a.y + 0.018 * 15 * scale,
+          9 / 48 * scale, 15 / 60 * scale);
+      continue;
+    }
     ctx.fillStyle = part.color;
     ctx.strokeStyle = "#304139";
     if (b) {

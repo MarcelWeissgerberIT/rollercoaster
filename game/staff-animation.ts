@@ -1,3 +1,5 @@
+import { personHeadParts, type HeadLook } from "./person-head";
+
 /** Articulated work poses shared by the park canvas and 3D. Metres, facing -Z. */
 export type StaffAction =
   | "idle"
@@ -34,9 +36,22 @@ export type StaffPart = {
   b?: V3;
   size: V3;
   shape: "round" | "box";
+  head?: boolean;
 };
 const mix = (a: V3, b: V3, t: number): V3 => a.map((n, i) => n + (b[i] - n) * t) as V3;
 export const staffYaw = (heading: number) => Math.atan2(-Math.cos(heading), -Math.sin(heading));
+
+export function staffHeadLook(m: StaffMotion): HeadLook {
+  const id = Math.abs((m.appearanceId ?? m.id) + (m.post === "entry" ? 1 : m.post === "exit" ? 2 : 0));
+  return {
+    skin: ["#e6b48e", "#b57d59", "#825339", "#f1cba8"][id % 4],
+    hair: ["#4a3227", "#282b29", "#916942", "#684333"][id % 4],
+    hairStyle: id % 4,
+    accessory: "cap",
+    hat: m.role === "keeper" ? "#c7b277" : m.role === "cleaner" ? "#efe3b9" : "#304e71",
+    wideBrim: m.role === "keeper",
+  };
+}
 
 export function staffPose(m: StaffMotion): StaffPart[] {
   const parts: StaffPart[] = [];
@@ -46,11 +61,9 @@ export function staffPose(m: StaffMotion): StaffPart[] {
     parts.push({ id, color, a, b, size: [r, r, r], shape: "round" });
   const appearanceId =
     (m.appearanceId ?? m.id) + (m.post === "entry" ? 1 : m.post === "exit" ? 2 : 0);
-  const skin = ["#e6b48e", "#b57d59", "#825339", "#f1cba8"][Math.abs(appearanceId) % 4],
-    hair = ["#4a3227", "#282b29", "#916942", "#684333"][Math.abs(appearanceId) % 4],
+  const headLook = staffHeadLook(m), skin = headLook.skin,
     shirt = m.role === "cleaner" ? "#268996" : m.role === "keeper" ? "#67834e" : "#3e6689",
     pants = m.role === "keeper" ? "#685d42" : "#34485a",
-    hat = m.role === "keeper" ? "#c7b277" : m.role === "cleaner" ? "#efe3b9" : "#304e71",
     walk = m.action === "walk" || m.action === "carry",
     phase = (m.distance === undefined ? m.time * 8 : m.distance * 9) + appearanceId * 1.7,
     beat = Math.sin(m.time * 5),
@@ -78,33 +91,13 @@ export function staffPose(m: StaffMotion): StaffPart[] {
   put("belt", "#303b36", [0, hip[1] + 0.085, -0.015], [0.192, 0.028, 0.14]);
   put("buckle", "#e0c57c", [0, hip[1] + 0.085, -0.156], [0.032, 0.027, 0.01], "box");
   limb("neck", skin, [0, neck[1] - 0.04, neck[2]], head, 0.055);
-  put("head", skin, head, [0.139, 0.174, 0.132]);
-  put("hair", hair, [0, head[1] + 0.055, head[2] + 0.064], [0.146, 0.124, 0.098]);
-  put("cap", hat, [0, head[1] + 0.155, head[2] + 0.007], [0.159, 0.058, 0.146]);
-  put(
-    "brim",
-    hat,
-    [0, head[1] + 0.132, head[2] - 0.126],
-    [m.role === "keeper" ? 0.218 : 0.155, 0.019, 0.125],
-  );
-  put("nose", skin, [0, head[1] - 0.018, head[2] - 0.132], [0.026, 0.037, 0.035]);
-  put("mouth", "#8d5947", [0, head[1] - 0.077, head[2] - 0.124], [0.034, 0.009, 0.006]);
+  for (const part of personHeadParts(headLook).filter((part) => part.s.every((size) => size > 0)))
+    parts.push({ id: part.id, color: part.color,
+      a: [head[0] + part.p[0], head[1] + part.p[1], head[2] + part.p[2]],
+      size: part.s, shape: "round", head: true });
   put("badge", "#f6dd8c", [-0.098, neck[1] - 0.18, neck[2] - 0.175], [0.039, 0.046, 0.018], "box");
   const hands: V3[] = [];
   for (const side of [-1, 1]) {
-    put(`ear${side}`, skin, [side * 0.14, head[1] - 0.01, head[2]], [0.029, 0.045, 0.025]);
-    put(
-      `eye${side}`,
-      "#faf5e4",
-      [side * 0.052, head[1] + 0.02, head[2] - 0.124],
-      [0.03, 0.022, 0.012],
-    );
-    put(
-      `pupil${side}`,
-      "#263430",
-      [side * 0.052, head[1] + 0.02, head[2] - 0.136],
-      [0.012, 0.015, 0.006],
-    );
     const gait = walk ? Math.sin(phase + (side > 0 ? Math.PI : 0)) : 0,
       lift = walk ? Math.max(0, Math.cos(phase + (side > 0 ? Math.PI : 0))) : 0,
       knee: V3 = [side * 0.104, 0.46 + lift * 0.035, -gait * 0.14 - 0.025],

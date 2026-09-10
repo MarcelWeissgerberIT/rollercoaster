@@ -21,6 +21,9 @@ export type CameraRect = { left: number; top: number; right: number; bottom: num
 type SpriteSpec = { width: number; height: number; anchorX: number; anchorY: number };
 
 const specs: Record<string, SpriteSpec> = {
+  "weather-shelter": { width: 60, height: 70, anchorX: 30, anchorY: 52 },
+  "weather-parasol": { width: 60, height: 70, anchorX: 30, anchorY: 52 },
+  "weather-fountain": { width: 28, height: 38, anchorX: 14, anchorY: 28 },
   ...zooWalkSpecs,
   ...zooV9Specs,
   ...lifeSpecs,

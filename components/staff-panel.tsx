@@ -101,7 +101,7 @@ function RideCrewCard({
         <p className="sc-available-note">Verfügbar · aktuell ohne Fahrgeschäft</p>
       )}
       <div className="sc-crew-price">
-        <span>Gesamte Crew / Spieltag</span>
+        <span>Gesamte Crew / 90 s</span>
         <b>{wage}</b>
       </div>
       <div className="sc-crew-people">
@@ -356,7 +356,7 @@ function CleanerEmployeeCard({
               <dd>Parkreinigung</dd>
             </div>
             <div>
-              <dt>Lohn / Spieltag</dt>
+              <dt>Lohn / 90 s</dt>
               <dd>{difficultyEuro(difficultyCost(park, 80, "wages"))}</dd>
             </div>
             <div className="sc-fact-wide">
@@ -456,7 +456,7 @@ export function StaffPanel({
         <div>
           <CircleUserRound aria-hidden="true" />
           <b>{difficultyEuro(wages)}</b>
-          <span>Löhne pro Spieltag</span>
+          <span>Löhne je 90 Spielsekunden</span>
         </div>
       </div>
       <section className="sc-cleaners" aria-label="Reinigungsteam verwalten">
@@ -475,7 +475,7 @@ export function StaffPanel({
           </p>
           <div className="sc-hiring-footer">
             <span>
-              <b>{difficultyEuro(cleanerWage)}</b> je Person / Spieltag
+              <b>{difficultyEuro(cleanerWage)}</b> je Person / 90 s
               <small>Bis zu 8 Personen</small>
             </span>
             <StaffCounter
@@ -530,7 +530,7 @@ export function StaffPanel({
         </div>
         <p className="sc-intro">
           Verfügbare Teams übernehmen offene Anlagen automatisch. Jede Crew umfasst Fahrsteuerung,
-          Einlass und Auslass; gemeinsam {difficultyEuro(operatorWage)} pro Spieltag.
+          Einlass und Auslass; gemeinsam {difficultyEuro(operatorWage)} je 90 Spielsekunden.
         </p>
         {ops.unstaffed > 0 && (
           <p className="sc-note sc-note--warning">
@@ -556,7 +556,7 @@ export function StaffPanel({
           data-testid="staff-hire-crew"
         >
           <Plus aria-hidden="true" /> Neue Crew einstellen · {difficultyEuro(operatorWage)} /
-          Spieltag
+          90 Spielsekunden
         </button>
         <p className="sc-hint">
           Der Bau einer Anlage stellt kein zusätzliches Team ein. Freie Crews bleiben bezahlt; ihre

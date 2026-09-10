@@ -382,11 +382,13 @@ test("Repeated action changes reuse bounded meshes, geometries and materials", (
 
 function recordingCanvas() {
   const ellipses = [],
-    lines = [];
+    lines = [], pixels = [];
   let path = [];
   return {
     ellipses,
     lines,
+    pixels,
+    fillRect(x, y, width, height) { pixels.push({x, y, width, height, color: this.fillStyle}); },
     save() {},
     restore() {},
     beginPath() {
@@ -434,6 +436,9 @@ test("Canvas and 3D consume the same posed joints, tool positions and heading", 
       for (const p of A.staffPose(input)) {
         const mesh = model.root.getObjectByName(p.id);
         assert(mesh?.visible);
+        // Heads now share depth-tested anatomy instead of flattening every
+        // feature to a front-facing ellipse. The head suite checks that raster.
+        if (p.head) { assert(ctx.pixels.length > 100); continue; }
         if (p.b) {
           const half = mesh.scale.y - p.size[0] * 0.45,
             a = project(mesh.localToWorld(new THREE.Vector3(0, -half / mesh.scale.y, 0))),

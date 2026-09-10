@@ -55,7 +55,7 @@ export function RideOperationsPanel({
         </span>
       </div>
       <div className="sc-crew-price">
-        <span>Gesamte Crew / Spieltag</span>
+        <span>Gesamte Crew / 90 s</span>
         <b>{difficultyEuro(difficultyCost(park ?? {}, OPERATOR_WAGE, "wages"))}</b>
       </div>
       {o.staffed && (
@@ -199,7 +199,7 @@ export function RideOperationsPanel({
           data-testid={`ride-hire-crew-${b.id}`}
         >
           <Plus aria-hidden="true" /> Neue Crew einstellen ·{" "}
-          {difficultyEuro(difficultyCost(park ?? {}, OPERATOR_WAGE, "wages"))} / Spieltag
+          {difficultyEuro(difficultyCost(park ?? {}, OPERATOR_WAGE, "wages"))} / 90 s
         </button>
         <p className="sc-hint">
           Neu eingestellte Crews werden automatisch auf Anlagen mit Bedarf verteilt.

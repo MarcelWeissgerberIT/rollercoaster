@@ -1,3 +1,6 @@
+import { createBirdScene } from "../game/bird-scene";
+import { createWeatherScene } from "../game/weather-scene";
+import { addCoasterStructure } from "../game/coaster-structure";
 import { addPhotoHardware, isPhotoPoint, crossedPhotoPoint } from "../game/coaster-photo";
 import { createRidePhotoCapture, type RidePhoto } from "../game/coaster-photo-capture";
 import { operationsOf } from "../game/operations";
@@ -15,7 +18,7 @@ import { mapWidth, mapHeight } from "../game/grid";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Pause, Play, RotateCcw, X, Volume2, VolumeX } from "lucide-react";
-import { type Building, type Park, CATALOG, COASTER_TYPES, rideCapacity } from "../game/simulation";
+import { type Building, type Park, CATALOG, rideCapacity } from "../game/simulation";
 import { populatePark } from "../game/park-scene";
 import { PHASE_NAMES, type RidePhase } from "../game/motion";
 import { makeRidePath } from "../game/ride-path";
@@ -86,10 +89,13 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     target.appendChild(renderer.domElement);
     const camera = new THREE.PerspectiveCamera(72, 1, 0.08, 400);
-    scene.add(new THREE.HemisphereLight("#e6faff", "#597340", 2.7));
+    const ambient = new THREE.HemisphereLight("#e6faff", "#597340", 2.7);
+    scene.add(ambient);
     const sun = new THREE.DirectionalLight("#fff0d0", 2.5);
     sun.position.set(40, 100, -40);
     scene.add(sun);
+    const weatherScene = createWeatherScene(scene, park, { ambient, sun });
+    const birds = createBirdScene(scene, park);
     const materials = new Map<string, THREE.MeshStandardMaterial>();
     const mat = (color: string) => {
       if (!materials.has(color))
@@ -155,49 +161,7 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
     }
     const updatePark = populatePark(scene, park, building.id, mesh, mat, cube, cylinder, cone);
     const path = compiledPath;
-    const color = COASTER_TYPES[building.track?.[0]?.style ?? "steel"].color;
-    const railGeometry = (offset: number) =>
-      new THREE.TubeGeometry(
-        new THREE.CatmullRomCurve3(
-          path.points.slice(0, -1).map((p, i) => p.clone().addScaledVector(path.rights[i], offset)),
-          true,
-          "centripetal",
-        ),
-        path.count,
-        0.11,
-        6,
-        true,
-      );
-    for (const side of [-0.58, 0.58]) scene.add(new THREE.Mesh(railGeometry(side), mat(color)));
-    const ties = new THREE.InstancedMesh(
-      cube,
-      mat(building.track?.[0]?.style === "wood" ? "#82582f" : "#384e50"),
-      Math.ceil(path.length / 0.8),
-    );
-    const matrix = new THREE.Matrix4();
-    for (let i = 0; i < ties.count; i++) {
-      const p = path.at(i / ties.count);
-      matrix.compose(p.position, p.quaternion, new THREE.Vector3(1.5, 0.13, 0.22));
-      ties.setMatrixAt(i, matrix);
-    }
-    scene.add(ties);
-    for (let d = 0; d < path.length; d += 5) {
-      const p = path.at(d / path.length);
-      if (p.position.y < 1.5) continue;
-      for (const side of [-1, 1]) {
-        const foot = p.position.clone().addScaledVector(p.right, side * 0.8);
-        mesh(cylinder, "#6a8681", foot.x, p.position.y / 2, foot.z, 0.15, p.position.y, 0.15);
-        mesh(cube, "#c4bfac", foot.x, 0.12, foot.z, 0.8, 0.24, 0.8);
-      }
-    }
-    const station = path.at(0),
-      platform = new THREE.Group();
-    platform.position.copy(station.position);
-    platform.quaternion.copy(station.quaternion);
-    scene.add(platform);
-    mesh(cube, "#e1cf9c", 2, -0.25, 0, 2.3, 0.3, 8, platform);
-    for (const z of [-3, 3]) mesh(cube, "#267b7e", 3, 1.5, z, 0.18, 3, 0.18, platform);
-    mesh(cube, color, 2, 3.1, 0, 2.7, 0.25, 8, platform);
+    addCoasterStructure(scene, park, building, path);
     const train = Array.from({ length: Math.ceil(rideCapacity(building) / 2) }, (_, i) => {
       const wagon = createCoasterCar(vehicleFor(building), i);
       scene.add(wagon);
@@ -377,6 +341,8 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
         isPhotoPoint(building.photoPoint) &&
         crossedPhotoPoint(photoPrevious, photoProgress, building.photoPoint);
       photoRig?.setFlash(triggerPhoto ? 1 : 0);
+      weatherScene.update(park.time + parkTime, camera);
+      birds.update(park.time + parkTime);
       renderer.render(scene, camera);
       if (triggerPhoto) {
         photoCamera.aspect = camera.aspect;
@@ -415,6 +381,8 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
     });
     return () => {
       photos.dispose();
+      weatherScene.dispose();
+      birds.dispose();
       renderer.setAnimationLoop(null);
       observer.disconnect();
       renderer.domElement.removeEventListener("pointerdown", pointerDown);

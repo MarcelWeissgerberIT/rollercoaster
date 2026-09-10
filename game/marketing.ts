@@ -1,8 +1,10 @@
 import { hasOperator } from "./operations";
+import { BILLING_PERIOD_SECONDS } from "./calendar";
 import { canAfford, spendCash } from "./budget";
 /** Campaign costs, demand and attribution share the park's simulation clock. */
 import type { Park, Guest, Building } from "./simulation";
-export const MARKETING_DAY = 90;
+/** Legacy API/save name: campaign days are fixed economic billing periods. */
+export const MARKETING_DAY = BILLING_PERIOD_SECONDS;
 export const MARKETING_TYPES = {
   flyers: { name: "Flyer im Umland", dailyCost: 90, entryLift: 0.18, spawnLift: 0.1, rideBonus: 0 },
   park: { name: "Parkkampagne", dailyCost: 180, entryLift: 0.35, spawnLift: 0.2, rideBonus: 0 },
@@ -112,7 +114,7 @@ export function quoteMarketing(
   };
   const reject = (error: string) => ({ ...quote, error });
   if (!hasKind(kind) || !Number.isInteger(days) || days < 1 || days > 3)
-    return reject("Wähle einen Kampagnentyp und 1–3 Spieltage.");
+    return reject("Wähle einen Kampagnentyp und 1–3 Abrechnungsperioden.");
   if (kind === "ride") {
     const b = s.buildings.find((b) => b.id === targetId);
     if (!b || !defaultRideAvailable(s, b) || !available(s, b))

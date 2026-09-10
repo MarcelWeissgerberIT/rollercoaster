@@ -4,6 +4,15 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 
 **[Jetzt spielen](https://marcelweissgerberit.github.io/rollercoaster/)**
 
+## Kalender, Wetter und Spielstände
+
+- Das Jahr hat 28 Parktage und vier Jahreszeiten. Ein Tag dauert rund 43 Sekunden, ein Jahr bei 1× genau 20 Minuten; bei Pause stoppt die Zeit. Wochentag, Saison und Jahresfortschritt stehen unten links. Bestehende Parks behalten ihr Jahr und ihren Fortschritt. Betriebskosten werden weiterhin alle 90 Spielsekunden abgerechnet.
+- Ein Klick auf das Wetter oben öffnet die Vorhersage. Sonne, Wolken, Regen und Hitze ändern Himmel, Licht und Gästegefühl; Regen ist auch in 3D sichtbar. Unter **Park → Natur** stehen Regenpavillon, Schattenplatz und Trinkbrunnen. Gäste können unter dem Dach beziehungsweise Schirm pausieren und kostenlos Wasser trinken.
+- **Parkmenü → Speichern** oder **⌘/Strg S** öffnet zehn benannte Speicherplätze. Jeder zeigt Park, Jahr und Datum; Speichern, Laden, Umbenennen und Löschen sind direkt erreichbar. Belegte Plätze werden erst nach Bestätigung ersetzt. Die automatische Sicherung ist separat. Spielstände sind lokal in diesem Browser gespeichert.
+- Wege dürfen unter hoch liegenden Achterbahngleisen hindurchführen, wenn mindestens fünf Meter freie Höhe vorhanden sind. Bei blockierten roten Ausgangswegen zeigt die Bauhilfe eine mögliche Verbindung mit Preis und gegebenenfalls einen besseren Podplatz. Stützen halten den Weg frei.
+- Achterbahnen verwenden zusammenpassende Doppelgleise, Schwellen, Fundamente und Stahl- beziehungsweise Holzverbände in Park- und Mitfahrtansicht. Gäste und Personal teilen sich räumlich geformte Köpfe und klare Blickrichtungen.
+- Wenige Vögel fliegen über den Park, gleiten, landen auf vorhandenen Bäumen und ruhen dort. Flügel, Schwanz und Kopf folgen derselben Animation in 2D und 3D; Pause und Laden behalten die Bewegung bei.
+
 ## Nahansicht, Reinigungsflächen und Besucher
 
 - **Bauen → Fahrgeschäfte → Im Park** listet die vorhandenen Anlagen mit Suche. Das **Auge** öffnet ihre Details und fährt die Kamera passend heran; es steht auch direkt im ausgewählten Objekt. Mausrad und +/− reichen jetzt bis **500 %**.
@@ -16,10 +25,10 @@ Seltene erwachsene Einzelbesucher oder Paare bringen einen Hund mit; höchstens 
 ## Parkleben, Fahrbetrieb und Forschung
 
 - Das Pastell-Halbrad gruppiert Bauen, Zoo, Park und Verwaltung. Der Bulldozer ist direkt erreichbar; das runde Forschungsicon öffnet einen Baum mit sichtbaren Voraussetzungen.
-- Forschung kostet Coins: 3 Start-Coins, danach pro 12 Spieltagen maximal 3. Es gibt 1 fürs abgeschlossene Jahr, 2 ab 70 % durchschnittlicher Zufriedenheit und 3 bei zusätzlichem positivem Jahresbetriebsgewinn. Bau-/Verkaufserlöse beeinflussen den Gewinnbonus nicht.
+- Forschung kostet Coins: 3 Start-Coins, danach pro 28 Spieltagen maximal 3. Es gibt 1 fürs abgeschlossene Jahr, 2 ab 70 % durchschnittlicher Zufriedenheit und 3 bei zusätzlichem positivem Jahresbetriebsgewinn. Bau-/Verkaufserlöse beeinflussen den Gewinnbonus nicht.
 - Autoscooter und Ballonfahrt haben eigene Bewegungen und 3D-Sitzkameras. Elefanten, Löwen und Pandas erweitern den Zoo auf sieben Arten, mit eigenen Modellen und Tierlauten. 27 neue OpenArt-Sprites sind unter `art/park-v8/` dokumentiert.
 - Hotdogs, Eis, Popcorn und Kaffee ergänzen das Angebot. Gäste tragen und essen ihre Bestellung, nutzen Bänke und Picknickplätze zur Erholung sowie den Spielplatz. Vier Wegbeläge lassen sich bauen oder für 6 € je Feld wechseln.
-- Die Personalübersicht verwaltet Reinigung, Tierpflege und Bedienpersonal. Fahrgeschäfte benötigen eine Crew aus Fahrsteuerung, Einlass und Ausstieg (zusammen weiterhin 70 €/Spieltag vor Schwierigkeitsanpassung), lassen Gäste ein, prüfen und absolvieren 1–5 einstellbare Runden pro Ticket. Steuerhaus und Pult entstehen automatisch am Zugang; jede der drei Personen lässt sich über ihre Karte auf der Karte finden.
+- Die Personalübersicht verwaltet Reinigung, Tierpflege und Bedienpersonal. Fahrgeschäfte benötigen eine Crew aus Fahrsteuerung, Einlass und Ausstieg (zusammen weiterhin 70 € je 90 Spielsekunden vor Schwierigkeitsanpassung), lassen Gäste ein, prüfen und absolvieren 1–5 einstellbare Runden pro Ticket. Steuerhaus und Pult entstehen automatisch am Zugang; jede der drei Personen lässt sich über ihre Karte auf der Karte finden.
 - Das Eingangstor bietet drei Gestaltungen, Öffnung und Eintrittspreis. Bereits gekaufte Gestaltungen sind kostenlos wechselbar.
 - Ausgangsprobleme lassen sich mit einem geprüften Vorschlag samt Preis beheben. Die Suche bewahrt blaue Wege, Wasser und funktionale Einrichtungen. Die Station kann ihre Fahrtrichtung um 180° umkehren; Antriebe, Loopings und Fotopunkt folgen korrekt. Danach ist eine neue Testfahrt erforderlich.
 - Ein Foto-Laser kostet 180 €, lässt sich auf einem ausgewählten Gleisabschnitt montieren, verschieben und entfernen. Die 3D-Mitfahrt nimmt beim Passieren ein Foto von Zug und Gästen auf und bietet einen lokalen Download. Es werden keine Fotos hochgeladen.

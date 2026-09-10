@@ -76,8 +76,8 @@ function year(s, rating, profit = 0) {
   R.tickResearchCoins(s, R.YEAR_SECONDS, profit);
 }
 
-coin("Cost table and twelve-day year match the agreed contract", () => {
-  assert.equal(R.YEAR_SECONDS, 1080);
+coin("Cost table and twenty-minute year match the agreed contract", () => {
+  assert.equal(R.YEAR_SECONDS, 1200);
   assert.deepEqual(R.COIN_COST, {
     zoo: 1,
     savanna: 2,
@@ -136,9 +136,9 @@ coin("Annual satisfaction is weighted by elapsed simulation time", () => {
   s.time = 100;
   R.tickResearchCoins(s, 100, 100);
   s.rating = 60;
-  s.time = 1080;
-  R.tickResearchCoins(s, 980, 0);
-  assert.equal(s.research.ledger.lastReward, 1); // 63.7%, not the unweighted 80%.
+  s.time = R.YEAR_SECONDS;
+  R.tickResearchCoins(s, R.YEAR_SECONDS - 100, 0);
+  assert.equal(s.research.ledger.lastReward, 1); // 63.3%, not the unweighted 80%.
 });
 coin("Current forecast includes the ongoing day's operating profit", () => {
   const s = emptyPark();
@@ -147,7 +147,7 @@ coin("Current forecast includes the ongoing day's operating profit", () => {
   s.research.ledger.ratingTotal = 7000;
   s.research.ledger.profit = -5;
   s.operatingIncomeToday = 10;
-  assert.deepEqual(R.nextResearchReward(s), { remaining: 980, coins: 3 });
+  assert.deepEqual(R.nextResearchReward(s), { remaining: R.YEAR_SECONDS - 100, coins: 3 });
   s.operatingExpensesToday = 5;
   assert.equal(R.nextResearchReward(s).coins, 2);
   s.research.ledger.ratingTotal = 6900;
@@ -162,8 +162,8 @@ for (const [rating, operatingIncome, expected] of [
     const s = emptyPark();
     s.rating = rating;
     s.operatingIncomeToday = operatingIncome;
-    S.tick(s, 1080);
-    assert.equal(s.time, 1080);
+    S.tick(s, R.YEAR_SECONDS);
+    assert.equal(s.time, R.YEAR_SECONDS);
     assert.equal(R.researchCoins(s), 3 + expected);
     assert.equal(s.research.ledger.lastReward, expected);
     assert.equal(s.research.active, null);
@@ -173,7 +173,7 @@ for (const [rating, operatingIncome, expected] of [
 coin("No active research is required to earn a year's reward", () => {
   const s = emptyPark();
   s.research.active = null;
-  S.tick(s, 1080);
+  S.tick(s, R.YEAR_SECONDS);
   assert.equal(R.researchCoins(s), 5);
   assert.equal(s.research.active, null);
 });
@@ -188,8 +188,8 @@ coin("Pause prevents research progress and annual rewards exactly", () => {
 coin("Three-times speed reaches one year once and does not multiply reward", () => {
   const s = emptyPark();
   s.speed = 3;
-  S.tick(s, 360);
-  assert.equal(s.time, 1080);
+  S.tick(s, R.YEAR_SECONDS / 3);
+  assert.equal(s.time, R.YEAR_SECONDS);
   assert.equal(R.researchCoins(s), 5);
   assert.equal(s.research.ledger.year, 1);
 });
@@ -197,25 +197,25 @@ coin("Save/resume preserves half-year accounting and awards the same result", ()
   const s = emptyPark();
   s.rating = 75;
   s.operatingIncomeToday = 20;
-  S.tick(s, 540);
+  S.tick(s, R.YEAR_SECONDS / 2);
   const resumed = JSON.parse(JSON.stringify(s));
   assert(S.validSave(resumed));
   S.migratePark(resumed);
-  S.tick(s, 540);
-  S.tick(resumed, 540);
+  S.tick(s, R.YEAR_SECONDS / 2);
+  S.tick(resumed, R.YEAR_SECONDS / 2);
   assert.deepEqual(resumed.research, s.research);
   assert.equal(R.researchCoins(resumed), 6);
 });
 coin("Reload at the annual boundary never grants the same reward twice", () => {
   const s = emptyPark();
-  S.tick(s, 1080);
+  S.tick(s, R.YEAR_SECONDS);
   const resumed = JSON.parse(JSON.stringify(s));
   S.migratePark(resumed);
   S.migratePark(resumed);
   assert.equal(R.researchCoins(resumed), 5);
   S.tick(resumed, 0.25);
   assert.equal(R.researchCoins(resumed), 5);
-  S.tick(resumed, 1079.75);
+  S.tick(resumed, R.YEAR_SECONDS - 0.25);
   assert.equal(R.researchCoins(resumed), 7);
   assert(S.validSave(resumed));
 });
@@ -300,27 +300,27 @@ coin("Construction expenses and demolition refunds are excluded from operating b
   profitable.rating = 75;
   profitable.operatingIncomeToday = 1;
   S.spend(profitable, 10000);
-  S.tick(profitable, 1080);
+  S.tick(profitable, R.YEAR_SECONDS);
   assert.equal(profitable.research.ledger.lastReward, 3);
   const refund = emptyPark();
   refund.rating = 75;
   refund.cash += 10000;
   refund.income += 10000;
   refund.dayIncome += 10000;
-  S.tick(refund, 1080);
+  S.tick(refund, R.YEAR_SECONDS);
   assert.equal(refund.research.ledger.lastReward, 2);
 });
 coin("Completing research and receiving a yearly bonus in the same step are independent", () => {
   const s = emptyPark();
   s.rating = 70;
-  s.time = 1079.75;
+  s.time = R.YEAR_SECONDS - 0.25;
   s.research.active = "zoo";
   s.research.remaining = 0.25;
   Object.assign(s.research.ledger, {
     coins: 0,
     year: 0,
-    elapsed: 1079.75,
-    ratingTotal: 1079.75 * 70,
+    elapsed: R.YEAR_SECONDS - 0.25,
+    ratingTotal: (R.YEAR_SECONDS - 0.25) * 70,
   });
   S.tick(s, 0.25);
   assert.equal(s.research.active, null);
@@ -465,6 +465,8 @@ exit("Real application charges exactly the quoted total", () => {
 exit("Clearing a first-cell tree is charged once, including a changed pod", () => {
   const { s, b } = exitFixture();
   for (let y = 10; y <= 12; y++) build(s, "tree", 13, y);
+  // Make the current side genuinely worse; equal-cost routes now preserve its chosen pod.
+  s.tiles[11][14] = "water";
   const proposal = pureProposal(s, b);
   assert(proposal);
   assert(proposal.clearIds.length > 0);

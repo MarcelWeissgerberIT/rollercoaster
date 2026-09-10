@@ -1,3 +1,4 @@
+import { groundFootprint, trackGroundCompatible } from "./ground-clearance";
 import {
   hasOperator,
   resetRideOperations,
@@ -50,6 +51,7 @@ import {
   spend,
   footprint,
   occupant,
+  groundOccupant,
   decorative,
   canAutoClear,
   isRide,
@@ -122,7 +124,7 @@ export function planPlacement(
   const painting = ["path", "queue", "exit", "water"].includes(tool);
   const mayClear = clear && (painting || !decorative(tool as Kind));
   for (const t of points) {
-    const b = occupant(s, t.x, t.y);
+    const b = painting && tool !== "water" ? groundOccupant(s, t.x, t.y) : occupant(s, t.x, t.y);
     if (b) {
       if (mayClear && canAutoClear(b.kind)) {
         if (!plan.clearIds.includes(b.id)) plan.clearIds.push(b.id);
@@ -131,10 +133,14 @@ export function planPlacement(
           ...plan,
           error: canAutoClear(b.kind)
             ? "Deko im Weg – Freiräumen aktivieren"
-            : "Hier steht bereits ein Gebäude",
+            : b.kind === "coaster" && painting
+              ? "Gleis oder Station zu tief: Ein Weg braucht 5 m freie Höhe. Lass den Ausgang automatisch verbinden."
+              : "Hier steht bereits ein Gebäude",
         };
     }
-    if (!painting && s.tiles[t.y][t.x] !== "grass")
+    if (!painting && !(tool === "coaster" && track
+      ? trackGroundCompatible(track, t.x, t.y, s.tiles[t.y][t.x])
+      : s.tiles[t.y][t.x] === "grass"))
       return { ...plan, error: "Gebäude brauchen freie Wiese" };
     if (painting && t.x === ENTRANCE.x && t.y === ENTRANCE.y && tool !== "path")
       return { ...plan, error: "Der Eingang braucht einen normalen Weg" };
@@ -217,7 +223,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   const blocked = new Set<string>();
   for (const item of s.buildings)
     if (!clear || !canAutoClear(item.kind))
-      for (const p of footprint(item)) blocked.add(`${p.x},${p.y}`);
+      for (const p of groundFootprint(item, footprint(item))) blocked.add(`${p.x},${p.y}`);
   const passable = (p: Point) =>
     inside(s, p) &&
     !blocked.has(`${p.x},${p.y}`) &&
@@ -255,7 +261,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
     return first;
   };
   const price = (p: Point) =>
-    (s.tiles[p.y][p.x] === "grass" ? (ride ? 18 : 12) : 0) + (occupant(s, p.x, p.y) ? 10 : 0);
+    (s.tiles[p.y][p.x] === "grass" ? (ride ? 18 : 12) : 0) + (groundOccupant(s, p.x, p.y) ? 10 : 0);
   for (const p of starts)
     if (passable(p) && (ride || isTransport(b.kind) || s.tiles[p.y][p.x] !== "queue")) {
       const cost = price(p),
@@ -301,7 +307,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   const points = unique(route).filter((p) => s.tiles[p.y][p.x] === "grass"),
     clearIds = [
       ...new Set(
-        points.map((p) => occupant(s, p.x, p.y)?.id).filter((id): id is number => id !== undefined),
+        points.map((p) => groundOccupant(s, p.x, p.y)?.id).filter((id): id is number => id !== undefined),
       ),
     ];
   const cost =
@@ -582,7 +588,7 @@ export function planPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = t
   if (!inside(s, p)) return { ...plan, error: "Das Anschlussfeld liegt außerhalb des Parks." };
   if (samePod(pods[role === "entry" ? "exit" : "entry"], pod))
     return { ...plan, error: "Eingang und Ausgang brauchen unterschiedliche Plätze." };
-  const item = occupant(s, p.x, p.y);
+  const item = groundOccupant(s, p.x, p.y);
   if (item) {
     if (!clear || !canAutoClear(item.kind))
       return {

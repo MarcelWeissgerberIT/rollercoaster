@@ -1,4 +1,5 @@
 import { canAfford } from "./budget";
+import { groundFootprint } from "./ground-clearance";
 import {
   type Park,
   type Building,
@@ -6,24 +7,43 @@ import {
   CATALOG,
   connected,
   occupant,
+  groundOccupant,
   canAutoClear,
   effectivePods,
   paint,
   spend,
   key,
   footprint,
+  exitPath,
 } from "./simulation";
-import { podSlots, podPort, samePod, type Pod } from "./pods";
+import { podSlots, podPort, samePod, usesPods, type Pod } from "./pods";
 import { planPod, setAccessPod } from "./construction";
-export type ExitSuggestion = { pod: Pod; points: Point[]; clearIds: number[]; cost: number };
+export type ExitSuggestion = {
+  pod: Pod;
+  points: Point[];
+  clearIds: number[];
+  cost: number;
+  /** The preview can explain a relocated pod and safe crossings beneath rail. */
+  moved: boolean;
+  underpass: Point[];
+};
 /** Search only real buildable cells. Blue admission paths and occupied facilities are barriers. */
 export function suggestExit(s: Park, b: Building, clear = true): ExitSuggestion | null {
   const net = connected(s),
     pods = effectivePods(s, b),
     blocked = new Map<string, Building>();
-  for (const item of s.buildings) for (const p of footprint(item)) blocked.set(key(p), item);
+  for (const item of s.buildings)
+    for (const p of groundFootprint(item, footprint(item))) {
+      const previous = blocked.get(key(p));
+      if (!previous || canAutoClear(previous.kind)) blocked.set(key(p), item);
+    }
   let best: ExitSuggestion | null = null;
-  for (const pod of podSlots(CATALOG[b.kind].size)) {
+  // On equal cost keep the player's existing exit instead of moving it arbitrarily.
+  const slots = [
+    pods.exit,
+    ...podSlots(CATALOG[b.kind].size).filter((p) => !samePod(p, pods.exit)),
+  ];
+  for (const pod of slots) {
     if (planPod(s, b, "exit", pod, clear).error) continue;
     const start = podPort(b, CATALOG[b.kind].size, pod),
       frontier = [{ p: start, path: [] as Point[], ids: [] as number[], cost: 0 }],
@@ -39,14 +59,21 @@ export function suggestExit(s: Park, b: Building, clear = true): ExitSuggestion 
       )
         continue;
       seen.set(k, q.cost);
-      if (net.has(k) && s.tiles[q.p.y]?.[q.p.x] === "path") {
-        best = { pod, points: q.path, clearIds: q.ids, cost: q.cost };
-        break;
-      }
       const tile = s.tiles[q.p.y]?.[q.p.x];
       if (!tile || tile === "water" || tile === "queue") continue;
       const hit = blocked.get(k);
       if (hit && (!clear || !canAutoClear(hit.kind))) continue;
+      if (net.has(k) && tile === "path" && !hit) {
+        best = {
+          pod,
+          points: q.path,
+          clearIds: q.ids,
+          cost: q.cost,
+          moved: !samePod(pod, pods.exit),
+          underpass: q.path.filter((p) => occupant(s, p.x, p.y)?.kind === "coaster"),
+        };
+        break;
+      }
       const ids = hit && !q.ids.includes(hit.id) ? [...q.ids, hit.id] : q.ids;
       const cost = q.cost + (tile === "exit" ? 0 : 18) + (ids.length - q.ids.length) * 10;
       const path = [...q.path, q.p];
@@ -60,6 +87,36 @@ export function suggestExit(s: Park, b: Building, clear = true): ExitSuggestion 
     }
   }
   return best;
+}
+/** Contextual construction help belongs to the nearby unconnected exit, even
+ * when a different coaster is the obstacle. It never picks a remote park ride. */
+export function exitHelpAt(
+  s: Park,
+  point: Point,
+  clear = true,
+): {
+  buildingId: number;
+  name: string;
+  proposal: ExitSuggestion | null;
+} | null {
+  if (!groundOccupant(s, point.x, point.y) && s.tiles[point.y]?.[point.x] !== "water") return null;
+  const net = connected(s),
+    candidates = s.buildings
+      .filter((b) => usesPods(b.kind))
+      .map((b) => {
+        const port = podPort(b, CATALOG[b.kind].size, effectivePods(s, b, net).exit);
+        return { b, distance: Math.abs(port.x - point.x) + Math.abs(port.y - point.y) };
+      })
+      .filter((item) => item.distance <= 6 && !exitPath(s, item.b, net).length);
+  candidates.sort((a, b) => a.distance - b.distance || a.b.id - b.b.id);
+  const candidate = candidates[0]?.b;
+  return candidate
+    ? {
+        buildingId: candidate.id,
+        name: candidate.name || CATALOG[candidate.kind].name,
+        proposal: suggestExit(s, candidate, clear),
+      }
+    : null;
 }
 export function applyExitSuggestion(
   s: Park,

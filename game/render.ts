@@ -1,3 +1,8 @@
+import { birdCanvasLayers } from "./bird-canvas";
+import { groundPathAt } from "./track-support";
+import { trackCanvasLayers, drawTrackSegment } from "./track-canvas";
+import { drawWeather, weatherBackground } from "./weather-canvas";
+import { drawWeatherObject, isWeatherObject } from "./weather-objects";
 import { RESTROOM_SPRITE } from "./restroom";
 import { drawCleanerAreas, type CleanerAreaOverlay } from "./cleaner-area-overlay";
 import zooWalkSpecs from "./zoo-walk-sprites.json";
@@ -317,8 +322,9 @@ function drawPark(
   ctx.clearRect(0, 0, w, h);
   ctx.imageSmoothingEnabled = false;
   const bg = ctx.createLinearGradient(0, 0, 0, h);
-  bg.addColorStop(0, "#b4d6e2");
-  bg.addColorStop(1, "#d8e8bd");
+  const sky = weatherBackground(s);
+  bg.addColorStop(0, sky.top);
+  bg.addColorStop(1, sky.bottom);
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, w, h);
   const poly = (pts: Point[], fill: string, stroke?: string) => {
@@ -509,36 +515,11 @@ function drawPark(
     );
     ctx.restore();
   };
-  const rail = (a: Point, b: Point, ghost = false, ties = true) => {
-    const wood = a.style === "wood",
-      launch = a.style === "launch";
-    const pa = project(a.x, a.y, a.z ?? 0),
-      pb = project(b.x, b.y, b.z ?? 0);
-    const dx = pb.x - pa.x,
-      dy = pb.y - pa.y,
-      len = Math.hypot(dx, dy) || 1,
-      nx = (-dy / len) * 3.3 * scale,
-      ny = (dx / len) * 3.3 * scale;
-    line(pa, pb, ghost ? "#ffc652" : wood ? "#7c522c" : "#334f4f", 7);
-    if (a.drive && !ghost) line(pa, pb, a.drive.kind === "boost" ? "#35e0d0" : "#ffc462", 4);
-    for (let t = 0.1; ties && t < 1; t += Math.max(0.24, (7 * scale) / len)) {
-      const x = pa.x + dx * t,
-        y = pa.y + dy * t;
-      line(
-        { x: x - nx * 1.35, y: y - ny * 1.35 },
-        { x: x + nx * 1.35, y: y + ny * 1.35 },
-        ghost ? "#ffe4a4" : "#423d38",
-        2,
-      );
-    }
-    for (const side of [-1, 1])
-      line(
-        { x: pa.x + nx * side, y: pa.y + ny * side },
-        { x: pb.x + nx * side, y: pb.y + ny * side },
-        ghost ? "#fff3b9" : wood ? "#dbc495" : launch ? "#49d4d1" : "#f07851",
-        2.7,
-      );
+  const trackHit = (a: Point, b: Point) => {
+    if (hitOwner !== undefined) v.hitTargets!.push({ id: hitOwner, a, b });
   };
+  const rail = (a: Point, b: Point, ghost = false, ties = true) =>
+    drawTrackSegment(ctx, a, b, project, scale, { ghost, ties, onHit: trackHit });
   const objects: Array<{ depth: number; draw: () => void; owner?: number }> = [];
   const registerAccessHits = (id: number, polygons: AccessHitPolygon[], pod?: PodRole) => {
     if (!polygons.length) return;
@@ -1038,6 +1019,9 @@ function drawPark(
               alpha,
             );
         });
+    } else if (isWeatherObject(b.kind)) {
+      const hits = drawWeatherObject(ctx, b, project, scale, alpha);
+      if (hitOwner !== undefined) registerAccessHits(hitOwner, hits);
     } else if (isRotatableFurniture(b.kind)) {
       const hits = drawFurniture(ctx, b, project, scale, alpha);
       if (hitOwner !== undefined) registerAccessHits(hitOwner, hits);
@@ -1130,50 +1114,12 @@ function drawPark(
       const track = b.track ?? [];
       const shared = prepareRoute(track);
       const pts = shared.points;
-      for (let i = 1; i < pts.length; i++) {
-        const a = pts[i - 1],
-          b = pts[i],
-          depth = (a.x + a.y + b.x + b.y) / 2;
-        if (
-          (a.z ?? 0) > 0 &&
-          Math.floor(shared.distance[i - 1] / 1.3) !== Math.floor(shared.distance[i] / 1.3)
-        )
-          objects.push({
-            depth: a.x + a.y - 0.02,
-            draw: () => {
-              const top = project(a.x, a.y, a.z),
-                base = project(a.x, a.y);
-              line(
-                { x: base.x - 3 * scale, y: base.y },
-                { x: top.x - 3 * scale, y: top.y },
-                a.style === "wood" ? "#a17b43" : "#418a85",
-                4,
-              );
-              line(
-                { x: base.x + 3 * scale, y: base.y },
-                { x: top.x + 3 * scale, y: top.y },
-                a.style === "wood" ? "#79542e" : "#235f60",
-                4,
-              );
-              line(
-                { x: base.x - 3 * scale, y: base.y },
-                { x: top.x + 3 * scale, y: top.y },
-                a.style === "wood" ? "#ad8550" : "#4d928b",
-                2,
-              );
-            },
-          });
-        objects.push({
-          depth: depth + Math.max(a.z ?? 0, b.z ?? 0) * 0.035,
-          draw: () =>
-            rail(
-              a,
-              b,
-              false,
-              Math.floor(shared.distance[i - 1] / 0.24) !== Math.floor(shared.distance[i] / 0.24),
-            ),
-        });
-      }
+      objects.push(
+        ...trackCanvasLayers(ctx, track, project, scale, {
+          onHit: trackHit,
+          groundPath: (x, y) => groundPathAt(s, x, y),
+        }),
+      );
       if (pts.length > 1) {
         const route = shared;
         const progress = b.testing
@@ -1760,6 +1706,7 @@ function drawPark(
   }
   const gate = GATES[gateStyle(s)].sprite;
   objects.push({ depth: 43.9, draw: () => frame(gate, project(15, 29), specs[gate]) });
+  objects.push(...birdCanvasLayers(ctx, s, project, scale));
   objects
     .sort((a, b) => a.depth - b.depth)
     .forEach((o) => {
@@ -1767,6 +1714,7 @@ function drawPark(
       o.draw();
     });
   hitOwner = undefined;
+  drawWeather(ctx, w, h, s, v);
   if (v.staffFocus && _realTime < v.staffFocus.until) {
     const person = staffLocation(s, v.staffFocus.ref);
     if (person) {

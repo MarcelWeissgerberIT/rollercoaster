@@ -216,7 +216,7 @@ function KeeperEmployeeCard({
               <dd>{qualification}</dd>
             </div>
             <div>
-              <dt>Lohn / Spieltag</dt>
+              <dt>Lohn / 90 s</dt>
               <dd>{difficultyEuro(wage)}</dd>
             </div>
             <div className="sc-fact-wide">
@@ -332,7 +332,7 @@ export function ZooTeamControls({
           Zoo-Team
         </h4>
         <span>
-          {team.count} Personen · {difficultyEuro(team.cost)} / Tag
+          {team.count} Personen · {difficultyEuro(team.cost)} / 90 s
         </span>
       </div>
       <div className="sc-hiring-card">
@@ -347,7 +347,7 @@ export function ZooTeamControls({
         </div>
         <div className="sc-hiring-footer">
           <span>
-            <b>{difficultyEuro(difficultyCost(park, KEEPER_WAGE, "wages"))}</b> je Person / Spieltag
+            <b>{difficultyEuro(difficultyCost(park, KEEPER_WAGE, "wages"))}</b> je Person / 90 s
             <small>Bis zu 8 Personen</small>
           </span>
           <StaffCounter label="Tierpflege" count={team.keepers} max={8} onChange={onKeepers} />
@@ -368,7 +368,7 @@ export function ZooTeamControls({
             <div className="sc-hiring-footer">
               <span>
                 <b>{difficultyEuro(difficultyCost(park, ZOO_SPECIALIST_WAGE, "wages"))}</b> je
-                Person / Spieltag
+                Person / 90 s
                 <small>Bis zu 4 Personen</small>
               </span>
               <StaffCounter

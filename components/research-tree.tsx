@@ -1,3 +1,4 @@
+import { DAY_SECONDS, DAYS_PER_YEAR } from "../game/calendar";
 import { useId } from "react";
 import {
   ArrowRight,
@@ -29,7 +30,7 @@ const ROOTS = [
   { id: "family", label: "Familie", Icon: FerrisWheel, theme: "family" },
   { id: "thrill", label: "Thrill", Icon: Zap, theme: "thrill" },
 ] as const;
-const GAME_DAY_SECONDS = 90;
+const GAME_DAY_SECONDS = DAY_SECONDS;
 const number = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 1 });
 
 function gameDays(seconds: number, dative = false) {
@@ -248,7 +249,7 @@ export function ResearchTree({ park, onStart }: ResearchTreeProps) {
                 So verdienst du Coins
               </summary>
               <div>
-                <p>Du startest mit 3 Coins. Ein Parkjahr dauert 12 Spieltage.</p>
+                <p>Du startest mit 3 Coins. Ein Parkjahr dauert {DAYS_PER_YEAR} Spieltage – 20 Minuten bei 1×.</p>
                 <ol>
                   <li>
                     <b>1 Coin</b>, wenn dein Park das Jahr übersteht.

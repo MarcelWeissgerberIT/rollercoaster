@@ -1,13 +1,16 @@
+import { createBirdScene } from "./bird-scene";
 import { PATH_STYLES, pathStyleAt } from "./park-life";
 import * as THREE from "three";
 import { populatePark } from "./park-scene";
 import { mapWidth, mapHeight } from "./grid";
 import type { Park } from "./simulation";
+import { createWeatherScene } from "./weather-scene";
 export function createWorld(park: Park, exclude = -1) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#b9dce3");
   scene.fog = new THREE.Fog("#b9dce3", 230, 650);
-  scene.add(new THREE.HemisphereLight("#f0fbff", "#5c753e", 2.8));
+  const ambient = new THREE.HemisphereLight("#f0fbff", "#5c753e", 2.8);
+  scene.add(ambient);
   const sun = new THREE.DirectionalLight("#fff2d2", 2.3);
   sun.position.set(30, 100, -30);
   scene.add(sun);
@@ -74,12 +77,21 @@ export function createWorld(park: Park, exclude = -1) {
     });
     scene.add(m);
   }
-  const update = populatePark(scene, park, exclude, mesh, mat, cube, cylinder, cone);
+  const updatePark = populatePark(scene, park, exclude, mesh, mat, cube, cylinder, cone),
+    weather = createWeatherScene(scene, park, { ambient, sun }),
+    birds = createBirdScene(scene, park),
+    update = (time: number) => {
+      updatePark(time);
+      weather.update(park.time + Math.max(0, time));
+      birds.update(park.time + Math.max(0, time));
+    };
   update(0);
   return {
     scene,
     update,
     dispose: () => {
+      weather.dispose();
+      birds.dispose();
       const geometries = new Set<THREE.BufferGeometry>(),
         mats = new Set<THREE.Material>();
       scene.traverse((o) => {
