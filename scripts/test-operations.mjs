@@ -17,7 +17,9 @@ function test(name, fn) {
     console.log("FAIL", name, e.message.slice(0, 1100));
   }
 }
-function fixture(kind = "wheel", count = 2) {
+// Ordinary batch rides exercise this controller; indexed wheel boarding has its
+// own phase, save/resume and per-gondola accounting regression suite.
+function fixture(kind = "carousel", count = 2) {
   const s = S.newPark("sandbox"),
     b = s.buildings.find((b) => b.kind === kind),
     template = structuredClone(s.guests[0]);
@@ -84,7 +86,7 @@ test("No operator means no admission demand when it is the only ride", () => {
   assert.equal(S.entryDemand(s), 0, "Unstaffed ride is still advertised at the park gate");
 });
 for (const [kind, rounds] of [
-  ["wheel", 3],
+  ["carousel", 3],
   ["coaster", 2],
 ])
   test(`${kind}: ${rounds} base rounds, same riders and one bill/reward only`, () => {

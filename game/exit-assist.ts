@@ -29,6 +29,7 @@ export type ExitSuggestion = {
 };
 /** Search only real buildable cells. Blue admission paths and occupied facilities are barriers. */
 export function suggestExit(s: Park, b: Building, clear = true): ExitSuggestion | null {
+  if (b.sharedAccess) return null;
   const net = connected(s),
     pods = effectivePods(s, b),
     blocked = new Map<string, Building>();
@@ -102,7 +103,7 @@ export function exitHelpAt(
   if (!groundOccupant(s, point.x, point.y) && s.tiles[point.y]?.[point.x] !== "water") return null;
   const net = connected(s),
     candidates = s.buildings
-      .filter((b) => usesPods(b.kind))
+      .filter((b) => usesPods(b.kind) && !b.sharedAccess)
       .map((b) => {
         const port = podPort(b, CATALOG[b.kind].size, effectivePods(s, b, net).exit);
         return { b, distance: Math.abs(port.x - point.x) + Math.abs(port.y - point.y) };
@@ -124,6 +125,8 @@ export function applyExitSuggestion(
   proposal: ExitSuggestion,
   clear = true,
 ): string | null {
+  if (b.sharedAccess)
+    return "Der gemeinsame Zugang nutzt den Eingangsweg in zwei Spuren. Baue hier keinen separaten roten Ausgang.";
   const fresh = suggestExit(s, b, clear);
   if (!fresh || JSON.stringify(fresh) !== JSON.stringify(proposal))
     return "Der Bauplatz hat sich geändert. Lass den Ausgang erneut prüfen.";

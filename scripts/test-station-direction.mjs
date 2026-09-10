@@ -10,6 +10,8 @@ const S = await import(moduleURL("game/simulation.ts")),
   E = await import(moduleURL("game/track-edit.ts")),
   M = await import(moduleURL("game/motion.ts")),
   D = await import(moduleURL("game/drive.ts")),
+  P = await import(moduleURL("game/pods.ts")),
+  A = await import(moduleURL("game/shared-access.ts")),
   V = await import(moduleURL("game/station-direction.ts"));
 const results = [];
 const clone = (x) => structuredClone(x);
@@ -244,6 +246,69 @@ test("Existing whole-ride90° relocation rotates geometry, heading and pods cohe
   assert(Math.abs(Math.cos(next.heading - old.heading)) < 1e-5);
   assert(Math.sin(next.heading - old.heading) > 0.99999);
   return { before: old.direction, after: next.direction };
+});
+test("Shared station rotation preserves both separate pods and a valid saved return option", () => {
+  const { s, b } = fixture();
+  b.sharedAccess = true;
+  const stored = clone(b.pods),
+    expected = P.rotatePods(stored, S.CATALOG[b.kind].size, 2),
+    plan = V.planStationReverse(s, b, { rotatePods: true });
+  assert.equal(plan.error, null);
+  assert.deepEqual(plan.geometry.pods, expected);
+  assert(!P.samePod(plan.geometry.pods.entry, plan.geometry.pods.exit));
+  assert.equal(V.commitStationReverse(s, plan), null);
+  assert.equal(b.sharedAccess, true);
+  assert.deepEqual(b.pods, expected);
+  assert.deepEqual(S.effectivePods(s, b), { entry: expected.entry, exit: expected.entry });
+  assert(S.validSave(clone(s)), "Rotating a shared station must never save equal stored pods");
+  assert.equal(A.setSharedAccess(s, b, false), null);
+  assert.deepEqual(S.effectivePods(s, b), expected);
+  assert(S.validSave(clone(s)));
+});
+test("Shared station rotation checks its active entry, not the stored inactive exit", () => {
+  const { s, b } = fixture();
+  b.sharedAccess = true;
+  const rotated = P.rotatePods(b.pods, S.CATALOG[b.kind].size, 2),
+    exit = P.podPort(b, S.CATALOG[b.kind].size, rotated.exit);
+  s.tiles[exit.y][exit.x] = "queue";
+  const before = clone(s),
+    plan = V.planStationReverse(s, b, { rotatePods: true });
+  assert.equal(plan.error, null);
+  assert.deepEqual(s, before);
+  assert.deepEqual(plan.geometry.pods.exit, rotated.exit);
+});
+test("Shared guests leaving the gate block direction changes and old quotes atomically", () => {
+  const { s, b, g } = fixture();
+  b.sharedAccess = true;
+  const plan = V.planStationReverse(s, b);
+  assert.equal(plan.error, null);
+  Object.assign(g, { id: s.nextId++, sharedExit: b.id, target: null, state: "walk", route: [] });
+  s.guests.push(g);
+  const before = clone(s);
+  assert(V.planStationReverse(s, b).error);
+  assert(V.commitStationReverse(s, plan));
+  assert.deepEqual(s, before);
+  s.guests = [];
+  b.sharedAccess = false;
+  assert(
+    V.commitStationReverse(s, plan),
+    "A quote must not silently survive an access-mode change",
+  );
+  assert.deepEqual(b.track, before.buildings.find((item) => item.id === b.id).track);
+});
+test("Inactive shared exit remains inside the park after a station rotation", () => {
+  const { s, b } = fixture("steel", true);
+  b.x = 0;
+  b.y = 8;
+  b.track = C.blueprint({ x: b.x, y: b.y });
+  b.pods = { entry: { side: 1, offset: 0 }, exit: { side: 0, offset: 0 } };
+  b.sharedAccess = true;
+  assert(S.validSave(clone(s)));
+  const before = clone(s),
+    plan = V.planStationReverse(s, b, { rotatePods: true });
+  assert.match(plan.error, /gespeicherte separate Ausgang.*außerhalb/);
+  assert(V.commitStationReverse(s, plan));
+  assert.deepEqual(s, before);
 });
 console.log(`${results.filter((r) => r.pass).length}/${results.length} passed`);
 process.exitCode = results.every((r) => r.pass) ? 0 : 1;

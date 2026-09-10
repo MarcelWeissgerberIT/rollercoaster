@@ -1,3 +1,4 @@
+import { sharedAccessBusy, sharedExitPending } from "./shared-access";
 import { groundFootprint, trackGroundCompatible } from "./ground-clearance";
 import {
   hasOperator,
@@ -423,7 +424,16 @@ function withConnection(
     plan.warning =
       "Aussichtspunkt passt hier nicht und wird entfernt · vorhandene Wege bleiben stehen";
   if (moved.pods && plan.changed) {
-    for (const role of ["entry", "exit"] as const) {
+    if (moved.sharedAccess && !inside(s, podPort(moved, CATALOG[moved.kind].size, moved.pods.exit)))
+      return {
+        ...plan,
+        error:
+          "Der gespeicherte separate Ausgang würde außerhalb des Parks liegen. Wähle einen Standort mit Platz am Rand.",
+      };
+    for (const role of (moved.sharedAccess ? ["entry"] : ["entry", "exit"]) as (
+      | "entry"
+      | "exit"
+    )[]) {
       const pod = planPod(virtual, moved, role, moved.pods[role], clear);
       if (pod.error)
         return {
@@ -586,12 +596,19 @@ export function planPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = t
     p = podPort(b, n, pod),
     pods = effectivePods(s, b);
   const plan: Placement = { points: [p], clearIds: [], cost: 0, error: null };
+  if (b.sharedAccess && role === "exit")
+    return {
+      ...plan,
+      error: "Im gemeinsamen Betrieb wird der Eingangspod für beide Richtungen verwendet.",
+    };
+  if (b.sharedAccess && sharedAccessBusy(s, b))
+    return { ...plan, error: "Warte, bis alle Gäste den gemeinsamen Zugang verlassen haben." };
   if (!usesPods(b.kind) || !podSlots(n).some((q) => samePod(q, pod)))
     return { ...plan, error: "Wähle einen Pod-Platz am Rand der Attraktion." };
   if (s.trackEdit?.buildingId === b.id)
     return { ...plan, error: "Beende zuerst den Streckenumbau." };
   if (!inside(s, p)) return { ...plan, error: "Das Anschlussfeld liegt außerhalb des Parks." };
-  if (samePod(pods[role === "entry" ? "exit" : "entry"], pod))
+  if (!b.sharedAccess && samePod(pods[role === "entry" ? "exit" : "entry"], pod))
     return { ...plan, error: "Eingang und Ausgang brauchen unterschiedliche Plätze." };
   const item = groundOccupant(s, p.x, p.y);
   if (item) {
@@ -622,7 +639,7 @@ export function planPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = t
 export function setAccessPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = true) {
   const plan = planPod(s, b, role, pod, clear);
   if (plan.error) return plan.error;
-  const pods = structuredClone(effectivePods(s, b));
+  const pods = structuredClone(b.pods ?? effectivePods(s, { ...b, sharedAccess: false }));
   if (b.pods && samePod(pods[role], pod)) return null;
   if (!isTransport(b.kind)) releaseBuildingGuests(s, b);
   // A platform's pedestrian portal is independent of its vehicle dock and live passengers.
@@ -630,6 +647,7 @@ export function setAccessPod(s: Park, b: Building, role: PodRole, pod: Pod, clea
     if (g.transit?.from === b.id && g.state !== "ride") cancelTransitDestination(s, g);
   if (plan.cost) spend(s, plan.cost);
   s.buildings = s.buildings.filter((item) => !plan.clearIds.includes(item.id));
+  if (b.sharedAccess && role === "entry" && samePod(pods.exit, pod)) pods.exit = { ...pods.entry };
   pods[role] = { ...pod };
   b.pods = pods;
   return null;
@@ -646,6 +664,8 @@ export function adjustBuilding(
     mode === "station" ? planStationMove(s, b, p, clear) : planRelocation(s, b, p, rotation, clear);
   if (plan.error) return plan.error;
   if (!plan.changed) return null;
+  if (sharedExitPending(s, b))
+    return "Warte, bis alle Gäste den gemeinsamen Zugang verlassen haben.";
   releaseBuildingGuests(s, b);
   s.buildings = s.buildings.filter((item) => !plan.clearIds.includes(item.id));
   if (plan.cost) spend(s, plan.cost);
@@ -661,8 +681,8 @@ export function adjustBuilding(
 export type EditRecord = {
   settings?: {
     id: number;
-    before: { price?: number; condition?: number };
-    keys: ("price" | "condition")[];
+    before: { price?: number; condition?: number; sharedAccess?: boolean };
+    keys: ("price" | "condition" | "sharedAccess")[];
   }[];
   operatingExpenses?: number;
   viewpoints?: { id: number; before: Point | undefined }[];
@@ -721,7 +741,7 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
   }));
   const settings = buildings.map((b) => ({
     id: b.id,
-    before: { price: b.price, condition: b.condition },
+    before: { price: b.price, condition: b.condition, sharedAccess: b.sharedAccess },
   }));
   const operatingExpenses = s.operatingExpensesToday ?? 0;
   const lines = structuredClone(s.transitLines ?? []);
@@ -745,7 +765,7 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     operatingExpenses: (s.operatingExpensesToday ?? 0) - operatingExpenses,
     settings: settings.flatMap((old) => {
       const b = s.buildings.find((b) => b.id === old.id);
-      const keys = (["price", "condition"] as const).filter(
+      const keys = (["price", "condition", "sharedAccess"] as const).filter(
         (key) => b && b[key] !== old.before[key],
       );
       return keys.length ? [{ ...old, keys }] : [];
@@ -825,8 +845,16 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
 }
 export function undoEdits(s: Park, records: EditRecord[]) {
   for (const record of records)
+    for (const old of record.geometry) {
+      const b = s.buildings.find((b) => b.id === old.id);
+      if (b && sharedExitPending(s, b))
+        return "Warte, bis alle Gäste den gemeinsamen Zugang verlassen haben, bevor du den Standort rückgängig machst.";
+    }
+  for (const record of records)
     for (const old of record.settings ?? []) {
       const b = s.buildings.find((b) => b.id === old.id);
+      if (b && old.keys.includes("sharedAccess") && sharedAccessBusy(s, b))
+        return "Warte, bis alle Gäste den gemeinsamen Zugang verlassen haben, bevor du den Zugangsmodus rückgängig machst.";
       if (
         b &&
         old.keys.includes("condition") &&
@@ -877,12 +905,15 @@ export function undoEdits(s: Park, records: EditRecord[]) {
         g.y = ENTRANCE.y;
       }
     s.buildings = s.buildings.filter((b) => !record.added.includes(b.id));
+    for (const g of s.guests)
+      if (g.sharedExit !== undefined && record.added.includes(g.sharedExit)) delete g.sharedExit;
     for (const b of record.removed)
       s.buildings.push({
         ...structuredClone(b),
         queue: [],
         riders: [],
         cycle: 0,
+        wheel: undefined,
         testing: undefined,
         autoOpen: false,
         operations: b.operations
@@ -904,6 +935,7 @@ export function undoEdits(s: Park, records: EditRecord[]) {
       const b = s.buildings.find((b) => b.id === old.id);
       if (!b) continue;
       if (old.keys.includes("price")) b.price = old.before.price ?? CATALOG[b.kind].price;
+      if (old.keys.includes("sharedAccess")) b.sharedAccess = old.before.sharedAccess;
       if (old.keys.includes("condition")) {
         b.condition = old.before.condition;
         if (broken(b)) {

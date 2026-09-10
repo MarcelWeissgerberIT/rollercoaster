@@ -2,6 +2,8 @@
 import { CATALOG, effectivePods, type Building, type Park, type Point } from "./simulation";
 import { podPort, podPose, type PodRole } from "./pods";
 import { hasOperator, needsOperator, operationProgress, operationsOf } from "./operations";
+import { sharedExitPending } from "./shared-access";
+import { wheelVisualState } from "./wheel-boarding";
 
 export type AccessPose = Point & { dx: number; dy: number; tx: number; ty: number; port: Point };
 export type CrewPostPose = Point & { dx: number; dy: number };
@@ -30,7 +32,7 @@ type GeometryCache = {
 };
 const geometryCaches = new WeakMap<Park, GeometryCache>();
 function buildingGeometry(b: Building) {
-  return `${b.id}:${b.kind}:${b.x},${b.y}:${b.pods ? `${b.pods.entry.side},${b.pods.entry.offset},${b.pods.exit.side},${b.pods.exit.offset}` : "auto"}:${b.track?.map((p) => `${p.x},${p.y},${p.z ?? 0}`).join("/") ?? ""}`;
+  return `${b.id}:${b.kind}:${b.x},${b.y}:${!!b.sharedAccess}:${b.pods ? `${b.pods.entry.side},${b.pods.entry.offset},${b.pods.exit.side},${b.pods.exit.offset}` : "auto"}:${b.track?.map((p) => `${p.x},${p.y},${p.z ?? 0}`).join("/") ?? ""}`;
 }
 function geometryCache(park: Park) {
   let cache = geometryCaches.get(park);
@@ -78,7 +80,7 @@ export function accessLayout(park: Park, b: Building): AccessLayout {
 }
 function calculateLayout(park: Park, b: Building): AccessLayout {
   const size = CATALOG[b.kind].size,
-    pods = b.pods ?? effectivePods(park, b),
+    pods = b.sharedAccess ? effectivePods(park, b) : (b.pods ?? effectivePods(park, b)),
     pose = (role: PodRole): AccessPose => {
       const p = podPose(b, size, pods[role]);
       return { ...p, tx: -p.dy, ty: p.dx, port: podPort(b, size, pods[role]) };
@@ -136,6 +138,29 @@ function calculateLayout(park: Park, b: Building): AccessLayout {
   const { cabin, offset } = candidates[0],
     sign = Math.sign(offset),
     exitSign = (cabin.x - exit.x) * exit.tx + (cabin.y - exit.y) * exit.ty > 0 ? -1 : 1;
+  if (b.sharedAccess) {
+    const common = { ...entry };
+    return {
+      entry: { ...common, x: common.x - common.tx * 0.22, y: common.y - common.ty * 0.22 },
+      exit: { ...common, x: common.x + common.tx * 0.22, y: common.y + common.ty * 0.22 },
+      cabin,
+      posts: {
+        control: { x: cabin.x, y: cabin.y, dx: cabin.dx, dy: cabin.dy },
+        entry: {
+          x: common.x - common.tx * 0.43 + common.dx * 0.18,
+          y: common.y - common.ty * 0.43 + common.dy * 0.18,
+          dx: common.dx,
+          dy: common.dy,
+        },
+        exit: {
+          x: common.x + common.tx * 0.43 + common.dx * 0.18,
+          y: common.y + common.ty * 0.43 + common.dy * 0.18,
+          dx: -common.dx,
+          dy: -common.dy,
+        },
+      },
+    };
+  }
   return {
     entry,
     exit,
@@ -182,14 +207,18 @@ export function gateMotion(park: Park, b: Building, role: PodRole, _time = park.
   }
   const operation = operationsOf(b),
     phase = operation.phase,
-    phaseProgress = operationProgress(b);
+    phaseProgress = operationProgress(b),
+    wheel = b.kind === "wheel" && b.wheel ? wheelVisualState(b) : undefined;
   let open = 0,
     activeGuests = 0;
   if (role === "entry") {
     activeGuests = park.guests.filter((g) => g.state === "queue" && b.queue.includes(g.id)).length;
-    if (b.open && hasOperator(b))
-      open =
-        phase === "boarding"
+    if (b.open && hasOperator(b) && !sharedExitPending(park, b))
+      open = wheel
+        ? wheel.phase === "loading"
+          ? Math.min(smooth(phaseProgress / 0.12), smooth((1 - phaseProgress) / 0.15))
+          : 0
+        : phase === "boarding"
           ? smooth(phaseProgress / 0.2)
           : phase === "checking"
             ? 1 - smooth(phaseProgress)
@@ -200,8 +229,9 @@ export function gateMotion(park: Park, b: Building, role: PodRole, _time = park.
     for (const g of park.guests) {
       if (
         (g.state !== "walk" && g.state !== "leave") ||
-        g.target !== null ||
-        g.visited?.[g.visited.length - 1] !== b.id
+        (b.sharedAccess
+          ? g.sharedExit !== b.id
+          : g.target !== null || g.visited?.[g.visited.length - 1] !== b.id)
       )
         continue;
       const distance = Math.hypot(g.x - port.x, g.y - port.y);
@@ -209,7 +239,14 @@ export function gateMotion(park: Park, b: Building, role: PodRole, _time = park.
       activeGuests++;
       guestOpening = Math.max(guestOpening, smooth((1.5 - distance) / 0.75));
     }
-    open = phase === "unloading" ? smooth(phaseProgress / 0.2) : guestOpening;
+    // Shared-corridor clearance can hold unloading at its first frame. The real
+    // departing guest still opens the exit; phase progress must not close it.
+    open = Math.max(
+      phase === "unloading" && (!wheel || wheel.phase === "unloading")
+        ? smooth(phaseProgress / 0.2)
+        : 0,
+      guestOpening,
+    );
   }
   return { open, progress: open, phaseProgress, activeGuests, phase };
 }

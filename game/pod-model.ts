@@ -89,7 +89,9 @@ export function addAccessPods(scene: THREE.Scene, park: Park) {
         side = Math.sign((post.x - p.x) * p.tx + (post.y - p.y) * p.ty) || -1;
       g.userData.buildingId = b.id;
       g.userData.accessRole = role;
-      g.userData.passageWidth = 2.2;
+      g.userData.passageWidth = b.sharedAccess ? 1.012 : 2.2;
+      g.userData.sharedAccess = !!b.sharedAccess;
+      if (b.sharedAccess) g.scale.x = 0.46;
       part(g, "threshold", "#d3cdb6", [0, 0.055, -0.45], [4.7, 0.11, 2.75]);
       part(g, "passage-mat", color, [0, 0.118, -0.5], [2.18, 0.022, 1.7]);
       for (const side of [-1, 1]) {
@@ -125,6 +127,32 @@ export function addAccessPods(scene: THREE.Scene, park: Park) {
       part(g, "canopy-roof", color, [0, 2.72, -0.2], [2.95, 0.17, 1.35]);
       part(g, "canopy-edge", trim, [0, 2.64, -0.85], [3, 0.1, 0.12]);
       part(g, "sign-face", "#23464d", [0, 2.45, -0.17], [1.8, 0.22, 0.045]);
+      if (b.sharedAccess) {
+        const glyphs: Record<string, string[]> = {
+            E: ["111", "100", "110", "100", "111"],
+            I: ["111", "010", "010", "010", "111"],
+            N: ["101", "111", "111", "111", "101"],
+            A: ["010", "101", "111", "101", "101"],
+            U: ["101", "101", "101", "101", "111"],
+            S: ["111", "100", "111", "001", "111"],
+          },
+          label = entry ? "EIN" : "AUS";
+        const face = g.getObjectByName("sign-face")!;
+        face.scale.y = 0.48;
+        for (let letter = 0; letter < label.length; letter++)
+          glyphs[label[letter]].forEach((row, y) =>
+            [...row].forEach((pixel, x) => {
+              if (pixel === "1")
+                part(
+                  g,
+                  `lane-label-${letter}-${x}-${y}`,
+                  trim,
+                  [-0.66 + letter * 0.49 + x * 0.12, 2.61 - y * 0.075, -0.2],
+                  [0.095, 0.06, 0.018],
+                );
+            }),
+          );
+      }
       arrow(g, "roof-arrow", 0, 2.815, -0.2, !entry);
       arrow(g, "ground-arrow", 0, 0.142, -0.65, !entry);
       if (entry) {
@@ -188,6 +216,19 @@ export function addAccessPods(scene: THREE.Scene, park: Park) {
       lampMesh.scale.set(0.1, 0.12, 0.07);
       g.add(lampMesh);
       gates.push({ id: b.id, role, root: g, hinge, lamp });
+    }
+    if (b.sharedAccess) {
+      const divider = group(`shared-access-divider-${b.id}`, {
+        ...layout.entry,
+        x: (layout.entry.x + layout.exit.x) / 2,
+        y: (layout.entry.y + layout.exit.y) / 2,
+      });
+      divider.userData.buildingId = b.id;
+      part(divider, "shared-threshold-seam", "#fff3d6", [0, 0.16, -0.55], [0.11, 0.05, 2.45]);
+      for (const z of [-1.65, 0.55])
+        part(divider, `divider-post-${z}`, "#f2e5c5", [0, 0.6, z], [0.075, 0.9, 0.075]);
+      part(divider, "divider-rail", "#dce5d4", [0, 1.02, -0.55], [0.08, 0.08, 2.2]);
+      cabins.push({ id: b.id, root: divider });
     }
     if (!needsOperator(b.kind)) continue;
     const p = layout.cabin,

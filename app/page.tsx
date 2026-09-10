@@ -1,5 +1,7 @@
 import { AttractionAdvisor } from "../components/attraction-advisor";
 import { attractionAdvice, applyAttractionAdvice } from "../game/attraction-advisor";
+import { SharedAccessControl } from "../components/shared-access-control";
+import { setSharedAccess, sharedAccessRoute } from "../game/shared-access";
 import { SaveSlots } from "../components/save-slots";
 import { ParkCalendar, ParkWeather } from "../components/park-weather";
 import { calendarOf, DAY_SECONDS, DAYS_PER_YEAR } from "../game/calendar";
@@ -28,6 +30,7 @@ import { staffLocation, type StaffRef } from "../game/staff";
 import { RideOperationsPanel } from "../components/ride-operations-panel";
 import {
   setRideRounds,
+  needsOperator,
   hasOperator,
   hireRideCrew,
   dismissRideCrew,
@@ -1353,7 +1356,9 @@ export default function Home() {
       const error = setAccessPod(park.current!, live, role, pod, autoClear);
       notify(
         error ??
-          `${role === "entry" ? "Eingangs" : "Ausgangs"}pod versetzt. Verbinde das Feld vor dem Pod mit einem ${role === "entry" ? "blauen Eingangsweg" : "roten Ausgangsweg"}.`,
+          (live.sharedAccess
+            ? "Gemeinsamer Pod versetzt. Verbinde ihn mit Eingangswegen; der Anschluss wird in Rot und Blau geteilt."
+            : `${role === "entry" ? "Eingangs" : "Ausgangs"}pod versetzt. Verbinde das Feld vor dem Pod mit einem ${role === "entry" ? "blauen Eingangsweg" : "roten Ausgangsweg"}.`),
       );
       if (!error) {
         setPodEdit(null);
@@ -1362,6 +1367,7 @@ export default function Home() {
       }
     });
   const beginPod = (building: Building, role: PodRole) => {
+    if (building.sharedAccess) role = "entry";
     setPodEdit({ id: building.id, role });
     setCut(null);
     setAdjust(null);
@@ -1900,7 +1906,8 @@ export default function Home() {
       setAdvisorSection((current) => ({ selector, serial: (current?.serial ?? 0) + 1 }));
     switch (action.kind) {
       case "access":
-        if (usesPods(selectedBuilding.kind)) scrollTo(".pod-controls");
+        if (issueId === "shared-space") scrollTo(".shared-access-control");
+        else if (usesPods(selectedBuilding.kind)) scrollTo(".pod-controls");
         else if (isHabitat(selectedBuilding.kind)) scrollTo(".habitat-visitors");
         else {
           pickTool("path", "paths");
@@ -2328,6 +2335,19 @@ export default function Home() {
           hoverInfo &&
           (() => {
             const object = snapshot?.buildings.find((b) => b.id === hoverInfo.id);
+            const sharedPath =
+              !object &&
+              hoverInfo.tile &&
+              snapshot?.buildings.find((item) => {
+                if (!item.sharedAccess) return false;
+                const route = sharedAccessRoute(snapshot, item);
+                return route.some(
+                  (p, i) =>
+                    (i < route.length - 1 || route.length === 1) &&
+                    p.x === hoverInfo.tile!.x &&
+                    p.y === hoverInfo.tile!.y,
+                );
+              });
             return object ? (
               <div
                 className="world-tooltip"
@@ -2336,7 +2356,7 @@ export default function Home() {
               >
                 <strong>
                   {hoverInfo.pod
-                    ? `${hoverInfo.pod === "entry" ? "Eingangs" : "Ausgangs"}pod · ${object.name}`
+                    ? `${object.sharedAccess ? "Gemeinsamer Pod" : hoverInfo.pod === "entry" ? "Eingangspod" : "Ausgangspod"} · ${object.name}`
                     : object.name}
                 </strong>
                 <span>
@@ -2363,20 +2383,24 @@ export default function Home() {
                 role="tooltip"
               >
                 <strong>
-                  {snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "exit"
-                    ? "Ausgangsweg · rot"
-                    : snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "queue"
-                      ? "Eingangsweg · blau"
-                      : "Parkweg"}
+                  {sharedPath
+                    ? "Gemeinsamer Zugang · rot & blau"
+                    : snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "exit"
+                      ? "Ausgangsweg · rot"
+                      : snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "queue"
+                        ? "Eingangsweg · blau"
+                        : "Parkweg"}
                 </strong>
                 <span>
-                  {snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "exit"
-                    ? exitNetwork(snapshot).has(`${hoverInfo.tile.x},${hoverInfo.tile.y}`)
-                      ? "Nur hinaus · mit Parkweg verbunden"
-                      : "Anschluss zum Parkweg fehlt"
-                    : snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "queue"
-                      ? "Warteschlange · 4 Gäste pro Feld"
-                      : "Gemeinsamer Weg in beide Richtungen"}
+                  {sharedPath
+                    ? `Rot hinaus · Blau hinein · ${sharedPath.name}`
+                    : snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "exit"
+                      ? exitNetwork(snapshot).has(`${hoverInfo.tile.x},${hoverInfo.tile.y}`)
+                        ? "Nur hinaus · mit Parkweg verbunden"
+                        : "Anschluss zum Parkweg fehlt"
+                      : snapshot.tiles[hoverInfo.tile.y]?.[hoverInfo.tile.x] === "queue"
+                        ? "Warteschlange · 4 Gäste pro Feld"
+                        : "Gemeinsamer Weg in beide Richtungen"}
                 </span>
               </div>
             ) : null;
@@ -4102,8 +4126,8 @@ export default function Home() {
                         </div>
                         {directAccess && (
                           <p className="direct-access">
-                            <Check size={14} /> Direktzugang · 4 Warteplätze. Eine eigene
-                            Warteschlange schafft mehr Platz.
+                            <Check size={14} /> Direktzugang · {b.sharedAccess ? 2 : 4} Warteplätze.
+                            Eine eigene Warteschlange schafft mehr Platz.
                           </p>
                         )}
                         {usesPods(b.kind) &&
@@ -4111,30 +4135,94 @@ export default function Home() {
                             const pods = effectivePods(snapshot, b),
                               size = CATALOG[b.kind].size;
                             const outgoing = exitPath(snapshot, b);
-                            const exitProposal = !outgoing.length
-                              ? suggestExit(snapshot, b, autoClear)
-                              : null;
+                            const exitProposal =
+                              !b.sharedAccess && !outgoing.length
+                                ? suggestExit(snapshot, b, autoClear)
+                                : null;
                             return (
                               <div className="pod-controls" tabIndex={-1}>
                                 <h3>Ein- & Ausgangspods</h3>
+                                {needsOperator(b.kind) && (
+                                  <SharedAccessControl
+                                    park={snapshot}
+                                    building={b}
+                                    onChange={(enabled) => {
+                                      if (enabled === !!b.sharedAccess) return;
+                                      edit(
+                                        enabled
+                                          ? "Ein- und Ausgang zusammenlegen"
+                                          : "Ein- und Ausgang trennen",
+                                        () => {
+                                          const live = park.current!.buildings.find(
+                                            (item) => item.id === b.id,
+                                          )!;
+                                          const error = setSharedAccess(
+                                            park.current!,
+                                            live,
+                                            enabled,
+                                          );
+                                          if (!error) {
+                                            setPodEdit(null);
+                                            setTool("select");
+                                            view.current.connection = undefined;
+                                          }
+                                          notify(
+                                            error ??
+                                              (enabled
+                                                ? "Ein gemeinsamer Pod mit roter Auslass- und blauer Einlassspur. Baue den Anschluss mit Eingangswegen."
+                                                : "Ein- und Ausgang sind wieder getrennt. Prüfe die beiden Weganschlüsse."),
+                                          );
+                                        },
+                                      );
+                                    }}
+                                    onClose={() =>
+                                      edit("Attraktion für Zugangsumbau schließen", () => {
+                                        const live = park.current!.buildings.find(
+                                          (item) => item.id === b.id,
+                                        )!;
+                                        live.open = false;
+                                        live.autoOpen = false;
+                                        notify(
+                                          "Geschlossen. Lass die Gäste aussteigen; danach kannst du die Zugangsart umstellen.",
+                                        );
+                                      })
+                                    }
+                                  />
+                                )}
                                 <p className="small">
-                                  Die Häuschen sitzen am Rand. Verbinde das Feld direkt vor dem
-                                  blauen Pod mit dem Eingangsweg und vor dem roten Pod mit dem
-                                  Ausgangsweg.
+                                  {b.sharedAccess ? (
+                                    "Verbinde den gemeinsamen Pod mit blauen Eingangswegen zum Parkweg. Der Anschluss teilt sich automatisch in eine blaue Einlass- und rote Auslassspur."
+                                  ) : (
+                                    <>
+                                      Die Häuschen sitzen am Rand. Verbinde das Feld direkt vor dem
+                                      blauen Pod mit dem Eingangsweg und vor dem roten Pod mit dem
+                                      Ausgangsweg.
+                                    </>
+                                  )}
                                 </p>
-                                {(["entry", "exit"] as const).map((role) => {
+                                {(b.sharedAccess
+                                  ? (["entry"] as const)
+                                  : (["entry", "exit"] as const)
+                                ).map((role) => {
                                   const pod = pods[role],
                                     port = podPort(b, size, pod),
                                     ok = role === "entry" ? !!reachable : !!outgoing.length;
                                   return (
-                                    <div className={`pod-card ${role}`} key={role}>
+                                    <div
+                                      className={`pod-card ${b.sharedAccess ? "shared" : role}`}
+                                      key={role}
+                                    >
                                       <strong>
                                         {role === "entry" ? (
                                           <LogIn size={17} />
                                         ) : (
                                           <LogOut size={17} />
                                         )}{" "}
-                                        {role === "entry" ? "Eingangspod" : "Ausgangspod"}
+                                        {b.sharedAccess
+                                          ? "Gemeinsamer Pod"
+                                          : role === "entry"
+                                            ? "Eingangspod"
+                                            : "Ausgangspod"}
                                       </strong>
                                       <span>
                                         {POD_SIDES[pod.side]} {size > 1 ? pod.offset + 1 : ""} ·
@@ -4161,13 +4249,13 @@ export default function Home() {
                                             pickTool(role === "entry" ? "queue" : "exit", "paths")
                                           }
                                         >
-                                          Weg bauen
+                                          {b.sharedAccess ? "Geteilten Weg bauen" : "Weg bauen"}
                                         </button>
                                       </div>
                                     </div>
                                   );
                                 })}
-                                {!outgoing.length && (
+                                {!b.sharedAccess && !outgoing.length && (
                                   <div className="exit-suggestion">
                                     <strong>Ausgang automatisch verbinden</strong>
                                     {exitProposal ? (

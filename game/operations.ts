@@ -1,6 +1,12 @@
 /** Ride crew assignments and dispatch programs. Crew edits may release waiting
  * guests; revenue, ride rewards, Park.time and payroll billing remain caller-owned. */
 import type { Building, Kind, Park } from "./simulation";
+import {
+  resetWheelState,
+  wheelProgramDuration,
+  wheelProgramRemaining,
+  wheelVisualState,
+} from "./wheel-boarding";
 
 export const OPERATOR_WAGE = 70;
 /** One assignment hires the complete three-person crew; wages remain per crew. */
@@ -108,13 +114,14 @@ export function resetRideOperations(b: Building): void {
   o.phase = "idle";
   o.phaseLeft = 0;
   o.remainingRounds = 0;
+  if (!b.riders.length) resetWheelState(b);
 }
 /** Advance only admission/control/unloading, with dt already speed-scaled.
  * Call once per simulation step before the legacy boarding block. `ready` must
  * include open, reachable, tested, unbroken, and not currently being track-edited.
  * True grants one dispatch; caller moves guests/charges once, then calls startRideProgram.
  * Services return true and keep their original dispatch behavior. */
-export function tickOperations(b: Building, dt: number, ready: boolean): boolean {
+export function tickOperations(b: Building, dt: number, ready: boolean, exitClear = true): boolean {
   if (!needsOperator(b.kind)) return ready;
   if (!Number.isFinite(dt) || dt <= 0) return false;
   const o = ensureOperations(b);
@@ -123,6 +130,11 @@ export function tickOperations(b: Building, dt: number, ready: boolean): boolean
     o.phase = "running";
     o.phaseLeft = 0;
     if (o.remainingRounds < 1) o.remainingRounds = 1;
+    return false;
+  }
+  if (!exitClear) {
+    o.phase = "unloading";
+    o.phaseLeft = UNLOADING_SECONDS;
     return false;
   }
   if (!ready || !o.staffed) {
@@ -193,6 +205,7 @@ export function finishRideProgram(b: Building): void {
 }
 /** Full next dispatch time for wait estimates, without changing ride physics. */
 export function programDuration(b: Building, baseDuration: number): number {
+  if (b.kind === "wheel") return wheelProgramDuration(operationsOf(b).rounds, baseDuration);
   return needsOperator(b.kind)
     ? baseDuration * operationsOf(b).rounds +
         BOARDING_SECONDS +
@@ -201,6 +214,7 @@ export function programDuration(b: Building, baseDuration: number): number {
     : baseDuration;
 }
 export function programRemaining(b: Building, baseDuration: number): number {
+  if (b.kind === "wheel" && b.wheel) return wheelProgramRemaining(b, baseDuration);
   if (!needsOperator(b.kind)) return Math.max(0, b.cycle);
   const o = operationsOf(b);
   if (b.riders.length)
@@ -214,6 +228,7 @@ export function operatorActivity(b: Building): OperationPhase | "off" {
   return operationsOf(b).staffed ? operationsOf(b).phase : "off";
 }
 export function operationProgress(b: Building): number {
+  if (b.kind === "wheel" && b.wheel) return wheelVisualState(b).progress;
   const o = operationsOf(b),
     duration = phaseDuration[o.phase];
   return duration ? Math.max(0, Math.min(1, 1 - o.phaseLeft / duration)) : 0;
@@ -251,12 +266,23 @@ export function operatorState(b: Building, post: OperatorPost = "control") {
   const phase = operatorActivity(b),
     progress = operationProgress(b),
     onDuty =
-      post === "entry"
-        ? phase === "boarding" || phase === "checking"
-        : post === "exit" && phase === "unloading",
+      b.kind === "wheel" && b.wheel
+        ? post === "entry"
+          ? b.wheel.phase === "loading"
+          : post === "exit" && (b.wheel.phase === "unloading" || b.wheel.phase === "clearing")
+        : post === "entry"
+          ? phase === "boarding" || phase === "checking"
+          : post === "exit" && phase === "unloading",
     stepProgress = onDuty ? Math.min(1, progress / 0.2, (1 - progress) / 0.2) : 0,
     returning = onDuty && progress > 0.8,
-    activity = post === "control" ? (b.open ? "control" : "idle") : onDuty ? phase : "idle";
+    activity =
+      post === "control"
+        ? b.open || b.riders.length || phase === "unloading"
+          ? "control"
+          : "idle"
+        : onDuty
+          ? phase
+          : "idle";
   return {
     id: `operator-${operationsOf(b).crewId ?? b.id}-${post}`,
     crewId: operationsOf(b).crewId ?? b.id,

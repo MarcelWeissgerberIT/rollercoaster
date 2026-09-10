@@ -22,6 +22,7 @@ const guest = (id, patch = {}) => ({
   route: [{ x: 6, y: 5 }],
   timer: 0,
   state: "walk",
+  target: null,
   skin: 0,
   ageGroup: "adult",
   ...patch,
@@ -33,6 +34,7 @@ assert(ownerId);
 function fixture() {
   const g = guest(ownerId),
     park = {
+      buildings: [],
       guests: [g],
       time: 15,
       speed: 1,

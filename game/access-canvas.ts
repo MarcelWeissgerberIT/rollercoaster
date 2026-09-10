@@ -16,13 +16,17 @@ function painter(
   project: AccessProject,
   scale: number,
   hits?: AccessHitPolygon[],
+  widthScale = 1,
 ) {
   const tx = -pose.dy,
     ty = pose.dx,
     facing = viewFacing(project, pose.dx, pose.dy),
     tangent = viewFacing(project, tx, ty);
   const p = ([x, z, h]: Local): Point => {
-    const q = project(pose.x + (x * tx + z * pose.dx) / 5, pose.y + (x * ty + z * pose.dy) / 5);
+    const q = project(
+      pose.x + (x * widthScale * tx + z * pose.dx) / 5,
+      pose.y + (x * widthScale * ty + z * pose.dy) / 5,
+    );
     return { x: q.x, y: q.y - h * 15 * scale };
   };
   const poly = (points: Local[], color: string, edge = INK) => {
@@ -151,9 +155,10 @@ function painter(
   };
   const sign = (q: Local, label: string, color: string) => {
     const s = p(q);
-    ctx.font = `bold ${4.2 * scale}px sans-serif`;
+    const textScale = widthScale < 1 ? 0.8 : 1;
+    ctx.font = `bold ${4.2 * scale * textScale}px sans-serif`;
     ctx.textAlign = "center";
-    const width = (label.length * 2.55 + 4) * scale;
+    const width = (label.length * 2.55 + 4) * scale * textScale;
     hits?.push([
       { x: s.x - width / 2, y: s.y - 3.8 * scale },
       { x: s.x + width / 2, y: s.y - 3.8 * scale },
@@ -179,8 +184,16 @@ export function drawAccessPod(
   scale: number,
   boothSide = -1,
   hits?: AccessHitPolygon[],
+  shared = false,
 ) {
-  const { poly, line, box, lamp, sign } = painter(ctx, pose, project, scale, hits),
+  const { poly, line, box, lamp, sign } = painter(
+      ctx,
+      pose,
+      project,
+      scale,
+      hits,
+      shared ? 0.46 : 1,
+    ),
     entry = role === "entry",
     color = entry ? BLUE : RED;
   ctx.save();
@@ -258,7 +271,25 @@ export function drawAccessPod(
   line([0, 0.36 - dz * 0.27, 0.09], [0, 0.36 + dz * 0.36, 0.09], CREAM, 0.13);
   line([0, 0.36 + dz * 0.36, 0.09], [-0.23, 0.36 + dz * 0.1, 0.09], CREAM, 0.11);
   line([0, 0.36 + dz * 0.36, 0.09], [0.23, 0.36 + dz * 0.1, 0.09], CREAM, 0.11);
-  sign([0, 0.06, 2.42], entry ? "EINLASS" : "AUSGANG", color);
+  sign([0, 0.06, 2.42], shared ? (entry ? "EIN" : "AUS") : entry ? "EINLASS" : "AUSGANG", color);
+  ctx.restore();
+}
+
+/** Both lanes share one threshold; this rail stays between their independently moving gates. */
+export function drawSharedAccessDivider(
+  ctx: CanvasRenderingContext2D,
+  layout: AccessLayout,
+  project: AccessProject,
+  scale: number,
+  hits?: AccessHitPolygon[],
+) {
+  const { entry, exit } = layout,
+    center = { ...entry, x: (entry.x + exit.x) / 2, y: (entry.y + exit.y) / 2 },
+    { box, line } = painter(ctx, center, project, scale, hits);
+  ctx.save();
+  box(0, 0.55, 0.06, 0.11, 2.45, 0.08, "#fff3d6", "#8c9d91");
+  for (const z of [-0.55, 1.65]) box(0, z, 0.1, 0.08, 0.08, 0.9, "#fff3d6", "#84988d");
+  line([0, -0.55, 1], [0, 1.65, 1], "#dce5d4", 0.08);
   ctx.restore();
 }
 export function drawAccessCabin(

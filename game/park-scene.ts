@@ -6,6 +6,7 @@ import { addPhotoHardware, isPhotoPoint } from "./coaster-photo";
 import { operationsOf, OPERATOR_POSTS } from "./operations";
 import { staffLocation, type StaffRef } from "./staff";
 import { withAccessLayoutCache } from "./ride-access";
+import { withSharedAccessCache } from "./shared-access";
 import { staffMotion } from "./staff-visual";
 import { createStaffModel } from "./staff-model";
 import { GATES, gateStyle } from "./entrance";
@@ -21,12 +22,13 @@ import { createCoasterCar } from "./coaster-car";
 import { vehicleFor, carSeat } from "./vehicles";
 import { addDriveHardware } from "./track-hardware";
 import { addExitArrows } from "./path-markings";
+import { addSharedAccessMarkings } from "./shared-access-model";
 import { addAccessPods } from "./pod-model";
 import { createTransportRig } from "./transport-rig";
 import { createGuestModel, createCrowd, personParts } from "./guest-model";
 import { dogCompanionOwners, dogCompanionPose, type DogVector } from "./guest-dogs";
 import { createDogCompanionModel } from "./dog-model";
-import { guestWalkPosition } from "./guest-walk";
+import { guestQueueDirection, guestWalkPosition } from "./guest-walk";
 import { partyWalkingSpeed } from "./visitors";
 import { createAttractionRig } from "./attraction-rig";
 import { isTransport, transportPose, transportClock } from "./transit";
@@ -63,6 +65,7 @@ export function populatePark(
   cone: THREE.BufferGeometry,
 ) {
   addExitArrows(scene, park);
+  addSharedAccessMarkings(scene, park);
   const updatePods = addAccessPods(scene, park);
   const animations: ((t: number) => void)[] = [],
     sphere = new THREE.IcosahedronGeometry(1, 1);
@@ -654,6 +657,8 @@ export function populatePark(
         const formation = guestWalkPosition(park, g, { x, y: z }, direction);
         x = formation.x;
         z = formation.y;
+        const queueFacing = guestQueueDirection(park, g, formation);
+        if (queueFacing) yaw = Math.atan2(-queueFacing.x, -queueFacing.y);
       }
       crowd.pose(
         i,
@@ -683,5 +688,7 @@ export function populatePark(
   });
 
   return (time: number) =>
-    withAccessLayoutCache(operatorPark, () => animations.forEach((fn) => fn(time)));
+    withSharedAccessCache(park, () =>
+      withAccessLayoutCache(operatorPark, () => animations.forEach((fn) => fn(time))),
+    );
 }

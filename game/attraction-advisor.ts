@@ -53,6 +53,7 @@ import { HABITAT_PROFILES } from "./habitat-needs";
 import { isTransport, stopEntrance, transitValid } from "./transit";
 import { FOOD, isFood } from "./park-life";
 import { partyLeader, partyMembers } from "./visitors";
+import { sharedExitPending } from "./shared-access";
 
 export type AttractionAdviceNavigation =
   | "access"
@@ -143,7 +144,7 @@ function entryPlan(s: Park, b: Building): EntryPlan {
     s.guests.some((g) => g.target === b.id || g.transit?.from === b.id)
   )
     return original;
-  const pods = effectivePods(s, b);
+  const pods = b.sharedAccess && b.pods ? b.pods : effectivePods(s, b);
   let best: EntryPlan | null = null;
   for (const entry of podSlots(CATALOG[b.kind].size)) {
     if (samePod(entry, pods.entry) || planPod(s, b, "entry", entry, false).error) continue;
@@ -319,7 +320,7 @@ export function attractionAdvice(s: Park, buildingId: number): AttractionAdviceR
       nav("operations", "Parköffnung prüfen"),
     );
 
-  if (usesPods(b.kind) && !exitPath(s, b, net).length && !editing) {
+  if (usesPods(b.kind) && !b.sharedAccess && !exitPath(s, b, net).length && !editing) {
     const exitPlan = suggestExit(s, b, false);
     const busy =
       b.queue.length > 0 ||
@@ -345,7 +346,23 @@ export function attractionAdvice(s: Park, buildingId: number): AttractionAdviceR
           )
         : nav("access", "Ausgangslösung ansehen"),
     );
+    if (needsOperator(b.kind))
+      add(
+        "shared-space",
+        "tip",
+        "Ein- und Ausgang können einen Weg teilen",
+        "Ein gemeinsamer Pod spart den zusätzlichen Ausgangsweg. Rot führt hinaus, Blau hinein. Der Einlass wartet, bis die vorherigen Gäste den gemeinsamen Weg verlassen haben.",
+        nav("access", "Gemeinsamen Zugang einrichten"),
+      );
   }
+  if (b.sharedAccess && sharedExitPending(s, b))
+    add(
+      "shared-exit",
+      "tip",
+      "Aussteigende Gäste haben Vorrang",
+      "Die vorherigen Fahrgäste verlassen gerade die rote Spur. Sobald sie den Parkweg erreicht haben, beginnt der Einlass über die blaue Spur.",
+      nav("access", "Gemeinsamen Zugang ansehen"),
+    );
   if (transport) {
     if (!line)
       add(

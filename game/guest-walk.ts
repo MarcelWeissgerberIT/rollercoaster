@@ -1,7 +1,41 @@
 import type { Guest, Park, Point } from "./simulation";
+import { getSharedAccessLanes, sharedAccessGuestPosition } from "./shared-access";
+import { POD_DIRECTIONS } from "./pods";
 
 const traversable = (park: Park, x: number, y: number) =>
   ["path", "queue", "exit"].includes(park.tiles[y]?.[x]);
+
+/** Waiting guests face along their real incoming lane toward the gate. The
+ * short final segment also covers a gate directly on a public path. */
+export function guestQueueDirection(park: Park, g: Guest, position?: Point): Point | undefined {
+  if (g.state !== "queue" || g.transit || g.sharedExit !== undefined) return undefined;
+  const b = park.buildings.find((item) => item.id === g.target);
+  if (!b?.sharedAccess || !b.queue.includes(g.id)) return undefined;
+  const lanes = getSharedAccessLanes(park, b),
+    p = position ?? sharedAccessGuestPosition(park, g, lanes);
+  if (!p || !lanes.entry.length) return undefined;
+  const [dx, dy] = POD_DIRECTIONS[b.pods?.entry.side ?? 0];
+  let closest = Infinity,
+    facing: Point | undefined;
+  for (let i = 0; i < lanes.entry.length; i++) {
+    const end = lanes.entry[i],
+      start = lanes.entry[i - 1] ?? { x: end.x - dx * 0.6, y: end.y - dy * 0.6 },
+      vx = end.x - start.x,
+      vy = end.y - start.y,
+      length = Math.hypot(vx, vy);
+    if (length < 0.001) continue;
+    const fraction = Math.max(
+        0,
+        Math.min(1, ((p.x - start.x) * vx + (p.y - start.y) * vy) / (length * length)),
+      ),
+      distance = Math.hypot(p.x - start.x - vx * fraction, p.y - start.y - vy * fraction);
+    if (distance < closest) {
+      closest = distance;
+      facing = { x: -vx / length, y: -vy / length };
+    }
+  }
+  return facing;
+}
 
 /** Use the same tile-space formation in the map and 3D, without changing the
  * simulation's route, walking speed, wallet or party membership. */
@@ -11,6 +45,11 @@ export function guestWalkPosition(
   position: Point = g,
   direction?: Point,
 ): Point {
+  const shared = sharedAccessGuestPosition(
+    park,
+    position === g ? g : { ...g, x: position.x, y: position.y },
+  );
+  if (shared) return shared;
   if (!["walk", "leave"].includes(g.state) || g.transit) return { x: position.x, y: position.y };
   const next =
       direction ?? g.route.find((p) => Math.hypot(p.x - position.x, p.y - position.y) > 0.025),

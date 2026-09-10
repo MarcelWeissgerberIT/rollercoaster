@@ -2832,6 +2832,10 @@ body:has(.manual[data-slot="dialog-content"] .free-play-card) [data-slot="dialog
   background: #fff0eb;
   border-left-color: #c44c49;
 }
+.pod-card.shared {
+  background: linear-gradient(115deg, #e7f2fd 46%, #fff0eb 54%);
+  border-left-color: #7c7da4;
+}
 .pod-card strong {
   display: flex;
   gap: 6px;

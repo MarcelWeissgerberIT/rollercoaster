@@ -114,7 +114,7 @@ test("Real organic arrival remains organic during active advertising", () => {
 });
 test("Ride boarding charges actual guest once; finish after campaign expiration does not double-count", () => {
   const { s, c, g } = arrival(),
-    b = s.buildings.find((b) => S.isRide(b.kind) && S.access(s, b));
+    b = s.buildings.find((b) => b.kind === "carousel" && S.access(s, b));
   queue(s, g, b);
   const cash = s.cash,
     wal = g.wallet,
@@ -139,6 +139,33 @@ test("Ride boarding charges actual guest once; finish after campaign expiration 
   assert.equal(c.revenue.ride, price);
   assert(M.validMarketing(s));
   return { kind: b.kind, price };
+});
+test("Individual wheel admission attributes one ticket across two rounds and staged unloading", () => {
+  const { s, c, g } = arrival(),
+    b = s.buildings.find((b) => b.kind === "wheel");
+  queue(s, g, b);
+  b.operations.rounds = 2;
+  const cash = s.cash,
+    wallet = g.wallet,
+    price = b.price;
+  random([], () => S.tick(s, 0.1));
+  assert.equal(b.wheel.phase, "loading");
+  assert.equal(g.state, "ride");
+  assert.equal(c.revenue.ride, price);
+  assert.equal(g.wallet, wallet - price);
+  assert.equal(s.cash, cash + price);
+  s.time = c.endsAt;
+  let sawUnloading = false;
+  for (let i = 0; i < 1500 && g.rides === 0; i++) {
+    random([], () => S.tick(s, 0.1));
+    sawUnloading ||= b.wheel.phase === "unloading";
+    assert.equal(c.revenue.ride, price);
+  }
+  assert(sawUnloading);
+  assert.equal(g.rides, 1);
+  assert.equal(b.revenue, price);
+  assert(M.validMarketing(s));
+  assert(S.validSave(clone(s)));
 });
 test("Shop reserves without charge, then credits actual service payment after cancellation", () => {
   const { s, c, g } = arrival(),

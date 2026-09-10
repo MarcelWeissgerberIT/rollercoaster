@@ -14,7 +14,9 @@ function test(name, fn) {
     results.push({ name, pass: false, error: e.message });
   }
 }
-function fixture(kind = "wheel") {
+// Route tests need a completed batch ride. The wheel now unloads at individual
+// cabin stops and is covered separately by its operating-controller tests.
+function fixture(kind = "carousel") {
   const s = S.newPark("sandbox"),
     template = clone(s.guests[0]);
   s.buildings = [];

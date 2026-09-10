@@ -61,9 +61,16 @@ test("Saved parks migrate without changing cash, geometry, guests or historical 
   S.migratePark(old);
   assert.equal(old.cash, before.cash);
   assert.deepEqual(
-    old.buildings.map(({ pods, ...b }) => b),
-    before.buildings.map(({ pods, ...b }) => b),
+    old.buildings.map(({ pods, wheel, ...b }) => b),
+    before.buildings.map(({ pods, wheel, ...b }) => b),
   );
+  for (const b of old.buildings.filter((b) => b.kind === "wheel")) {
+    assert.equal(b.wheel.phase, b.riders.length ? "running" : "idle");
+    assert.deepEqual(
+      b.wheel.gondolas.filter((id) => id !== null),
+      b.riders,
+    );
+  }
   for (const b of old.buildings.filter((b) => b.pods))
     assert.deepEqual(
       S.access(old, b),
@@ -86,7 +93,8 @@ test("Research costs once, pauses, completes in simulation time and gates constr
   const result = C.place(s, "drop", tree, undefined, true);
   assert(result.error);
   assert.deepEqual(clone(s), before);
-  const cash = s.cash, coins = Coins.researchCoins(s);
+  const cash = s.cash,
+    coins = Coins.researchCoins(s);
   assert.equal(S.startResearch(s, "family"), null);
   assert.equal(s.cash, cash);
   assert.equal(Coins.researchCoins(s), coins - Coins.COIN_COST.family);
@@ -98,7 +106,8 @@ test("Research costs once, pauses, completes in simulation time and gates constr
   assert.deepEqual(s.research.completed, ["family"]);
   assert(S.isUnlocked(s, "coaster", "wood"));
   assert(S.isUnlocked(s, "pirate"));
-  const paid = s.cash, paidCoins = Coins.researchCoins(s);
+  const paid = s.cash,
+    paidCoins = Coins.researchCoins(s);
   assert(S.startResearch(s, "family"));
   assert.equal(s.cash, paid);
   assert.equal(Coins.researchCoins(s), paidCoins);

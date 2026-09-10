@@ -13,9 +13,9 @@ function test(name, fn) {
 }
 const near = (a, b) => assert(Math.abs(a - b) < 1e-8, `${a} != ${b}`);
 const point = (p) => ({ x: p.x, y: p.y });
-function fixture() {
+function fixture(kind = "wheel") {
   const s = S.newPark("sandbox"),
-    b = s.buildings.find((b) => b.kind === "wheel");
+    b = s.buildings.find((b) => b.kind === kind);
   s.tiles = Array.from({ length: 36 }, () => Array(36).fill("grass"));
   s.buildings = [b];
   s.crewPool.crews = s.crewPool.crews.filter((crew) => crew.buildingId === b.id);
@@ -156,7 +156,7 @@ test("Cabin selection uses the in-bounds tangent at both map edges", () => {
 });
 
 test("Entry gate opens during actual boarding and closes continuously through checking", () => {
-  const { s, b } = fixture();
+  const { s, b } = fixture("carousel");
   b.queue = [777];
   const gate = (time) => A.gateMotion(s, b, "entry", time);
   assert.equal(gate().open, 0);
@@ -183,7 +183,7 @@ test("Entry gate opens during actual boarding and closes continuously through ch
 });
 
 test("Attendants return to their own posts at every phase boundary while driver stays in cabin", () => {
-  const { s, b } = fixture(),
+  const { s, b } = fixture("carousel"),
     home = Object.fromEntries(O.OPERATOR_POSTS.map((p) => [p, location(s, b, p)]));
   for (const [post, phase, duration] of [
     ["entry", "boarding", 2],
@@ -214,11 +214,11 @@ test("Attendants return to their own posts at every phase boundary while driver 
 });
 
 test("Real unloaded guests keep the exit open beyond the unload timer, then close it by walking away", () => {
-  const { s, b } = fixture(),
+  const { s, b } = fixture("carousel"),
     template = S.newPark("sandbox").guests[0];
   for (let y = 9; y < 36; y++) {
     s.tiles[y][9] = "path";
-    s.tiles[y][13] = "path";
+    s.tiles[y][b.x + S.CATALOG[b.kind].size] = "path";
   }
   for (let x = 9; x <= 15; x++) s.tiles[29][x] = "path";
   const entry = S.access(s, b),
@@ -300,7 +300,7 @@ test("Passers-by, queued and riding guests cannot pretend to be discharged passe
 });
 
 test("Crew, layout and gate reads preserve paused and old save state and return detached geometry", () => {
-  const { s, b } = fixture();
+  const { s, b } = fixture("carousel");
   b.queue = [777];
   O.tickOperations(b, 0.1, true);
   s.speed = 0;
@@ -323,7 +323,7 @@ test("Crew, layout and gate reads preserve paused and old save state and return 
 });
 
 test("Scoped cache scans geometry once and still reflects live operation changes", () => {
-  const { s, b } = fixture();
+  const { s, b } = fixture("carousel");
   let reads = 0,
     trackX = 20;
   const sample = { y: 20 };

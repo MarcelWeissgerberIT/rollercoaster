@@ -8,7 +8,15 @@ import { RESTROOM_SPRITE } from "./restroom";
 import { drawCleanerAreas, type CleanerAreaOverlay } from "./cleaner-area-overlay";
 import zooWalkSpecs from "./zoo-walk-sprites.json";
 import { guestAppearance } from "./visitors";
-import { guestWalkPosition } from "./guest-walk";
+import { guestQueueDirection, guestWalkPosition } from "./guest-walk";
+import {
+  getSharedAccessLanes,
+  sharedAccessGuestPosition,
+  withSharedAccessCache,
+} from "./shared-access";
+import { wheelVisualState, WHEEL_GONDOLAS } from "./wheel-boarding";
+import { wheelGondolaPose, wheelTransferMotion } from "./wheel-geometry";
+import { drawSharedAccessTile, sharedAccessTiles } from "./shared-access-visual";
 import { drawHeldSouvenir } from "./souvenir-canvas";
 import { paintedGuest, drawWalkingGuest } from "./guest-sprite";
 import zooV9Specs from "./zoo-v9-sprites.json";
@@ -21,7 +29,12 @@ import { staffMotion } from "./staff-visual";
 import { drawStaff } from "./staff-canvas";
 import { OPERATOR_POSTS, needsOperator } from "./operations";
 import { accessLayout, gateMotion, withAccessLayoutCache } from "./ride-access";
-import { drawAccessPod, drawAccessCabin, type AccessHitPolygon } from "./access-canvas";
+import {
+  drawAccessPod,
+  drawAccessCabin,
+  drawSharedAccessDivider,
+  type AccessHitPolygon,
+} from "./access-canvas";
 import { cleanerTransfer, staffBagLocal, staffLocalWorld } from "./staff-work";
 import lifeSpecs from "./life-sprites.json";
 import { bumperPose, balloonPose } from "./family-rides";
@@ -405,6 +418,9 @@ function drawPark(
     y >= 0 &&
     y < mapHeight(s) &&
     (s.tiles[y][x] === type || (type === "path" && ["queue", "exit"].includes(s.tiles[y][x])));
+  const sharedTiles = new Map(
+    sharedAccessTiles(s).map((tile) => [`${tile.cell.x},${tile.cell.y}`, tile]),
+  );
   for (let y = 0; y < mapHeight(s); y++)
     for (let x = 0; x < mapWidth(s); x++) {
       const type = s.tiles[y][x],
@@ -424,6 +440,8 @@ function drawPark(
                 : ["#7eac47", "#80af49", "#84b24b", "#83ae48"][n % 4],
         v.grid ? "#28522030" : undefined,
       );
+      const sharedTile = sharedTiles.get(`${x},${y}`);
+      if (sharedTile) drawSharedAccessTile(ctx, sharedTile, project, scale);
       if (type === "path" || type === "queue" || type === "exit") {
         // One continuous path surface, with borders only at exposed edges.
         const color = type === "queue" ? "#36699f" : type === "exit" ? "#a54540" : "#ad925f";
@@ -557,11 +575,14 @@ function drawPark(
       rendered = ghost ? { ...b, pods: { ...(b.pods ?? effectivePods(s, b)), [role]: pod } } : b,
       layout = accessLayout(previewPark, rendered),
       q = podPose(b, CATALOG[b.kind].size, pod),
-      pose = { ...q, tx: -q.dy, ty: q.dx, port: podPort(b, CATALOG[b.kind].size, pod) },
+      pose = rendered.sharedAccess
+        ? layout[role]
+        : { ...q, tx: -q.dy, ty: q.dx, port: podPort(b, CATALOG[b.kind].size, pod) },
+      sideRole = rendered.sharedAccess ? role : "entry",
       side =
         Math.sign(
-          (layout.posts.entry.x - layout.entry.x) * layout.entry.tx +
-            (layout.posts.entry.y - layout.entry.y) * layout.entry.ty,
+          (layout.posts[sideRole].x - layout[sideRole].x) * layout[sideRole].tx +
+            (layout.posts[sideRole].y - layout[sideRole].y) * layout[sideRole].ty,
         ) || -1;
     ctx.save();
     ctx.globalAlpha *= ghost ? 0.55 : 1;
@@ -578,9 +599,45 @@ function drawPark(
               project,
               scale,
               side,
+              undefined,
+              !!rendered.sharedAccess,
             ),
         },
       ];
+      if (rendered.sharedAccess) {
+        const otherRole = role === "entry" ? "exit" : "entry",
+          otherPose = layout[otherRole],
+          otherPost = layout.posts[otherRole],
+          otherSide =
+            Math.sign(
+              (otherPost.x - otherPose.x) * otherPose.tx +
+                (otherPost.y - otherPose.y) * otherPose.ty,
+            ) || -1;
+        layers[0].depth = depthAt(pose.x, pose.y) + 0.15;
+        layers.push(
+          {
+            depth: depthAt(otherPose.x, otherPose.y) + 0.15,
+            draw: () =>
+              drawAccessPod(
+                ctx,
+                otherPose,
+                otherRole,
+                gateMotion(previewPark, rendered, otherRole),
+                project,
+                scale,
+                otherSide,
+                undefined,
+                true,
+              ),
+          },
+          {
+            depth:
+              depthAt((layout.entry.x + layout.exit.x) / 2, (layout.entry.y + layout.exit.y) / 2) +
+              0.2,
+            draw: () => drawSharedAccessDivider(ctx, layout, project, scale),
+          },
+        );
+      }
       if (needsOperator(b.kind)) {
         layers.push({
           depth: depthAt(layout.cabin.x, layout.cabin.y) - 0.1,
@@ -594,7 +651,17 @@ function drawPark(
       layers.sort((a, b) => a.depth - b.depth).forEach((layer) => layer.draw());
     } else {
       const hits: AccessHitPolygon[] = [];
-      drawAccessPod(ctx, pose, role, gateMotion(s, rendered, role), project, scale, side, hits);
+      drawAccessPod(
+        ctx,
+        pose,
+        role,
+        gateMotion(s, rendered, role),
+        project,
+        scale,
+        side,
+        hits,
+        !!rendered.sharedAccess,
+      );
       registerAccessHits(b.id, hits, role);
     }
     ctx.restore();
@@ -621,7 +688,8 @@ function drawPark(
     return next;
   };
   // Advance each motor once; translucent placement previews never affect running rides.
-  for (const b of s.buildings) if (isRide(b.kind) && b.kind !== "coaster") motor(b);
+  for (const b of s.buildings)
+    if (isRide(b.kind) && b.kind !== "coaster" && b.kind !== "wheel") motor(b);
   const rider = (
     id: number | undefined,
     p: Point,
@@ -654,10 +722,25 @@ function drawPark(
     ctx.restore();
   };
   const wheel = (b: Building, p: Point, alpha = 1) => {
-    const spin = motors.get(b) ?? { angle: 0, velocity: 0 },
-      angle = spin.angle,
+    const state = wheelVisualState(b),
+      angle = Math.PI / 2 - state.angle,
       r = 64 * scale,
       hub = { x: p.x, y: p.y - 106 * scale };
+    const cabins = Array.from({ length: WHEEL_GONDOLAS }, (_, i) => {
+      const pose = wheelGondolaPose(i, state.angle, WHEEL_GONDOLAS);
+      return {
+        i,
+        x: hub.x + pose.x * r * 0.84,
+        y: hub.y + pose.x * r * 0.42 - pose.y * r,
+        sway: Math.sin(pose.theta * 2) * state.velocity * 0.12,
+      };
+    }).sort((a, b) => a.y - b.y);
+    // Eight physical cabins, eight matching spokes. Preserve the authored rim
+    // texture while drawing spokes at the same persisted anchors as the 3D rig.
+    for (const q of cabins) {
+      line(hub, q, "#c7ad6b", 2.7);
+      line(hub, q, "#fff0b8", 1.4);
+    }
     const im = sprites["wheel-rim"];
     if (im) {
       if (hitOwner !== undefined) {
@@ -679,23 +762,73 @@ function drawPark(
       ctx.translate(hub.x, hub.y);
       ctx.transform(0.84, 0.42, 0, 1, 0, 0);
       ctx.rotate(angle);
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.05, 0, Math.PI * 2);
+      ctx.arc(0, 0, r * 0.86, 0, Math.PI * 2, true);
+      ctx.clip("evenodd");
       ctx.drawImage(im, -r, -r, 2 * r, 2 * r);
       ctx.restore();
     }
-    const cabins = Array.from({ length: 10 }, (_, i) => {
-      const t = angle + (i * Math.PI) / 5;
-      return {
-        i,
-        x: hub.x + Math.cos(t) * r * 0.84,
-        y: hub.y + Math.cos(t) * r * 0.42 + Math.sin(t) * r,
-        sway: Math.sin(t * 2) * spin.velocity * 0.12,
-      };
-    }).sort((a, b) => a.y - b.y);
+    const platform = { x: hub.x, y: hub.y + r + 24 * scale };
+    for (const side of [-1, 1])
+      line(
+        { x: platform.x + side * 15 * scale, y: platform.y },
+        { x: platform.x + side * 15 * scale, y: p.y + 8 * scale },
+        "#3c7670",
+        2,
+      );
+    poly(
+      [
+        { x: platform.x - 21 * scale, y: platform.y - 6 * scale },
+        { x: platform.x + 12 * scale, y: platform.y - 3 * scale },
+        { x: platform.x + 21 * scale, y: platform.y + 6 * scale },
+        { x: platform.x - 12 * scale, y: platform.y + 3 * scale },
+      ],
+      "#d7b778",
+      "#527569",
+    );
     cabins.forEach((q) => {
       frame("wheel-cabin", q, { width: 20, height: 25, anchorX: 10, anchorY: 2.5 }, alpha, q.sway);
-      rider(b.riders[q.i], { x: q.x, y: q.y + 13 * scale }, "se", alpha, q.sway);
+      const guestId = state.gondolas[q.i];
+      if (guestId !== null && guestId !== state.transfer?.guestId)
+        rider(guestId, { x: q.x, y: q.y + 13 * scale }, "se", alpha, q.sway);
     });
     frame("wheel-support", p, { width: 128, height: 176, anchorX: 64, anchorY: 164 }, alpha);
+    if (state.transfer) {
+      const transfer = state.transfer,
+        guest = s.guests.find((g) => g.id === transfer.guestId),
+        cabin = cabins.find((q) => q.i === transfer.gondola)!,
+        motion = wheelTransferMotion(transfer.direction, transfer.progress);
+      if (guest && motion.seated)
+        rider(guest.id, { x: cabin.x, y: cabin.y + 13 * scale }, "se", alpha);
+      else if (guest) {
+        const role = transfer.direction === "boarding" ? "entry" : "exit",
+          layout = accessLayout(s, b),
+          lanes = b.sharedAccess ? getSharedAccessLanes(s, b) : undefined,
+          port = lanes?.[role][0] ?? layout[role].port,
+          start = project(port.x, port.y),
+          end = { x: cabin.x, y: cabin.y + 22 * scale },
+          direction = heading(b.x + 1 - port.x, b.y + 1 - port.y),
+          headingOut = heading(port.x - b.x - 1, port.y - b.y - 1),
+          gait = motion.walking ? Math.floor(motion.gait / (Math.PI / 2)) % 4 : 1,
+          image =
+            sprites[
+              `walk-red-${transfer.direction === "boarding" ? direction : headingOut}-${gait}`
+            ];
+        line(start, platform, "#9e9269", 6);
+        line(start, platform, "#d7bd85", 4);
+        if (image)
+          drawWalkingGuest(
+            ctx,
+            image,
+            guest,
+            start.x + (end.x - start.x) * motion.towardSeat,
+            start.y + (end.y - start.y) * motion.towardSeat,
+            scale,
+            motion.walking ? Math.sin(motion.gait) * 0.018 : 0,
+          );
+      }
+    }
   };
   const carousel = (b: Building, p: Point, alpha = 1) => {
     const spin = motors.get(b) ?? { angle: 0, velocity: 0 },
@@ -1232,11 +1365,23 @@ function drawPark(
       });
     }
     if (usesPods(b.kind)) {
-      const pods = effectivePods(s, b, net, exits);
+      const pods = effectivePods(s, b, net, exits),
+        layout = b.sharedAccess ? accessLayout(s, b) : undefined;
       for (const role of ["entry", "exit"] as const) {
-        const p = podPose(b, CATALOG[b.kind].size, pods[role]);
+        const p = layout?.[role] ?? podPose(b, CATALOG[b.kind].size, pods[role]);
         objects.push({ depth: depthAt(p.x, p.y) + 0.15, draw: () => drawPod(b, role, pods[role]) });
       }
+      if (layout)
+        objects.push({
+          depth:
+            depthAt((layout.entry.x + layout.exit.x) / 2, (layout.entry.y + layout.exit.y) / 2) +
+            0.2,
+          draw: () => {
+            const hits: AccessHitPolygon[] = [];
+            drawSharedAccessDivider(ctx, layout, project, scale, hits);
+            registerAccessHits(b.id, hits, "entry");
+          },
+        });
     }
     if (needsOperator(b.kind)) {
       const layout = accessLayout(s, b),
@@ -1369,7 +1514,14 @@ function drawPark(
   }
 
   const dogOwners = dogCompanionOwners(s);
+  const wheelTransferGuests = new Set(
+    s.buildings
+      .filter((b) => b.kind === "wheel")
+      .map((b) => wheelVisualState(b).transfer?.guestId)
+      .filter((id) => id !== undefined),
+  );
   for (const g of s.guests) {
+    if (wheelTransferGuests.has(g.id)) continue;
     if (
       g.state === "ride" &&
       !s.buildings.some((b) => isHabitat(b.kind) && b.riders.includes(g.id))
@@ -1378,10 +1530,11 @@ function drawPark(
     const restBuilding =
       g.state === "rest" ? s.buildings.find((b) => b.id === g.target) : undefined;
     const sitting = restBuilding ? restPose(restBuilding, g, s.time) : undefined;
-    const target = sitting ?? queued.get(g.id) ?? guestWalkPosition(s, g);
+    const shared = sharedAccessGuestPosition(s, g);
+    const target = sitting ?? shared ?? queued.get(g.id) ?? guestWalkPosition(s, g);
     const old = guestMotion.get(g) ?? {
-      x: g.x,
-      y: g.y,
+      x: shared?.x ?? g.x,
+      y: shared?.y ?? g.y,
       time: s.time,
       queued: false,
       phase: g.id * 0.73,
@@ -1398,9 +1551,11 @@ function drawPark(
       y: old.y + (target.y - old.y) * factor,
     };
     const moved = Math.hypot(visual.x - old.x, visual.y - old.y),
-      next = g.route.find((p) => Math.hypot(p.x - g.x, p.y - g.y) > 0.025);
+      next = g.route.find((p) => Math.hypot(p.x - g.x, p.y - g.y) > 0.025),
+      queueFacing = guestQueueDirection(s, g, visual);
     if ((isQueued || old.queued) && moved > 0.001)
       old.heading = worldHeading(visual.x - old.x, visual.y - old.y);
+    else if (queueFacing) old.heading = worldHeading(queueFacing.x, queueFacing.y);
     else if (next) old.heading = worldHeading(next.x - g.x, next.y - g.y);
     if (g.state === "observe") {
       const b = s.buildings.find((b) => b.id === g.target);
@@ -1992,5 +2147,7 @@ export function draw(
   v: View,
   realTime: number,
 ) {
-  return withAccessLayoutCache(s, () => drawPark(ctx, w, h, s, v, realTime));
+  return withSharedAccessCache(s, () =>
+    withAccessLayoutCache(s, () => drawPark(ctx, w, h, s, v, realTime)),
+  );
 }

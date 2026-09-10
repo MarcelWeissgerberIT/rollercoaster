@@ -16,7 +16,9 @@ function test(name, fn) {
 }
 function setup(side = 0) {
   const s = S.newPark("sandbox"),
-    b = s.buildings.find((b) => b.kind === "wheel");
+    // Generic pod architecture uses batch-ride phases. Wheel gates follow the
+    // separate indexed cabin controller and are exercised in its visual suite.
+    b = s.buildings.find((b) => b.kind === "carousel");
   assert(b);
   s.guests = [];
   s.buildings = [b];

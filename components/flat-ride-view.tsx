@@ -67,7 +67,7 @@ export default function FlatRideView({ park, building, audio, muted, onMute, onC
       people = rig.passengers;
       scene.add(root);
     } else {
-      const rig = createAttractionRig(building, park);
+      const rig = createAttractionRig(building, park, { preview: true });
       ({ root, seats, duration, update } = rig);
       people = rig.passengers;
       scene.add(root);
@@ -158,7 +158,7 @@ export default function FlatRideView({ park, building, audio, muted, onMute, onC
       people.forEach(
         (p, i) =>
           (p.visible =
-            i < (line?.passengers.length ?? building.riders.length) &&
+            (p.userData.occupied ?? i < (line?.passengers.length ?? building.riders.length)) &&
             (i !== selected || c.mode !== "seat")),
       );
       if (c.mode === "seat") {

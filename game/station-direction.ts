@@ -1,4 +1,4 @@
-import { CATALOG, spend, type Building, type Park, type Point } from "./simulation";
+import { CATALOG, inBounds, spend, type Building, type Park, type Point } from "./simulation";
 import { canAfford, hasUnlimitedBudget } from "./budget";
 import {
   planConnection,
@@ -10,13 +10,15 @@ import {
 import { editableTrack } from "./track-edit";
 import { prepareRoute } from "./motion";
 import { effectivePods } from "./simulation";
-import { rotatePods } from "./pods";
+import { podPort, rotatePods } from "./pods";
+import { sharedAccessBusy } from "./shared-access";
 
 const TAU = Math.PI * 2;
 const normalize = (a: number) => ((a % TAU) + TAU) % TAU;
 const samePosition = (a: Point, b: Point) =>
   Math.hypot(a.x - b.x, a.y - b.y, (a.z ?? 0) - (b.z ?? 0)) < 1e-8;
-export const stationSource = (b: Building) => JSON.stringify([b.id, b.x, b.y, b.track, b.pods]);
+export const stationSource = (b: Building) =>
+  JSON.stringify([b.id, b.x, b.y, b.track, b.pods, !!b.sharedAccess]);
 export type StationReverseOptions = { rotatePods?: boolean; clear?: boolean };
 export type StationReversePlan = AdjustmentPlan & {
   id: number;
@@ -88,6 +90,12 @@ export function planStationReverse(
       ...plan,
       error: "Beende zuerst die offene Baustelle, bevor du die Fahrtrichtung änderst.",
     };
+  if (b.sharedAccess && sharedAccessBusy(s, b))
+    return {
+      ...plan,
+      error:
+        "Warte, bis alle Gäste den gemeinsamen Zugang verlassen haben und die Testfahrt beendet ist, bevor du die Station drehst.",
+    };
   try {
     geometry.track = reverseTrackAtStation(b);
   } catch (error) {
@@ -99,14 +107,28 @@ export function planStationReverse(
   }
   // Reordering the same edges cannot create terrain collisions or self-crossings.
   // Do not rerun quadratic self-clearance on unchanged geometry (legacy tracks included).
-  if (settings.rotatePods) geometry.pods = rotatePods(effectivePods(s, b), CATALOG[b.kind].size, 2);
+  if (settings.rotatePods)
+    geometry.pods = rotatePods(
+      b.pods ?? effectivePods(s, { ...b, sharedAccess: false }),
+      CATALOG[b.kind].size,
+      2,
+    );
   const moved = { ...b, ...geometry };
   let virtual: Park = {
     ...s,
     buildings: s.buildings.map((item) => (item.id === b.id ? moved : item)),
   };
   if (settings.rotatePods && geometry.pods) {
-    for (const role of ["entry", "exit"] as const) {
+    if (b.sharedAccess) {
+      const storedExit = podPort(moved, CATALOG[b.kind].size, geometry.pods.exit);
+      if (!inBounds(storedExit.x, storedExit.y, s))
+        return {
+          ...plan,
+          error:
+            "Der gespeicherte separate Ausgang läge außerhalb des Parks. Behalte die Anschlüsse an ihren bisherigen Plätzen.",
+        };
+    }
+    for (const role of b.sharedAccess ? (["entry"] as const) : (["entry", "exit"] as const)) {
       const pod = planPod(virtual, moved, role, geometry.pods[role], settings.clear);
       if (pod.error)
         return {

@@ -1,0 +1,58 @@
+.wheel-operations-status {
+  padding: 12px;
+  margin: 0 0 14px;
+  border: 1px solid #c5d9d3;
+  border-radius: 12px;
+  color: #31584d;
+  background: linear-gradient(135deg, #edf6ee, #e5f0f7);
+}
+.wheel-status-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.wheel-status-heading svg {
+  flex-shrink: 0;
+}
+.wheel-operations-status > p {
+  margin: 7px 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.wheel-gondola-list {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 3px;
+  margin-bottom: 10px;
+}
+.wheel-gondola {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 35px;
+  border: 1px solid #ccd8d2;
+  border-radius: 7px;
+  background: #fafcf7;
+  color: #758779;
+}
+.wheel-gondola.occupied {
+  background: #bcdaca;
+  color: #25513f;
+  border-color: #83b19c;
+}
+.wheel-gondola.at-platform {
+  outline: 2px solid #c48a37;
+  outline-offset: 1px;
+}
+.wheel-gondola small {
+  font-size: 9px;
+  line-height: 1;
+}
+.wheel-operations-status > small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.6;
+}

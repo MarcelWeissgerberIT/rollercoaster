@@ -185,7 +185,7 @@ test("Removed patrol paths cancel movement without leaving invalid routes or cha
 
 test("Driver stays at the shared cabin while separate attendants perform admission and unloading", () => {
   const s = S.newPark("sandbox"),
-    b = s.buildings.find((b) => b.kind === "wheel"),
+    b = s.buildings.find((b) => b.kind === "carousel"),
     ref = { kind: "operator", id: b.id },
     read = (post) => F.staffLocation(s, { ...ref, post });
   b.queue = [123];

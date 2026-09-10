@@ -1,3 +1,5 @@
+import { sharedAccessRoute, sharedExitPending, resumeSharedExit } from "./shared-access-routing";
+import { ensureWheelState, tickWheel, validWheelStates, type WheelState } from "./wheel-boarding";
 import { groundFootprint, pedestrianTile, trackGroundCompatible } from "./ground-clearance";
 import { parkWeather } from "./weather";
 import { guestWeatherComfort, seeksWeatherSeat, weatherSeatScore } from "./weather-comfort";
@@ -17,6 +19,7 @@ import {
   initOperations,
   autoAssignRideCrews,
   hasOperator,
+  needsOperator,
   tickOperations,
   repeatRideRound,
   finishRideProgram,
@@ -199,6 +202,8 @@ export type Kind =
   | "keeperhut";
 export type Tile = "grass" | "path" | "queue" | "exit" | "water";
 export type Building = {
+  wheel?: WheelState;
+  sharedAccess?: boolean;
   orientation?: 0 | 1 | 2 | 3;
   photoPoint?: number;
   operations?: RideOperations;
@@ -227,6 +232,8 @@ export type Building = {
   design?: AttractionDesign;
 };
 export type Guest = {
+  /** Ride whose shared corridor this guest is still leaving. */
+  sharedExit?: number;
   ageGroup?: AgeGroup;
   appearance?: number;
   party?: VisitorParty;
@@ -545,6 +552,7 @@ export function startResearch(s: Park, id: ResearchId): string | null {
 export function migratePark(s: Park): Park {
   migrateHabitatAccess(s, CATALOG);
   initOperations(s);
+  for (const b of s.buildings) if (b.kind === "wheel") ensureWheelState(b, rideDuration(b));
   initCleanliness(s);
   initZoo(s);
   s.scenario ??= "waldhain";
@@ -1211,7 +1219,7 @@ export function effectivePods(
   net = connected(s),
   exits = exitNetwork(s, net),
 ): AccessPods {
-  if (b.pods) return b.pods;
+  if (b.pods) return b.sharedAccess ? { entry: b.pods.entry, exit: b.pods.entry } : b.pods;
   const size = CATALOG[b.kind].size,
     slots = podSlots(size);
   const port = (p: (typeof slots)[number]) => podPort(b, size, p);
@@ -1263,13 +1271,14 @@ export function effectivePods(
       (p) => !samePod(p, entry) && viable(p) && s.tiles[port(p).y][port(p).x] !== "queue",
     ) ??
     slots.find((p) => !samePod(p, entry) && inBounds(port(p).x, port(p).y, s))!;
-  return { entry: { ...entry }, exit: { ...exit } };
+  return { entry: { ...entry }, exit: { ...(b.sharedAccess ? entry : exit) } };
 }
 export function ensurePods(s: Park, b: Building) {
-  if (usesPods(b.kind) && !b.pods) b.pods = effectivePods(s, b);
+  if (usesPods(b.kind) && !b.pods) b.pods = effectivePods(s, { ...b, sharedAccess: false });
 }
 export function access(s: Park, b: Building, net = connected(s)) {
   if (isHabitat(b.kind)) return habitatViewingSpots(s, b, net)[0];
+  if (b.sharedAccess && !sharedAccessRoute(s, b, CATALOG[b.kind].size).length) return undefined;
   const points =
     usesPods(b.kind) && b.pods
       ? [podPort(b, CATALOG[b.kind].size, b.pods.entry)]
@@ -1284,6 +1293,7 @@ export function access(s: Park, b: Building, net = connected(s)) {
 }
 export function exitPath(s: Park, b: Building, net = connected(s), exits = exitNetwork(s, net)) {
   if (isHabitat(b.kind)) return [];
+  if (b.sharedAccess) return sharedAccessRoute(s, b, CATALOG[b.kind].size);
   const points =
     usesPods(b.kind) && b.pods
       ? [podPort(b, CATALOG[b.kind].size, b.pods.exit)]
@@ -1315,6 +1325,9 @@ export function leaveBuilding(
   g.x = p.x;
   g.y = p.y;
   g.route = route.slice(1);
+  if (b.sharedAccess && g.state === "ride" && route.length > 0 && s.buildings.includes(b))
+    g.sharedExit = b.id;
+  else delete g.sharedExit;
   g.target = null;
   g.state = "walk";
   g.timer = 0;
@@ -1324,7 +1337,12 @@ export function queueCapacity(s: Park, b: Building) {
   if (isHabitat(b.kind)) return 0;
   const a = access(s, b);
   if (!a) return 0;
-  if (s.tiles[a.y][a.x] === "path") return 4;
+  if (s.tiles[a.y][a.x] === "path") return b.sharedAccess ? 2 : 4;
+  if (b.sharedAccess)
+    return Math.min(
+      40,
+      Math.max(2, (sharedAccessRoute(s, b, CATALOG[b.kind].size).length - 1) * 2),
+    );
   const seen = new Set([key(a)]),
     q = [a];
   for (let i = 0; i < q.length; i++)
@@ -1639,6 +1657,7 @@ export function remove(s: Park, x: number, y: number) {
       }
     s.transitLines = s.transitLines?.filter((l) => l.a !== b.id && l.b !== b.id);
     s.buildings = s.buildings.filter((o) => o.id !== b.id);
+    for (const g of s.guests) if (g.sharedExit === b.id) delete g.sharedExit;
     if (s.trackEdit?.buildingId === b.id) {
       s.trackEdit = undefined;
       s.draft = undefined;
@@ -2076,6 +2095,69 @@ export function tick(s: Park, dt: number) {
       b.open = true;
       b.autoOpen = false;
     }
+    if (b.kind === "wheel") {
+      const ready = b.open && !!access(s, b, net) && hasOperator(b) && b.tested && !broken(b);
+      if (!ready) {
+        for (const id of b.queue) {
+          const g = s.guests.find((guest) => guest.id === id);
+          if (g) leaveBuilding(s, b, g, net, exits);
+        }
+        b.queue = [];
+      }
+      tickWheel(b, dt, {
+        ready,
+        exitClear: !sharedExitPending(s, b),
+        baseDuration: rideDuration(b),
+        board: () => {
+          while (b.queue.length) {
+            const id = b.queue.shift()!,
+              g = s.guests.find((guest) => guest.id === id);
+            if (!g || g.state !== "queue" || g.target !== b.id) continue;
+            if ((g.wallet ?? 60) < b.price) {
+              leaveBuilding(s, b, g, net, exits);
+              g.timer = 1;
+              g.thought = "Der neue Preis übersteigt mein Budget.";
+              continue;
+            }
+            b.riders.push(id);
+            g.state = "ride";
+            g.wallet = Math.max(0, (g.wallet ?? 60) - b.price);
+            b.served++;
+            b.revenue += b.price;
+            recordMarketingRevenue(s, g, b.price, "ride");
+            creditCash(s, b.price);
+            s.income += b.price;
+            s.dayIncome += b.price;
+            s.operatingIncomeToday! += b.price;
+            return id;
+          }
+          return null;
+        },
+        release: (id, completed) => {
+          const g = s.guests.find((guest) => guest.id === id);
+          if (!g) return;
+          finishPartyVisit(g, b);
+          leaveBuilding(s, b, g, net, exits);
+          g.timer = g.sharedExit === b.id ? 0.4 : 2;
+          if (!completed) {
+            g.thought = "Die Fahrt wurde beendet. Das Personal begleitet den Ausstieg.";
+            return;
+          }
+          g.rides++;
+          (g.visited ??= []).push(b.id);
+          g.visited = g.visited.slice(-8);
+          const change = (rideAppeal(b, g.profile) - 4) * 2 - b.price * 0.12;
+          g.happiness = Math.max(0, Math.min(100, g.happiness + change));
+          g.thought =
+            change > 2
+              ? "Genau mein Geschmack – diese Fahrt hat sich gelohnt!"
+              : change < 0
+                ? "Die Fahrt war für mich zu heftig, zu zahm oder zu teuer."
+                : "Eine nette Runde.";
+        },
+      });
+      continue;
+    }
     if (!b.open || !access(s, b, net) || !hasOperator(b)) {
       for (const id of [...b.queue, ...b.riders]) {
         const g = s.guests.find((g) => g.id === id);
@@ -2093,6 +2175,7 @@ export function tick(s: Park, dt: number) {
       b,
       dt,
       b.open && !!access(s, b, net) && b.tested && !broken(b),
+      !sharedExitPending(s, b),
     );
     b.cycle -= dt;
     if (b.riders.length && b.cycle <= 0 && !repeatRideRound(b, rideDuration(b))) {
@@ -2101,7 +2184,7 @@ export function tick(s: Park, dt: number) {
         if (g) {
           finishPartyVisit(g, b);
           leaveBuilding(s, b, g, net, exits);
-          g.timer = 2;
+          g.timer = g.sharedExit === b.id ? 0.4 + Math.max(0, b.riders.indexOf(g.id)) * 0.3 : 2;
           if (isAttraction(b.kind)) {
             g.rides++;
             (g.visited ??= []).push(b.id);
@@ -2290,7 +2373,8 @@ export function tick(s: Park, dt: number) {
       }
       continue;
     }
-    if (g.state === "walk" && g.party && !g.transit) {
+    const sharedExiting = resumeSharedExit(s, g);
+    if (g.state === "walk" && g.party && !g.transit && !sharedExiting) {
       const leader = partyLeader(s, g);
       if (
         leader &&
@@ -2337,7 +2421,7 @@ export function tick(s: Park, dt: number) {
         g.target = null;
         continue;
       }
-      if (partyShouldWait(s, g)) {
+      if (!sharedExiting && partyShouldWait(s, g)) {
         g.thought = "Ich lasse meine Begleitung aufschließen.";
         continue;
       }
@@ -2353,6 +2437,7 @@ export function tick(s: Park, dt: number) {
       }
       if (g.route.length) continue;
     }
+    if (resumeSharedExit(s, g)) continue;
     if (g.state === "leave") {
       if (Math.hypot(g.x - 15, g.y - 29) < 0.2) {
         if (
@@ -2692,6 +2777,7 @@ export function validSave(v: unknown): v is Park {
       !validZoo(s) ||
       !validParkLife(s) ||
       !validOperations(s) ||
+      !validWheelStates(s) ||
       !validCrewPool(s)
     )
       return false;
@@ -2714,6 +2800,10 @@ export function validSave(v: unknown): v is Park {
                   s,
                 ),
             ))) ||
+        (b.sharedAccess !== undefined &&
+          (typeof b.sharedAccess !== "boolean" ||
+            !needsOperator(b.kind) ||
+            (b.sharedAccess && !b.pods))) ||
         (b.condition !== undefined &&
           (!num(b.condition) || b.condition < 0 || b.condition > 100)) ||
         (b.vehicle !== undefined && (b.kind !== "coaster" || !validVehicle(b.vehicle))) ||
@@ -2818,6 +2908,14 @@ export function validSave(v: unknown): v is Park {
         !g ||
         (g.name !== undefined &&
           (typeof g.name !== "string" || g.name.length < 1 || g.name.length > 80)) ||
+        (g.sharedExit !== undefined &&
+          (!Number.isSafeInteger(g.sharedExit) ||
+            !s.buildings.some(
+              (b) => b.id === g.sharedExit && b.sharedAccess && needsOperator(b.kind),
+            ) ||
+            g.state !== "walk" ||
+            g.target !== null ||
+            !!g.transit)) ||
         (g.souvenir !== undefined && !["balloon", "plush"].includes(g.souvenir)) ||
         (g.profile !== undefined && !["family", "thrill", "budget"].includes(g.profile)) ||
         (g.servicePrice !== undefined &&

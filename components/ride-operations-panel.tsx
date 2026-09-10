@@ -15,6 +15,7 @@ import {
   canAssignRideCrew,
 } from "../game/operations";
 import "./staff-cards.css";
+import { WheelOperationsStatus } from "./wheel-operations-status";
 export type CrewAssignmentHandlers = {
   onHireCrew: () => void;
   onDismissCrew: (crewId: number) => void;
@@ -46,6 +47,7 @@ export function RideOperationsPanel({
       data-testid={`ride-operations-${b.id}`}
     >
       <h3>Fahrbetrieb</h3>
+      {b.kind === "wheel" && <WheelOperationsStatus building={b} />}
       <div className="sc-crew-status">
         <Users aria-hidden="true" />
         <span>
@@ -225,10 +227,12 @@ export function RideOperationsPanel({
         onChange={(e) => onRounds(Number(e.target.value))}
       />
       <p className="small">
-        Einlass → Sicherheitskontrolle → {o.rounds} {o.rounds === 1 ? "Runde" : "Runden"} →
-        Ausstieg. Ein Ticket gilt für das gesamte Programm.
+        {b.kind === "wheel" ? "Gondeln einzeln beladen" : "Einlass"} → Sicherheitskontrolle →{" "}
+        {o.rounds} {o.rounds === 1 ? "Runde" : "Runden"} →{" "}
+        {b.kind === "wheel" ? "Gondeln einzeln entladen" : "Ausstieg"}. Ein Ticket gilt für das
+        gesamte Programm.
       </p>
-      {occupied && (
+      {occupied && o.phase === "running" && (
         <p className="small">
           Noch {o.remainingRounds} {o.remainingRounds === 1 ? "Runde" : "Runden"} einschließlich der
           laufenden Runde. Änderungen gelten ab dem nächsten Start. Die Crew kann nach dem Ausstieg
