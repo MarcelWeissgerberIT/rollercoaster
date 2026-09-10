@@ -1,4 +1,5 @@
-import { sharedAccessBusy, sharedExitPending } from "./shared-access";
+import { sharedAccessBusy, sharedExitPending, sharedAccessQueueError } from "./shared-access";
+import { sharedQueueTileError } from "./shared-access-routing";
 import { groundFootprint, trackGroundCompatible } from "./ground-clearance";
 import {
   hasOperator,
@@ -44,6 +45,7 @@ import {
   SIZE,
   ENTRANCE,
   access,
+  buildingEntryPort,
   leaveBuilding,
   effectivePods,
   build,
@@ -170,6 +172,10 @@ export function planPlacement(
     const error = validateTrack(virtual, track ?? []);
     if (error) return { ...plan, error };
   }
+  if (tool === "queue") {
+    const error = sharedQueueTileError(s, points, buildingEntryPort);
+    if (error) return { ...plan, error };
+  }
   if (!canAfford(s, plan.cost)) plan.error = "Das Parkbudget reicht nicht";
   if (plan.clearIds.length)
     plan.warning = `${plan.clearIds.length} Deko entfernen · ${plan.clearIds.length * 10} € enthalten`;
@@ -209,6 +215,10 @@ export type Connection = {
 };
 export function planConnection(s: Park, b: Building, clear = true): Connection {
   const empty = { points: [], clearIds: [], cost: 0, error: null };
+  if (b.sharedAccess) {
+    const error = sharedAccessQueueError(s, b);
+    if (error) return { ...empty, error };
+  }
   if (access(s, b)) return empty;
   const n = CATALOG[b.kind].size,
     net = connected(s),
@@ -322,11 +332,13 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
       0,
     ) +
     clearIds.length * 10;
+  const queueError = ride ? sharedQueueTileError(s, points, buildingEntryPort) : null;
   return {
     points,
     clearIds,
     cost,
-    error: !canAfford(s, cost) ? "Das Parkbudget reicht für den Anschluss nicht" : null,
+    error:
+      queueError ?? (!canAfford(s, cost) ? "Das Parkbudget reicht für den Anschluss nicht" : null),
   };
 }
 export function connectBuilding(s: Park, b: Building, clear = true): string | null {
@@ -634,6 +646,18 @@ export function planPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = t
         ? "Eingang: freie Wiese, blauer Eingangsweg oder Parkweg benötigt."
         : "Ausgang: freie Wiese, roter Ausgangsweg oder Parkweg benötigt.";
   if (!canAfford(s, plan.cost)) plan.error = "Das Budget reicht zum Freiräumen nicht.";
+  if (!plan.error && role === "entry") {
+    const moved = { ...b, pods: { ...pods, entry: pod } },
+      virtual = { ...s, buildings: s.buildings.map((item) => (item.id === b.id ? moved : item)) };
+    for (const ride of virtual.buildings) {
+      if (!ride.sharedAccess) continue;
+      const error = sharedAccessQueueError(virtual, ride);
+      if (error && (ride.id === b.id || !sharedAccessQueueError(s, ride))) {
+        plan.error = error;
+        break;
+      }
+    }
+  }
   return plan;
 }
 export function setAccessPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = true) {

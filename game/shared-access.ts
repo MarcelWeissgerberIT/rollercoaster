@@ -1,6 +1,6 @@
 /** Catalog-backed public API for the single staffed entrance/exit mode. */
 import {
-  CATALOG,
+  buildingEntryPort,
   effectivePods,
   type Building,
   type Guest,
@@ -8,10 +8,10 @@ import {
   type Point,
 } from "./simulation";
 import { operationsOf, resetRideOperations } from "./operations";
-import { podPort, usesPods, type AccessPods } from "./pods";
+import type { AccessPods } from "./pods";
 import {
-  routeFrom,
   supportsSharedAccess,
+  sharedQueueError,
   sharedAccessRoute as routeCore,
   getSharedAccessLanes as lanesCore,
   sharedAccessGuestPosition as positionCore,
@@ -21,18 +21,11 @@ export {
   sharedExitPending,
   SHARED_LANE_OFFSET,
 } from "./shared-access-routing";
-const key = (p: Point) => `${p.x},${p.y}`;
-const neighbors = (p: Point): Point[] =>
-  [
-    [1, 0],
-    [0, 1],
-    [-1, 0],
-    [0, -1],
-  ].map(([x, y]) => ({ x: p.x + x, y: p.y + y }));
 const basePods = (s: Park, b: Building): AccessPods =>
   b.pods ?? effectivePods(s, { ...b, sharedAccess: false });
-const startOf = (s: Park, b: Building) => podPort(b, CATALOG[b.kind].size, basePods(s, b).entry);
-export const sharedAccessRoute = (s: Park, b: Building) => routeCore(s, b, CATALOG[b.kind].size);
+export const sharedAccessRoute = (s: Park, b: Building) => routeCore(s, b, buildingEntryPort);
+export const sharedAccessQueueError = (s: Park, b: Building) =>
+  sharedQueueError(s, b, buildingEntryPort);
 type Lanes = ReturnType<typeof lanesCore>;
 const frameCaches = new WeakMap<Park, Map<number, Lanes>>();
 /** Renderer-owned synchronous scope; construction between frames never sees stale routes. */
@@ -50,7 +43,7 @@ export function getSharedAccessLanes(s: Park, b: Building): Lanes {
   const cache = frameCaches.get(s),
     existing = cache?.get(b.id);
   if (existing) return existing;
-  const result = lanesCore(s, b, CATALOG[b.kind].size);
+  const result = lanesCore(s, b, buildingEntryPort);
   cache?.set(b.id, result);
   return result;
 }
@@ -61,7 +54,7 @@ export function sharedAccessGuestPosition(
 ): Point | undefined {
   const b = s.buildings.find((b) => b.id === (g.sharedExit ?? g.target));
   return b
-    ? positionCore(s, g, CATALOG[b.kind].size, cachedLanes ?? getSharedAccessLanes(s, b))
+    ? positionCore(s, g, buildingEntryPort, cachedLanes ?? getSharedAccessLanes(s, b))
     : undefined;
 }
 export function sharedAccessBusy(s: Park, b: Building): boolean {
@@ -83,25 +76,9 @@ export function sharedAccessChangeError(s: Park, b: Building, enabled: boolean):
   if (sharedAccessBusy(s, b))
     return "Warte, bis alle Gäste die Attraktion und den Zugang verlassen haben und die Testfahrt beendet ist.";
   if (!enabled) return null;
-  const start = startOf(s, b),
-    route = routeFrom(s, start);
-  if (!route.length)
-    return "Verbinde den Eingang mit einem blauen Weg oder direkt mit einem öffentlichen Parkweg.";
-  const component = [start],
-    seen = new Set<string>();
-  for (let i = 0; i < component.length; i++) {
-    const p = component[i];
-    if (seen.has(key(p)) || s.tiles[p.y]?.[p.x] !== "queue") continue;
-    seen.add(key(p));
-    component.push(...neighbors(p));
-  }
-  if (
-    s.buildings.some(
-      (other) => other.id !== b.id && usesPods(other.kind) && seen.has(key(startOf(s, other))),
-    )
-  )
-    return "Diesen blauen Weg nutzt bereits eine andere Attraktion. Baue zuerst einen eigenen Zugang.";
-  return null;
+  // Configure the empty attraction before constructing its path. Actual admission
+  // remains gated by access(); foreign queue ownership applies even offline.
+  return sharedAccessQueueError(s, b);
 }
 export function setSharedAccess(s: Park, b: Building, enabled: boolean): string | null {
   const error = sharedAccessChangeError(s, b, enabled);

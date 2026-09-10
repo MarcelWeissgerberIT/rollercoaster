@@ -88,6 +88,15 @@
   margin-top: 10px;
   padding-bottom: 10px;
 }
+.shared-access-control .shared-access-status.needs-path {
+  background: #fff0d2;
+  color: #805d2c;
+}
+.shared-access-connect {
+  width: 100%;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
 .shared-access-blocked .secondary {
   width: 100%;
   padding: 8px;

@@ -14,11 +14,13 @@ export function SharedAccessControl({
   building,
   onChange,
   onClose,
+  onBuildPath,
 }: {
   park: Park;
   building: Building;
   onChange: (enabled: boolean) => void;
   onClose: () => void;
+  onBuildPath: () => void;
 }) {
   const active = !!building.sharedAccess;
   const error = sharedAccessChangeError(park, building, !active);
@@ -58,6 +60,9 @@ export function SharedAccessControl({
         Ein Pod, ein Weg: Rot führt hinaus, Blau hinein. Erst aussteigen lassen, dann neu
         einsteigen. Die blaue Hälfte bietet zwei Warteplätze pro Feld.
       </p>
+      {!active && !error && (
+        <p>Leere Pods kannst du sofort zusammenlegen. Den gemeinsamen Weg baust du danach.</p>
+      )}
       <div
         className="shared-access-diagram"
         aria-label="Gemeinsamer Weg mit getrennter Einlass- und Auslassspur"
@@ -72,17 +77,22 @@ export function SharedAccessControl({
         </div>
       </div>
       {active && (
-        <p className="shared-access-status" role="status">
+        <p className={`shared-access-status${!route.length ? " needs-path" : ""}`} role="status">
           {exiting
             ? "Auslass hat Vorrang · Einlass wartet."
             : !route.length
-              ? "Verbinde den gemeinsamen Pod mit einem Eingangsweg zum Parkweg."
+              ? "Pods zusammengelegt · Anschlussweg fehlt. Verbinde den Pod mit einem blauen Eingangsweg zum Parkweg."
               : building.kind === "wheel" && building.wheel?.phase === "indexing-load"
                 ? "Nächste Gondel fährt zur Plattform · Einlass geschlossen."
                 : phase === "boarding" || (building.kind !== "wheel" && phase === "checking")
                   ? "Blauer Einlass aktiv · roter Auslass geschlossen."
                   : "Gemeinsamer Zugang aktiv · getrennte Spuren."}
         </p>
+      )}
+      {active && !route.length && (
+        <button type="button" className="secondary shared-access-connect" onClick={onBuildPath}>
+          <ArrowUp size={15} /> Gemeinsamen Weg anschließen
+        </button>
       )}
       {error && (
         <div className="shared-access-blocked">

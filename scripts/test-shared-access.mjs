@@ -5,6 +5,7 @@ const A = await import(moduleURL("game/shared-access.ts"));
 const O = await import(moduleURL("game/operations.ts"));
 const C = await import(moduleURL("game/construction.ts"));
 const P = await import(moduleURL("game/pods.ts"));
+const D = await import(moduleURL("game/attraction-advisor.ts"));
 let passed = 0;
 function test(name, fn) {
   try {
@@ -83,6 +84,23 @@ const guest = (id, extra = {}) => ({
   ...extra,
 });
 const enable = (f) => assert.equal(A.setSharedAccess(f.s, f.b, true), null);
+const disconnect = {
+  "grass entrance port": (f) => (f.s.tiles[20][15] = "grass"),
+  "disconnected blue queue": (f) => (f.s.tiles[20][13] = "grass"),
+};
+function addOtherRide(f, port = { x: 14, y: 20 }) {
+  const other = {
+    ...structuredClone(f.b),
+    id: 102,
+    x: port.x,
+    y: port.y - S.CATALOG[f.b.kind].size,
+    sharedAccess: false,
+    pods: { entry: { side: 1, offset: 0 }, exit: { side: 0, offset: 0 } },
+    operations: { ...f.b.operations, staffed: false, crewId: undefined },
+  };
+  f.s.buildings.push(other);
+  return other;
+}
 
 test("Toggle preserves separate pods, costs, geometry and readable save", () => {
   const f = fixture(),
@@ -131,28 +149,212 @@ test("Public path directly at the shared gate is valid with two distinct incomin
     A.sharedAccessGuestPosition(f.s, f.s.guests[1]),
   );
 });
-test("Shared access refuses unconnected paths, animals, transport, and an already shared ride queue", () => {
-  const f = fixture();
-  f.s.tiles[20][14] = "grass";
-  assert.match(A.setSharedAccess(f.s, f.b, true), /Verbinde/);
+test("Empty rides can merge before the entrance port or blue queue is connected", () => {
+  for (const detach of Object.values(disconnect)) {
+    const f = fixture();
+    detach(f);
+    const before = JSON.stringify(f.s),
+      storedPods = structuredClone(f.b.pods),
+      tiles = structuredClone(f.s.tiles),
+      cash = f.s.cash;
+    assert.equal(A.sharedAccessChangeError(f.s, f.b, true), null);
+    assert.equal(JSON.stringify(f.s), before, "Checking the switch is read-only");
+    enable(f);
+    assert.equal(f.b.sharedAccess, true);
+    assert.deepEqual(f.b.pods, storedPods);
+    assert.deepEqual(f.s.tiles, tiles, "Merging does not silently build a connection");
+    assert.equal(f.s.cash, cash);
+    assert.deepEqual(A.sharedAccessRoute(f.s, f.b), []);
+    assert.deepEqual(S.exitPath(f.s, f.b), []);
+    assert.equal(S.access(f.s, f.b), undefined);
+    assert.equal(S.queueCapacity(f.s, f.b), 0);
+    assert(S.validSave(f.s));
+  }
+});
+test("Unconnected shared rides cannot admit guests and start operating after connection", () => {
+  for (const [name, detach] of Object.entries(disconnect)) {
+    for (const kind of ["carousel", "wheel"]) {
+      const f = fixture();
+      f.b.kind = kind;
+      detach(f);
+      enable(f);
+      f.s.guests = [guest(1, { state: "walk" }), guest(2)];
+      f.b.queue = [2];
+      for (let i = 0; i < 32; i++) {
+        S.tick(f.s, 0.25);
+        assert.equal(f.b.served, 0, `${kind}: no boarding with ${name}`);
+        assert.deepEqual(f.b.queue, []);
+        assert.deepEqual(f.b.riders, []);
+        assert(
+          f.s.guests.every((g) => g.target !== f.b.id && !["queue", "ride"].includes(g.state)),
+        );
+        assert(f.s.guests.every((g) => g.wallet === 60));
+      }
+      assert.equal(C.connectBuilding(f.s, f.b, false), null);
+      assert(S.access(f.s, f.b));
+      assert(S.queueCapacity(f.s, f.b) > 0);
+      f.s.guests = [guest(3, { state: "walk" })];
+      for (let i = 0; i < 80 && !f.b.served; i++) S.tick(f.s, 0.25);
+      assert.equal(f.b.served, 1, `${kind}: boarding resumes after fixing ${name}`);
+      assert.equal(f.s.guests[0].state, "ride");
+      assert.equal(f.s.guests[0].wallet, 60 - f.b.price);
+    }
+  }
+});
+test("Advisor connects an unconnected shared entrance without requiring a separate exit", () => {
+  for (const detach of Object.values(disconnect)) {
+    const f = fixture();
+    detach(f);
+    enable(f);
+    const pods = structuredClone(f.b.pods),
+      before = JSON.stringify(f.s),
+      advice = D.attractionAdvice(f.s, f.b.id),
+      issue = advice.issues.find((issue) => issue.id === "access");
+    assert.equal(JSON.stringify(f.s), before);
+    assert.equal(issue?.severity, "blocker");
+    assert.equal(issue?.action?.kind, "connect-open");
+    assert(!advice.issues.some((issue) => ["exit", "shared-space"].includes(issue.id)));
+    assert.equal(D.applyAttractionAdvice(f.s, f.b.id, issue.id, issue.action.id), null);
+    assert.equal(f.b.sharedAccess, true);
+    assert.deepEqual(f.b.pods, pods);
+    assert(S.access(f.s, f.b));
+    assert(S.exitPath(f.s, f.b).length);
+    assert(!D.attractionAdvice(f.s, f.b.id).issues.some((issue) => issue.id === "access"));
+  }
+});
+test("Shared access refuses animals and transport", () => {
   for (const kind of ["elephant", "train"]) {
     const f = fixture();
     f.b.kind = kind;
     assert(A.setSharedAccess(f.s, f.b, true));
   }
-  const other = fixture();
-  other.s.buildings.push({
-    ...other.b,
-    id: 102,
-    x: 14,
-    y: 20 - S.CATALOG[other.b.kind].size,
-    pods: { entry: { side: 1, offset: 0 }, exit: { side: 0, offset: 0 } },
+});
+test("Shared access refuses another ride's queue even when its blue component is disconnected", () => {
+  for (const connected of [true, false]) {
+    const f = fixture();
+    if (!connected) disconnect["disconnected blue queue"](f);
+    f.s.buildings.push({
+      ...structuredClone(f.b),
+      id: 102,
+      x: 14,
+      y: 20 - S.CATALOG[f.b.kind].size,
+      pods: { entry: { side: 1, offset: 0 }, exit: { side: 0, offset: 0 } },
+    });
+    assert.deepEqual(
+      P.podPort(f.s.buildings[1], S.CATALOG[f.b.kind].size, f.s.buildings[1].pods.entry),
+      { x: 14, y: 20 },
+    );
+    const before = JSON.stringify(f.s);
+    assert.match(A.sharedAccessChangeError(f.s, f.b, true), /andere Attraktion/);
+    assert.match(A.setSharedAccess(f.s, f.b, true), /andere Attraktion/);
+    assert.equal(JSON.stringify(f.s), before, "Refused takeover must preserve all state");
+  }
+});
+test("Merge-first connection and manual painting cannot take over a neighboring ride queue", () => {
+  for (const connected of [true, false]) {
+    const f = fixture();
+    f.s.tiles[20][15] = "grass";
+    if (!connected) disconnect["disconnected blue queue"](f);
+    addOtherRide(f);
+    enable(f);
+    const before = structuredClone(f.s),
+      point = { x: 15, y: 20 };
+    assert.match(C.planConnection(f.s, f.b, false).error, /andere Attraktion/);
+    assert.match(C.connectBuilding(f.s, f.b, false), /andere Attraktion/);
+    assert.match(C.planPlacement(f.s, "queue", point).error, /andere Attraktion/);
+    assert.match(C.place(f.s, "queue", point).error, /andere Attraktion/);
+    assert.match(S.paint(f.s, point.x, point.y, "queue"), /andere Attraktion/);
+    assert.deepEqual(f.s, before, "Rejected plans/builds cannot charge, clear or open anything");
+  }
+});
+test("A multi-tile connection is rejected atomically before joining a foreign queue", () => {
+  const f = fixture();
+  f.b.x = 18;
+  addOtherRide(f);
+  enable(f);
+  const before = structuredClone(f.s),
+    plan = C.planConnection(f.s, f.b, false);
+  assert(plan.points.length >= 2, "The regression needs more than one new tile");
+  assert.match(plan.error, /andere Attraktion/);
+  assert.match(C.connectBuilding(f.s, f.b, false), /andere Attraktion/);
+  assert.deepEqual(f.s, before);
+  assert.equal(C.place(f.s, "queue", { x: 17, y: 20 }).error, undefined);
+  const afterFirst = structuredClone(f.s);
+  assert.match(C.place(f.s, "queue", { x: 16, y: 20 }).error, /andere Attraktion/);
+  assert.deepEqual(f.s, afterFirst, "Manual growth stops before the tile that joins the queues");
+});
+test("Legacy rides without saved pods still own their effective entry queue", () => {
+  const f = fixture();
+  f.s.tiles[20][15] = "grass";
+  const other = addOtherRide(f);
+  delete other.pods;
+  assert.deepEqual(S.buildingEntryPort(f.s, other), { x: 14, y: 20 });
+  enable(f);
+  const before = structuredClone(f.s);
+  assert.match(C.connectBuilding(f.s, f.b, false), /andere Attraktion/);
+  assert.deepEqual(f.s, before);
+});
+test("Moving a shared entrance onto another ride's queue is rejected without releasing or charging", () => {
+  const f = fixture();
+  f.s.tiles[20][14] = f.s.tiles[20][15] = "grass";
+  f.s.tiles[19][16] = "queue";
+  const other = addOtherRide(f);
+  Object.assign(other, {
+    x: 16 - S.CATALOG[other.kind].size,
+    y: 19,
+    pods: { entry: { side: 0, offset: 0 }, exit: { side: 1, offset: 0 } },
   });
-  assert.deepEqual(
-    P.podPort(other.s.buildings[1], S.CATALOG[other.b.kind].size, other.s.buildings[1].pods.entry),
-    { x: 14, y: 20 },
-  );
-  assert.match(A.setSharedAccess(other.s, other.b, true), /andere Attraktion/);
+  enable(f);
+  const before = structuredClone(f.s),
+    pod = { side: 3, offset: 0 };
+  assert.match(C.planPod(f.s, f.b, "entry", pod, false).error, /andere Attraktion/);
+  assert.match(C.setAccessPod(f.s, f.b, "entry", pod, false), /andere Attraktion/);
+  assert.deepEqual(f.s, before);
+});
+test("Restored conflicting blue queues remain unusable even if construction validation was bypassed", () => {
+  const f = fixture();
+  f.s.tiles[20][15] = "grass";
+  addOtherRide(f);
+  enable(f);
+  f.s.tiles[20][15] = "queue";
+  assert(S.validSave(f.s));
+  const s = S.migratePark(JSON.parse(JSON.stringify(f.s))),
+    b = s.buildings.find((b) => b.id === f.b.id);
+  assert.deepEqual(A.sharedAccessRoute(s, b), []);
+  assert.deepEqual(A.getSharedAccessLanes(s, b).route, []);
+  assert.equal(S.access(s, b), undefined);
+  assert.equal(S.queueCapacity(s, b), 0);
+  assert.match(C.connectBuilding(s, b, false), /andere Attraktion/);
+  s.guests = [guest(1)];
+  b.queue = [1];
+  S.tick(s, 0.25);
+  assert.equal(b.served, 0);
+  assert.deepEqual(b.riders, []);
+  assert.deepEqual(b.queue, []);
+  assert.notEqual(s.guests[0].state, "ride");
+});
+test("Public paths can still serve multiple shared gates and separate blue queues", () => {
+  const direct = fixture(true),
+    otherDirect = addOtherRide(direct);
+  enable(direct);
+  assert.equal(A.setSharedAccess(direct.s, otherDirect, true), null);
+  assert(S.access(direct.s, direct.b));
+  assert(S.access(direct.s, otherDirect));
+  assert.equal(S.paint(direct.s, 15, 20, "queue"), null);
+  const beforeRepaint = structuredClone(direct.s);
+  assert.match(S.paint(direct.s, 14, 20, "queue"), /andere Attraktion/);
+  assert.deepEqual(direct.s, beforeRepaint, "A public separator cannot become a conflicting queue");
+  const f = fixture();
+  f.s.tiles[20][12] = "queue";
+  const other = addOtherRide(f, { x: 12, y: 20 });
+  enable(f);
+  assert.equal(A.setSharedAccess(f.s, other, true), null);
+  assert(S.access(f.s, f.b));
+  assert(S.access(f.s, other));
+  assert.deepEqual(A.sharedAccessRoute(f.s, other), [
+    { x: 12, y: 20 },
+    { x: 13, y: 20 },
+  ]);
 });
 test("Mode change rejects guests on their way, riders, queue, outgoing guests, and a test without edits", () => {
   for (const state of ["walk", "queue", "ride"]) {
@@ -333,6 +535,35 @@ test("Undo restores access mode and stored pods but refuses a mixed occupied bat
   const before = JSON.stringify(f.s);
   assert(C.undoEdits(f.s, [record]));
   assert.equal(JSON.stringify(f.s), before);
+});
+test("Unconnected shared access survives save migration and undo in both directions", () => {
+  for (const detach of Object.values(disconnect)) {
+    const f = fixture();
+    detach(f);
+    const pods = structuredClone(f.b.pods),
+      tiles = structuredClone(f.s.tiles),
+      record = C.recordEdit(f.s, "Gemeinsamer Zugang vor Anschluss", () => enable(f));
+    assert(record);
+    assert(S.validSave(f.s));
+    const restored = S.migratePark(JSON.parse(JSON.stringify(f.s))),
+      ride = restored.buildings.find((b) => b.id === f.b.id);
+    assert(S.validSave(restored));
+    assert.equal(ride.sharedAccess, true);
+    assert.deepEqual(ride.pods, pods);
+    assert.deepEqual(restored.tiles, tiles);
+    assert.equal(S.access(restored, ride), undefined);
+    const off = C.recordEdit(restored, "Getrennte Pods vor Anschluss", () =>
+      assert.equal(A.setSharedAccess(restored, ride, false), null),
+    );
+    assert(off);
+    assert.equal(C.undoEdits(restored, [off]), null);
+    assert.equal(ride.sharedAccess, true);
+    assert.equal(C.undoEdits(restored, [record]), null);
+    assert(!ride.sharedAccess);
+    assert.deepEqual(ride.pods, pods);
+    assert.deepEqual(restored.tiles, tiles);
+    assert(S.validSave(restored));
+  }
 });
 test("Moving shared gate onto saved exit swaps hidden reserve without corrupting save", () => {
   const f = fixture();

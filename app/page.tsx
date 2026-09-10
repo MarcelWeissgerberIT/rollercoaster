@@ -4146,6 +4146,7 @@ export default function Home() {
                                   <SharedAccessControl
                                     park={snapshot}
                                     building={b}
+                                    onBuildPath={() => pickTool("queue", "paths")}
                                     onChange={(enabled) => {
                                       if (enabled === !!b.sharedAccess) return;
                                       edit(

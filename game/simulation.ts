@@ -1,4 +1,9 @@
-import { sharedAccessRoute, sharedExitPending, resumeSharedExit } from "./shared-access-routing";
+import {
+  sharedAccessRoute,
+  sharedExitPending,
+  resumeSharedExit,
+  sharedQueueTileError,
+} from "./shared-access-routing";
 import { ensureWheelState, tickWheel, validWheelStates, type WheelState } from "./wheel-boarding";
 import { groundFootprint, pedestrianTile, trackGroundCompatible } from "./ground-clearance";
 import { parkWeather } from "./weather";
@@ -1276,9 +1281,14 @@ export function effectivePods(
 export function ensurePods(s: Park, b: Building) {
   if (usesPods(b.kind) && !b.pods) b.pods = effectivePods(s, { ...b, sharedAccess: false });
 }
+/** Resolve legacy auto-selected entries without making route validation recursive. */
+export function buildingEntryPort(s: Park, b: Building): Point {
+  const pods = b.pods ?? effectivePods(s, { ...b, sharedAccess: false });
+  return podPort(b, CATALOG[b.kind].size, pods.entry);
+}
 export function access(s: Park, b: Building, net = connected(s)) {
   if (isHabitat(b.kind)) return habitatViewingSpots(s, b, net)[0];
-  if (b.sharedAccess && !sharedAccessRoute(s, b, CATALOG[b.kind].size).length) return undefined;
+  if (b.sharedAccess && !sharedAccessRoute(s, b, buildingEntryPort).length) return undefined;
   const points =
     usesPods(b.kind) && b.pods
       ? [podPort(b, CATALOG[b.kind].size, b.pods.entry)]
@@ -1293,7 +1303,7 @@ export function access(s: Park, b: Building, net = connected(s)) {
 }
 export function exitPath(s: Park, b: Building, net = connected(s), exits = exitNetwork(s, net)) {
   if (isHabitat(b.kind)) return [];
-  if (b.sharedAccess) return sharedAccessRoute(s, b, CATALOG[b.kind].size);
+  if (b.sharedAccess) return sharedAccessRoute(s, b, buildingEntryPort);
   const points =
     usesPods(b.kind) && b.pods
       ? [podPort(b, CATALOG[b.kind].size, b.pods.exit)]
@@ -1339,10 +1349,7 @@ export function queueCapacity(s: Park, b: Building) {
   if (!a) return 0;
   if (s.tiles[a.y][a.x] === "path") return b.sharedAccess ? 2 : 4;
   if (b.sharedAccess)
-    return Math.min(
-      40,
-      Math.max(2, (sharedAccessRoute(s, b, CATALOG[b.kind].size).length - 1) * 2),
-    );
+    return Math.min(40, Math.max(2, (sharedAccessRoute(s, b, buildingEntryPort).length - 1) * 2));
   const seen = new Set([key(a)]),
     q = [a];
   for (let i = 0; i < q.length; i++)
@@ -1625,6 +1632,10 @@ export function paint(s: Park, x: number, y: number, type: Tile, style?: PathSty
     style !== undefined &&
     pathStyleAt(s, x, y) !== style;
   if (s.tiles[y][x] === type && !resurfacing) return null;
+  if (type === "queue") {
+    const error = sharedQueueTileError(s, [{ x, y }], buildingEntryPort);
+    if (error) return error;
+  }
   const cost = resurfacing
     ? 6
     : type === "queue" || type === "exit"

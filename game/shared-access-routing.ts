@@ -1,8 +1,8 @@
-/** Pure shared-corridor routing. Sizes are passed by the simulation/catalog wrapper. */
+/** Pure shared-corridor routing. Entry geometry is supplied by the catalog wrapper. */
 import type { Building, Guest, Park, Point } from "./simulation";
 import { connected } from "./walkways";
 import { needsOperator } from "./operations";
-import { POD_DIRECTIONS, podPort } from "./pods";
+import { POD_DIRECTIONS, usesPods } from "./pods";
 const key = (p: Point) => `${p.x},${p.y}`;
 const neighbors = (p: Point): Point[] =>
   [
@@ -13,6 +13,43 @@ const neighbors = (p: Point): Point[] =>
   ].map(([x, y]) => ({ x: p.x + x, y: p.y + y }));
 export const SHARED_LANE_OFFSET = 0.22;
 export const supportsSharedAccess = (b: Pick<Building, "kind">) => needsOperator(b.kind);
+type EntryPort = (s: Park, b: Building) => Point;
+/** Public paths may serve many rides; a shared blue component must have one owner,
+ * including while disconnected from the park entrance. */
+export function sharedQueueError(s: Park, b: Building, entryPort: EntryPort): string | null {
+  const component = [entryPort(s, b)],
+    seen = new Set<string>();
+  for (let i = 0; i < component.length; i++) {
+    const p = component[i];
+    if (seen.has(key(p)) || s.tiles[p.y]?.[p.x] !== "queue") continue;
+    seen.add(key(p));
+    component.push(...neighbors(p));
+  }
+  if (!seen.size) return null;
+  return s.buildings.some(
+    (other) => other.id !== b.id && usesPods(other.kind) && seen.has(key(entryPort(s, other))),
+  )
+    ? "Diesen blauen Weg nutzt bereits eine andere Attraktion. Baue zuerst einen eigenen Zugang."
+    : null;
+}
+/** Validate the whole proposed queue before any tile, decoration or cash changes.
+ * Pre-existing conflicts elsewhere must not prevent repairing the park. */
+export function sharedQueueTileError(
+  s: Park,
+  points: Point[],
+  entryPort: EntryPort,
+): string | null {
+  if (!points.length || !s.buildings.some((b) => b.sharedAccess)) return null;
+  const tiles = s.tiles.map((row) => [...row]);
+  for (const p of points) tiles[p.y][p.x] = "queue";
+  const virtual = { ...s, tiles };
+  for (const b of s.buildings) {
+    if (!b.sharedAccess) continue;
+    const error = sharedQueueError(virtual, b, entryPort);
+    if (error && !sharedQueueError(s, b, entryPort)) return error;
+  }
+  return null;
+}
 /** Includes both the queue entrance cell and the first connected public path. */
 export function routeFrom(s: Park, start: Point): Point[] {
   const net = connected(s),
@@ -40,9 +77,9 @@ export function routeFrom(s: Park, start: Point): Point[] {
   }
   return [];
 }
-export function sharedAccessRoute(s: Park, b: Building, size: number): Point[] {
-  return b.sharedAccess && supportsSharedAccess(b) && b.pods
-    ? routeFrom(s, podPort(b, size, b.pods.entry))
+export function sharedAccessRoute(s: Park, b: Building, entryPort: EntryPort): Point[] {
+  return b.sharedAccess && supportsSharedAccess(b) && b.pods && !sharedQueueError(s, b, entryPort)
+    ? routeFrom(s, entryPort(s, b))
     : [];
 }
 export function sharedExitPending(
@@ -54,9 +91,9 @@ export function sharedExitPending(
 export function getSharedAccessLanes(
   s: Park,
   b: Building,
-  size: number,
+  entryPort: EntryPort,
 ): { route: Point[]; entry: Point[]; exit: Point[] } {
-  const route = sharedAccessRoute(s, b, size),
+  const route = sharedAccessRoute(s, b, entryPort),
     [dx, dy] = POD_DIRECTIONS[b.pods?.entry.side ?? 0];
   const offsets = route.map((p, i) => {
     const before = route[Math.max(0, i - 1)],
@@ -76,14 +113,14 @@ export function getSharedAccessLanes(
 export function sharedAccessGuestPosition(
   s: Park,
   g: Guest,
-  size: number,
+  entryPort: EntryPort,
   cachedLanes?: ReturnType<typeof getSharedAccessLanes>,
 ): Point | undefined {
   if (g.transit || !["walk", "queue", "leave"].includes(g.state)) return undefined;
   const outgoing = g.sharedExit !== undefined;
   const b = s.buildings.find((b) => b.id === (outgoing ? g.sharedExit : g.target));
   if (!b?.sharedAccess || !supportsSharedAccess(b)) return undefined;
-  const lanes = cachedLanes ?? getSharedAccessLanes(s, b, size),
+  const lanes = cachedLanes ?? getSharedAccessLanes(s, b, entryPort),
     points = outgoing ? lanes.exit : lanes.entry;
   if (!points.length) return undefined;
   if (!outgoing && g.state === "queue") {
