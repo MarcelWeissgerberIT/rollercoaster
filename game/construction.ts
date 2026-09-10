@@ -8,6 +8,7 @@ import {
   type RideCrewPool,
 } from "./operations";
 import { pathStyleAt, type PathStyle } from "./park-life";
+import { isRotatableFurniture, rotatedOrientation } from "./building-orientation";
 import { canAfford, hasUnlimitedBudget, spendCash } from "./budget";
 import { broken } from "./maintenance";
 import { habitatSafety, isHabitat } from "./zoo";
@@ -337,7 +338,9 @@ export function connectBuilding(s: Park, b: Building, clear = true): string | nu
   } else b.open = true;
   return null;
 }
-export type Geometry = Pick<Building, "x" | "y" | "track" | "pods"> & { tested?: boolean };
+export type Geometry = Pick<Building, "x" | "y" | "track" | "pods" | "orientation"> & {
+  tested?: boolean;
+};
 export type AdjustmentPlan = Placement & {
   geometry: Geometry;
   changed: boolean;
@@ -346,6 +349,7 @@ export type AdjustmentPlan = Placement & {
 const geometryOf = (b: Building): Geometry => ({
   x: b.x,
   y: b.y,
+  orientation: b.orientation,
   track: b.track?.map((p) => ({ ...p })),
   tested: b.tested,
   pods: b.pods ? structuredClone(b.pods) : undefined,
@@ -353,6 +357,7 @@ const geometryOf = (b: Building): Geometry => ({
 const sameGeometry = (a: Geometry, b: Geometry) =>
   a.x === b.x &&
   a.y === b.y &&
+  (a.orientation ?? 0) === (b.orientation ?? 0) &&
   JSON.stringify(a.track) === JSON.stringify(b.track) &&
   JSON.stringify(a.pods) === JSON.stringify(b.pods);
 function relocatedViewpoint(s: Park, b: Building, geometry: Geometry): Point | undefined {
@@ -460,6 +465,7 @@ export function planRelocation(
   const geometry: Geometry = {
     x: p.x,
     y: p.y,
+    orientation: isRotatableFurniture(b.kind) ? rotatedOrientation(b, turns) : b.orientation,
     pods: rotatePods(b.pods, CATALOG[b.kind].size, turns),
     track: b.track?.map((q) => {
       let x = q.x - b.x,

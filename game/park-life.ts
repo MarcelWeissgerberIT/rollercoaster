@@ -1,4 +1,5 @@
 import type { Building, Guest, Park, Point } from "./simulation";
+import { buildingOrientation, furniturePoint } from "./building-orientation";
 
 export const FOOD = {
   burger: { name: "Burger", color: "#dba544", supplies: 3, duration: 24, drink: false },
@@ -48,9 +49,12 @@ export function restPose(
     };
   }
   return {
-    x: b.x + (slot % 2 ? 0.15 : -0.15),
-    y: b.y + (b.kind === "picnic" ? (slot < 2 ? -0.19 : 0.19) : 0),
-    yaw: b.kind === "picnic" && slot >= 2 ? 0 : Math.PI,
+    ...furniturePoint(
+      b,
+      slot % 2 ? 0.15 : -0.15,
+      b.kind === "picnic" ? (slot < 2 ? -0.19 : 0.19) : 0,
+    ),
+    yaw: (b.kind === "picnic" && slot >= 2 ? 0 : Math.PI) - (buildingOrientation(b) * Math.PI) / 2,
     seated: true,
     height: 0.8,
   };

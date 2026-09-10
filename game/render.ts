@@ -1,5 +1,8 @@
+import { drawCleanerAreas, type CleanerAreaOverlay } from "./cleaner-area-overlay";
 import zooWalkSpecs from "./zoo-walk-sprites.json";
 import { guestAppearance } from "./visitors";
+import { guestWalkPosition } from "./guest-walk";
+import { drawHeldSouvenir } from "./souvenir-canvas";
 import { paintedGuest, drawWalkingGuest } from "./guest-sprite";
 import zooV9Specs from "./zoo-v9-sprites.json";
 import { drawStationDirection } from "./station-direction";
@@ -16,6 +19,10 @@ import { cleanerTransfer, staffBagLocal, staffLocalWorld } from "./staff-work";
 import lifeSpecs from "./life-sprites.json";
 import { bumperPose, balloonPose } from "./family-rides";
 import { FOOD, isFood, restPose, PATH_STYLES, pathStyleAt } from "./park-life";
+import { isRotatableFurniture } from "./building-orientation";
+import { drawFurniture } from "./furniture";
+import { dogCompanionOwners, dogCompanionPose } from "./guest-dogs";
+import { drawDogCompanion, dogLeashGrip } from "./dog-canvas";
 import zooSpecs from "./zoo-sprites.json";
 import { isHabitat } from "./zoo";
 import { animalPose, animalSprite } from "./zoo-motion";
@@ -59,6 +66,7 @@ import {
 } from "./motion";
 const photoPaths = new WeakMap<Point[], ReturnType<typeof makeRidePath>>();
 export type View = {
+  cleanerAreas?: CleanerAreaOverlay[];
   staffFocus?: { ref: StaffRef; until: number };
   stationDirection?: Building;
   showMoods?: boolean;
@@ -1028,6 +1036,9 @@ function drawPark(
               alpha,
             );
         });
+    } else if (isRotatableFurniture(b.kind)) {
+      const hits = drawFurniture(ctx, b, project, scale, alpha);
+      if (hitOwner !== undefined) registerAccessHits(hitOwner, hits);
     } else if (b.kind === "bin") {
       frame((b.binFill ?? 0) >= 12 ? "bin-full" : "bin-empty", p, specs["bin-empty"], alpha);
       const worker = s.cleanliness?.workers.find(
@@ -1388,6 +1399,7 @@ function drawPark(
     }
   }
 
+  const dogOwners = dogCompanionOwners(s);
   for (const g of s.guests) {
     if (
       g.state === "ride" &&
@@ -1397,11 +1409,7 @@ function drawPark(
     const restBuilding =
       g.state === "rest" ? s.buildings.find((b) => b.id === g.target) : undefined;
     const sitting = restBuilding ? restPose(restBuilding, g, s.time) : undefined;
-    const target = sitting ??
-      queued.get(g.id) ?? {
-        x: g.x + ((g.id % 3) - 1) * 0.13,
-        y: g.y + ((Math.floor(g.id / 3) % 3) - 1) * 0.1,
-      };
+    const target = sitting ?? queued.get(g.id) ?? guestWalkPosition(s, g);
     const old = guestMotion.get(g) ?? {
       x: g.x,
       y: g.y,
@@ -1445,6 +1453,31 @@ function drawPark(
     const step = moving ? Math.floor(old.phase) % 4 : 1;
     const name = `walk-red-${old.heading}-${step}`,
       look = guestAppearance(g);
+    if (dogOwners.has(g.id)) {
+      const dog = dogCompanionPose(s, g, {
+        position: visual,
+        direction: next ? { x: visual.x + next.x - g.x, y: visual.y + next.y - g.y } : undefined,
+        moving,
+      });
+      if (dog) {
+        const ownerPoint = project(visual.x, visual.y),
+          handPhase = (old.phase * Math.PI) / 2;
+        if (moving) ownerPoint.y -= Math.abs(Math.sin(handPhase)) * 0.8 * scale;
+        const grip = dogLeashGrip(
+          g,
+          ownerPoint.x,
+          ownerPoint.y,
+          scale,
+          old.heading,
+          handPhase,
+          moving,
+        );
+        objects.push({
+          depth: dog.x + dog.y + 0.1,
+          draw: () => drawDogCompanion(ctx, dog, project, scale, grip),
+        });
+      }
+    }
     objects.push({
       depth: visual.x + visual.y + 0.12,
       draw: () => {
@@ -1454,8 +1487,9 @@ function drawPark(
         ctx.ellipse(p.x, p.y, 4.3 * scale, 1.6 * scale, 0, 0, Math.PI * 2);
         ctx.fill();
         if (moving) p.y -= Math.abs(Math.sin((old.phase * Math.PI) / 2)) * 0.8 * scale;
-        if (sitting) p.y -= sitting.height * 4 * scale;
-        if (sitting?.seated) rider(g.id, p, sitting.yaw === 0 ? "nw" : "se", 1);
+        if (sitting) p.y -= sitting.height * (sitting.seated ? 15 : 4) * scale;
+        if (sitting?.seated)
+          rider(g.id, p, heading(-Math.sin(sitting.yaw), -Math.cos(sitting.yaw)), 1);
         else if (sprites[name])
           drawWalkingGuest(
             ctx,
@@ -1530,16 +1564,18 @@ function drawPark(
           ctx.stroke();
           ctx.restore();
         }
-        if (g.souvenir) {
-          const accessory = g.souvenir === "balloon" ? "hand-balloon" : "hand-teddy";
-          frame(
-            accessory,
-            { x: p.x + 5 * scale, y: p.y - 10 * scale },
-            specs[accessory],
-            1,
-            g.souvenir === "balloon" ? Math.sin(s.time * 2 + g.id) * 0.1 : 0,
+        if (g.souvenir && !sitting?.seated)
+          drawHeldSouvenir(
+            ctx,
+            g,
+            p.x,
+            p.y,
+            scale,
+            s.time,
+            old.heading,
+            (old.phase * Math.PI) / 2,
+            moving,
           );
-        }
       },
     });
   }
@@ -1758,6 +1794,7 @@ function drawPark(
       ctx.restore();
     }
   }
+  if (v.cleanerAreas) drawCleanerAreas(ctx, v.cleanerAreas, project);
   if (v.traffic)
     drawTrafficOverlay(
       ctx,

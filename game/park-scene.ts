@@ -6,6 +6,8 @@ import { staffMotion } from "./staff-visual";
 import { createStaffModel } from "./staff-model";
 import { GATES, gateStyle } from "./entrance";
 import { FOOD, isFood, restPose } from "./park-life";
+import { isRotatableFurniture } from "./building-orientation";
+import { createFurnitureModel } from "./furniture-model";
 import { createHabitatModel } from "./zoo-model";
 import { isHabitat, initZoo, tickZoo } from "./zoo";
 import { access } from "./simulation";
@@ -17,7 +19,11 @@ import { addDriveHardware } from "./track-hardware";
 import { addExitArrows } from "./path-markings";
 import { addAccessPods } from "./pod-model";
 import { createTransportRig } from "./transport-rig";
-import { createGuestModel, createCrowd } from "./guest-model";
+import { createGuestModel, createCrowd, personParts } from "./guest-model";
+import { dogCompanionOwners, dogCompanionPose, type DogVector } from "./guest-dogs";
+import { createDogCompanionModel } from "./dog-model";
+import { guestWalkPosition } from "./guest-walk";
+import { partyWalkingSpeed } from "./visitors";
 import { createAttractionRig } from "./attraction-rig";
 import { isTransport, transportPose, transportClock } from "./transit";
 import * as THREE from "three";
@@ -501,16 +507,8 @@ export function populatePark(
       slide.rotation.x = 0.4;
       for (let i = 0; i < 6; i++)
         mesh(cube, "#accbcc", x - 2.5, 0.35 + i * 0.35, z - 2.2, 0.25, 0.15, 2);
-    } else if (b.kind === "picnic") {
-      mesh(cube, "#ad8351", x, 1.2, z, 3.7, 0.2, 1.4);
-      for (const side of [-1, 1]) {
-        mesh(cube, "#a18455", x, 0.8, z + side * 0.95, 3.6, 0.15, 0.65);
-        mesh(cube, "#526f61", x + side * 1.3, 0.6, z, 0.16, 1.2, 2.3);
-      }
-    } else if (b.kind === "bench") {
-      mesh(cube, "#b38038", x, 0.8, z, 2.5, 0.18, 0.8);
-      mesh(cube, "#b38038", x, 1.35, z - 0.35, 2.5, 0.9, 0.13);
-      for (const side of [-0.9, 0.9]) mesh(cube, "#275e53", x + side, 0.4, z, 0.15, 0.8, 0.7);
+    } else if (isRotatableFurniture(b.kind)) {
+      scene.add(createFurnitureModel(b, cube, mat));
     }
   }
   for (const line of park.transitLines ?? []) {
@@ -575,6 +573,17 @@ export function populatePark(
     ),
     crowd = createCrowd(guests);
   scene.add(crowd.mesh);
+  const dogOwners = dogCompanionOwners(park),
+    dogs = new Map(
+      guests
+        .filter((g) => dogOwners.has(g.id))
+        .map((g) => {
+          const model = createDogCompanionModel(g.id);
+          model.root.visible = false;
+          scene.add(model.root);
+          return [g.id, model] as const;
+        }),
+    );
   const routes = guests.map((g) => {
     const points = [{ x: g.x, y: g.y }, ...g.route],
       dist = [0];
@@ -590,20 +599,27 @@ export function populatePark(
       let x = g.x,
         z = g.y,
         walking = false,
-        yaw = 0;
-      if (route.length > 0 && (g.state === "walk" || g.state === "leave")) {
-        let d = (time * 0.28 * (1 + (g.id % 7) * 0.065)) % (route.length * 2);
-        const reverse = d > route.length;
-        d = d <= route.length ? d : route.length * 2 - d;
+        yaw = 0,
+        direction: { x: number; y: number } | undefined;
+      if (route.length > 0 && (g.state === "walk" || g.state === "leave") && g.timer <= time) {
+        const d = Math.min(
+          route.length,
+          Math.max(0, time - Math.max(0, g.timer)) * partyWalkingSpeed(g),
+        );
         let j = 1;
-        while (j < route.dist.length - 1 && route.dist[j] < d) j++;
+        while (
+          j < route.dist.length - 1 &&
+          (route.dist[j] <= d || route.dist[j] - route.dist[j - 1] < 0.00001)
+        )
+          j++;
         const a = route.points[j - 1],
           b = route.points[j],
           f = (d - route.dist[j - 1]) / Math.max(0.001, route.dist[j] - route.dist[j - 1]);
         x = a.x + (b.x - a.x) * f;
         z = a.y + (b.y - a.y) * f;
-        walking = true;
-        yaw = Math.atan2(-(b.x - a.x), -(b.y - a.y)) + (reverse ? Math.PI : 0);
+        walking = d < route.length;
+        yaw = Math.atan2(-(b.x - a.x), -(b.y - a.y));
+        direction = { x: x + b.x - a.x, y: z + b.y - a.y };
       }
       if (g.state === "observe") {
         const b = park.buildings.find((b) => b.id === g.target);
@@ -620,8 +636,34 @@ export function populatePark(
         z = resting.y;
         yaw = resting.yaw;
         walking = false;
+      } else {
+        const formation = guestWalkPosition(park, g, { x, y: z }, direction);
+        x = formation.x;
+        z = formation.y;
       }
-      crowd.pose(i, x * 5, z * 5, yaw, time * 7 + g.id, walking, resting?.seated, resting?.height);
+      crowd.pose(
+        i,
+        x * 5,
+        z * 5,
+        yaw,
+        time * 7 + g.id,
+        walking,
+        resting?.seated,
+        resting?.height,
+        park.time + time,
+      );
+      const dog = dogs.get(g.id);
+      if (dog) {
+        const pose = dogCompanionPose(park, g, {
+            time: park.time + time,
+            position: { x, y: z },
+            direction: { x: x - Math.sin(yaw), y: z - Math.cos(yaw) },
+            moving: walking,
+          }),
+          hand = personParts(g, false, time * 7 + g.id, walking).find((part) => part.leashGrip)
+            ?.p as DogVector | undefined;
+        dog.update(pose, hand);
+      }
     });
     crowd.finish();
   });

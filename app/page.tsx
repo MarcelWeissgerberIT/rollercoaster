@@ -1,3 +1,7 @@
+import { supportsBuildingRotation } from "@/game/building-orientation";
+import { assignCleanerArea, cleanerAreaInfo, type CleanerArea } from "@/game/cleanliness";
+import { AttractionDirectory } from "@/components/attraction-directory";
+import { clampZoom, focusBuildingCamera, zoomCameraAt } from "@/game/camera";
 import { createFreePark } from "@/game/free-play";
 import { hasUnlimitedBudget, canAfford, spendCash } from "@/game/budget";
 import { saveParkSwitch, readPreviousPark, PARK_SAVE_KEY } from "@/game/park-storage";
@@ -88,6 +92,7 @@ import { TrackPieceCatalog, TrackRangeMap } from "@/components/track-pieces";
 import { draftHistoryData, restoreDraftHistory } from "@/game/draft";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Eye,
   Infinity as InfinityIcon,
   Volume2,
   VolumeX,
@@ -319,6 +324,15 @@ export default function Home() {
   const cameraTarget = useRef<{ panX: number; panY: number; zoom: number } | null>(null);
   const panelRef = useRef<HTMLElement>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [areaEditor, setAreaEditor] = useState<{
+    workerId: number;
+    from: Point | null;
+    to: Point | null;
+    ready: boolean;
+  } | null>(null);
+  const areaPointer = useRef<Point | null>(null);
+  const [ridesView, setRidesView] = useState<"catalog" | "park">("catalog");
+  const [focusRequest, setFocusRequest] = useState<{ id: number; serial: number } | null>(null);
   useEffect(() => {
     panelRef.current?.scrollTo(0, 0);
     panelRef.current?.querySelector(".panelbody")?.scrollTo(0, 0);
@@ -451,6 +465,7 @@ export default function Home() {
     mode: "station" | "move";
     point: Point;
     rotation: number;
+    rotateOnly?: boolean;
   } | null>(null);
   const [podEdit, setPodEdit] = useState<{ id: number; role: PodRole } | null>(null);
   useEffect(() => {
@@ -485,6 +500,149 @@ export default function Home() {
         guests: [...park.current.guests],
       });
   }, []);
+  const areaRectangle = (from: Point, to: Point): CleanerArea => ({
+    x1: Math.min(from.x, to.x),
+    y1: Math.min(from.y, to.y),
+    x2: Math.max(from.x, to.x),
+    y2: Math.max(from.y, to.y),
+  });
+  const draftArea =
+    areaEditor?.from && areaEditor.to ? areaRectangle(areaEditor.from, areaEditor.to) : null;
+  const areaWorker = snapshot?.cleanliness?.workers.find(
+    (worker) => worker.id === areaEditor?.workerId,
+  );
+  const areaStatus =
+    snapshot && areaWorker && draftArea
+      ? cleanerAreaInfo(snapshot, { ...areaWorker, area: draftArea })
+      : null;
+  const areaName =
+    snapshot && areaWorker
+      ? (staffLocation(snapshot, { kind: "cleaner", id: areaWorker.id })?.name ??
+        `Reinigungskraft #${areaWorker.id}`)
+      : "Reinigung";
+  const leaveAreaEditor = () => {
+    setAreaEditor(null);
+    areaPointer.current = null;
+    setTab("personal");
+    setSettings(true);
+  };
+  const beginCleanerArea = (id: number) => {
+    const worker = park.current?.cleanliness?.workers.find((item) => item.id === id);
+    if (!worker) return;
+    const a = worker.area;
+    setAreaEditor({
+      workerId: id,
+      from: a ? { x: a.x1, y: a.y1 } : null,
+      to: a ? { x: a.x2, y: a.y2 } : null,
+      ready: !!a,
+    });
+    areaPointer.current = null;
+    cameraTarget.current = null;
+    setSettings(false);
+    setMenuOpen(false);
+    setShowGoals(false);
+    setCategory("");
+    setSelected(null);
+    setTool("select");
+    setTrafficMode(null);
+    setAdjust(null);
+    setPodEdit(null);
+    setCut(null);
+    notify(
+      "Ziehe einen Bereich auf der Karte oder klicke seine zwei Ecken. Erst „Bereich zuweisen“ übernimmt die Auswahl.",
+    );
+  };
+  const clearCleanerArea = (id: number) => {
+    if (!park.current) return;
+    const error = assignCleanerArea(park.current, id, null);
+    sync();
+    notify(error ?? "Reinigungskraft wieder automatisch verteilt.");
+  };
+  useEffect(() => {
+    if (!areaEditor || !snapshot) {
+      view.current.cleanerAreas = undefined;
+      return;
+    }
+    view.current.cleanerAreas = (snapshot.cleanliness?.workers ?? []).flatMap((worker) => {
+      const active = worker.id === areaEditor.workerId,
+        a = active && draftArea ? draftArea : worker.area;
+      return a
+        ? [
+            {
+              id: worker.id,
+              area: a,
+              name:
+                staffLocation(snapshot, { kind: "cleaner", id: worker.id })?.name ??
+                `Team ${worker.id}`,
+              selected: active,
+              preview: active,
+            },
+          ]
+        : [];
+    });
+  }, [areaEditor, snapshot]);
+  useEffect(() => {
+    if (
+      areaEditor &&
+      (menuOpen ||
+        settings ||
+        !snapshot?.cleanliness?.workers.some((worker) => worker.id === areaEditor.workerId))
+    ) {
+      setAreaEditor(null);
+      areaPointer.current = null;
+    }
+  }, [menuOpen, settings, areaEditor, snapshot]);
+  const selectAttraction = (id: number) => {
+    if (!park.current?.buildings.some((item) => item.id === id)) return;
+    setAreaEditor(null);
+    setSelected(id);
+    setCategory("detail");
+    setTool("select");
+    setMenuOpen(false);
+    setSettings(false);
+    setTrafficMode(null);
+    setAdjust(null);
+    setPodEdit(null);
+    setCut(null);
+  };
+  const focusAttraction = (id: number) => {
+    selectAttraction(id);
+    setFocusRequest((previous) => ({ id, serial: (previous?.serial ?? 0) + 1 }));
+  };
+  useEffect(() => {
+    if (!focusRequest || !park.current || !canvas.current) return;
+    const building = park.current.buildings.find((item) => item.id === focusRequest.id);
+    if (!building) return;
+    const el = canvas.current,
+      rect = el.getBoundingClientRect();
+    const usable = { left: 22, top: 78, right: rect.width - 22, bottom: rect.height - 108 };
+    const panel = panelRef.current?.getBoundingClientRect();
+    if (panel && panel.width && panel.height)
+      usable.left = Math.max(usable.left, panel.right - rect.left + 22);
+    const objective = el.parentElement?.querySelector<HTMLElement>(".objective");
+    if (objective?.getClientRects().length) {
+      const goalRect = objective.getBoundingClientRect();
+      if (goalRect.left > rect.left + rect.width / 2)
+        usable.right = Math.min(usable.right, goalRect.left - rect.left - 22);
+    }
+    if (usable.right - usable.left < 160) usable.right = rect.width - 16;
+    if (usable.bottom - usable.top < 160) {
+      usable.top = 16;
+      usable.bottom = rect.height - 78;
+    }
+    const target = focusBuildingCamera(
+      park.current,
+      building,
+      view.current,
+      rect.width,
+      rect.height,
+      usable,
+    );
+    cameraTarget.current = target;
+    setZoom(Math.round(target.zoom * 100));
+    setHoverInfo(null);
+    notify(`${building.name} im Blick. Mit + oder dem Mausrad kannst du noch näher heran.`);
+  }, [focusRequest, notify]);
   const focusMapPoint = (point: Point) => {
     const el = canvas.current;
     if (!el) return;
@@ -739,6 +897,9 @@ export default function Home() {
     setPodEdit(null);
     setHoverInfo(null);
     setHoverTile(null);
+    setFocusRequest(null);
+    setAreaEditor(null);
+    areaPointer.current = null;
     setCut(null);
     setBatchPreview(null);
     setFitPreview(null);
@@ -942,6 +1103,8 @@ export default function Home() {
   ]);
   const pickTool = useCallback(
     (t: string, cat?: string) => {
+      setAreaEditor(null);
+      areaPointer.current = null;
       setTool(t);
       setCut(null);
       setBatchPreview(null);
@@ -972,16 +1135,22 @@ export default function Home() {
   const changeZoom = useCallback((factor: number, clientX?: number, clientY?: number) => {
     const el = canvas.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect(),
-      old = view.current.zoom;
-    const x = clientX === undefined ? rect.width / 2 : clientX - rect.left;
-    const y = clientY === undefined ? rect.height / 2 : clientY - rect.top;
-    const origin = projection(rect.width, rect.height, view.current).project(0, 0);
-    view.current.zoom = Math.max(0.55, Math.min(2.5, old * factor));
-    const ratio = view.current.zoom / old;
-    const next = projection(rect.width, rect.height, view.current).project(0, 0);
-    view.current.panX += x - (next.x + (x - origin.x) * ratio);
-    view.current.panY += y - (next.y + (y - origin.y) * ratio);
+    const rect = el.getBoundingClientRect();
+    cameraTarget.current = null;
+    const point = {
+      x: clientX === undefined ? rect.width / 2 : clientX - rect.left,
+      y: clientY === undefined ? rect.height / 2 : clientY - rect.top,
+    };
+    Object.assign(
+      view.current,
+      zoomCameraAt(
+        view.current,
+        rect.width,
+        rect.height,
+        clampZoom(view.current.zoom * factor),
+        point,
+      ),
+    );
     setZoom(Math.round(view.current.zoom * 100));
   }, []);
   useEffect(() => {
@@ -1002,6 +1171,13 @@ export default function Home() {
         sync();
       }
       if (e.key === "Escape") {
+        if (areaEditor) {
+          setAreaEditor(null);
+          areaPointer.current = null;
+          setTab("personal");
+          setSettings(true);
+          return;
+        }
         pickTool("select");
         setCategory("");
       }
@@ -1012,7 +1188,8 @@ export default function Home() {
       if (
         e.key.toLowerCase() === "r" &&
         adjust?.mode === "move" &&
-        adjustingBuilding?.kind === "coaster"
+        adjustingBuilding &&
+        supportsBuildingRotation(adjustingBuilding.kind)
       ) {
         e.preventDefault();
         setAdjust((a) => (a ? { ...a, rotation: (a.rotation + 1) % 4 } : a));
@@ -1040,6 +1217,7 @@ export default function Home() {
     draft,
     piece,
     buildWorld,
+    areaEditor,
   ]);
 
   const tileAt = (e: { clientX: number; clientY: number }) => {
@@ -1083,8 +1261,28 @@ export default function Home() {
     notify(
       mode === "station"
         ? "Grüne Gleisfelder sind geeignete Stationsplätze. Bewegen zeigt die Vorschau, ein Klick versetzt."
-        : "Bewege die Bahn zum neuen Platz. R dreht die Achterbahn, ein Klick übernimmt.",
+        : supportsBuildingRotation(b.kind)
+          ? "Bewege das Objekt zum neuen Platz. R dreht es, ein Klick übernimmt."
+          : "Bewege das Objekt zum neuen Platz. Ein Klick übernimmt.",
     );
+  };
+  const startRotation = () => {
+    const building = park.current?.buildings.find((item) => item.id === selected);
+    if (!building || !supportsBuildingRotation(building.kind)) return;
+    setAreaEditor(null);
+    setCut(null);
+    setPodEdit(null);
+    setMenuOpen(false);
+    setAdjust({
+      id: building.id,
+      mode: "move",
+      point: { x: building.x, y: building.y },
+      rotation: 1,
+      rotateOnly: true,
+    });
+    setTool("move");
+    setHoverTile(null);
+    notify("Drehvorschau um 90°. Wähle die Ausrichtung und übernimm sie, wenn der Platz frei ist.");
   };
   const cancelAdjustment = () => {
     setAdjust(null);
@@ -1166,7 +1364,14 @@ export default function Home() {
       const b = s.buildings.find((b) => b.id === adjust.id);
       if (!b) return;
       edit(adjust.mode === "station" ? "Stationsversatz" : "Versetzen", () => {
-        const error = adjustBuilding(s, b, adjust.mode, p, adjust.rotation, autoClear);
+        const error = adjustBuilding(
+          s,
+          b,
+          adjust.mode,
+          adjust.rotateOnly ? adjust.point : p,
+          adjust.rotation,
+          autoClear,
+        );
         if (error) {
           notify(error);
           return;
@@ -1174,9 +1379,11 @@ export default function Home() {
         cancelAdjustment();
         setCategory("detail");
         notify(
-          access(s, b)
-            ? "Position übernommen. Der Weg ist erreichbar – du kannst die Attraktion öffnen."
-            : "Position übernommen. Verbinde den neuen Standort mit dem Wegenetz.",
+          adjust.rotateOnly
+            ? "Ausrichtung übernommen. Mit Rückgängig kannst du die Drehung zurücknehmen."
+            : access(s, b)
+              ? "Position übernommen. Der neue Standort ist über den Parkweg erreichbar."
+              : "Position übernommen. Verbinde den neuen Standort mit dem Wegenetz.",
         );
       });
       return;
@@ -1680,6 +1887,74 @@ export default function Home() {
         className={`surface ${menuOpen ? "menu-expanded" : ""}`}
         aria-label="Parkbau und Simulation"
       >
+        {areaEditor && (
+          <aside className="cleaner-area-editor" aria-label="Reinigungsbereich markieren">
+            <div className="cleaner-area-editor-title">
+              <MapPin />
+              <strong>Reinigungsbereich · {areaName}</strong>
+              <button
+                className="iconbtn"
+                aria-label="Bereichsauswahl abbrechen"
+                onClick={leaveAreaEditor}
+              >
+                <X />
+              </button>
+            </div>
+            <p>
+              {areaEditor.ready
+                ? "Prüfe den markierten Bereich. Zum Ändern ein neues Rechteck ziehen."
+                : areaEditor.from
+                  ? "Zweite Ecke wählen oder den Bereich aufziehen."
+                  : "Zwei Ecken anklicken oder mit der linken Maustaste ein Rechteck aufziehen."}
+            </p>
+            {draftArea && areaStatus && (
+              <div className="cleaner-area-facts">
+                <span>
+                  {areaStatus.reachablePaths} / {areaStatus.totalPaths} Wegfelder erreichbar
+                </span>
+                <span>
+                  {areaStatus.litter} Müllteile · {areaStatus.fullBins} volle Tonnen
+                </span>
+              </div>
+            )}
+            {areaEditor.ready && areaStatus && !areaStatus.connected && (
+              <p className="cleaner-area-warning">
+                Hier fehlt eine begehbare Verbindung für die Reinigungskraft.
+              </p>
+            )}
+            <div className="cleaner-area-actions">
+              <button
+                className="primary"
+                disabled={!areaEditor.ready || !draftArea || !areaStatus?.connected}
+                onClick={() => {
+                  if (!park.current || !draftArea) return;
+                  const error = assignCleanerArea(park.current, areaEditor.workerId, draftArea);
+                  sync();
+                  if (error) notify(error);
+                  else {
+                    leaveAreaEditor();
+                    notify(`${areaName} übernimmt den markierten Reinigungsbereich.`);
+                  }
+                }}
+              >
+                Bereich zuweisen
+              </button>
+              <button
+                className="secondary"
+                onClick={() => {
+                  clearCleanerArea(areaEditor.workerId);
+                  leaveAreaEditor();
+                }}
+              >
+                Automatisch verteilen
+              </button>
+            </div>
+            <small>
+              Andere Farben zeigen die Bereiche des Teams. Rechts ziehen verschiebt die Karte;
+              Mausrad zoomt. Anreise und Müllentsorgung dürfen außerhalb liegen.
+            </small>
+          </aside>
+        )}
         {buildWorld && tool === "coaster" && (
           <Suspense fallback={<div className="build3d-shell">Bauansicht wird geladen …</div>}>
             <BuildView
@@ -1696,13 +1971,30 @@ export default function Home() {
         )}
         <canvas
           ref={canvas}
-          className={`world ${tool !== "select" ? "building" : ""}`}
+          className={`world ${tool !== "select" || areaEditor ? "building" : ""}`}
           aria-label="Isometrischer Freizeitpark. Wähle unten ein Bauwerk und klicke auf eine freie Fläche."
           onContextMenu={(e) => e.preventDefault()}
           onWheel={(e) => changeZoom(e.deltaY < 0 ? 1.07 : 1 / 1.07, e.clientX, e.clientY)}
           onPointerDown={(e) => {
             setHoverInfo(null);
             e.currentTarget.setPointerCapture(e.pointerId);
+            if (areaEditor && e.button === 0 && !e.altKey) {
+              const raw = tileAt(e),
+                live = park.current!;
+              const p = {
+                x: Math.max(0, Math.min(mapWidth(live) - 1, raw.x)),
+                y: Math.max(0, Math.min(mapHeight(live) - 1, raw.y)),
+              };
+              areaPointer.current = p;
+              setAreaEditor((a) =>
+                a
+                  ? !a.from || a.ready
+                    ? { ...a, from: p, to: p, ready: false }
+                    : { ...a, to: p, ready: true }
+                  : a,
+              );
+              return;
+            }
             drag.current = {
               x: e.clientX,
               y: e.clientY,
@@ -1734,6 +2026,16 @@ export default function Home() {
           }}
           onPointerMove={(e) => {
             const p = tileAt(e);
+            if (areaEditor && !drag.current) {
+              const live = park.current!,
+                q = {
+                  x: Math.max(0, Math.min(mapWidth(live) - 1, p.x)),
+                  y: Math.max(0, Math.min(mapHeight(live) - 1, p.y)),
+                };
+              if (areaPointer.current || (areaEditor.from && !areaEditor.ready))
+                setAreaEditor((a) => (a ? { ...a, to: q } : a));
+              return;
+            }
             const rect = e.currentTarget.getBoundingClientRect(),
               px = e.clientX - rect.left,
               py = e.clientY - rect.top;
@@ -1758,7 +2060,7 @@ export default function Home() {
             );
             view.current.hover = p;
             setHoverTile((old) => (old?.x === p.x && old?.y === p.y ? old : p));
-            if (adjust)
+            if (adjust && !adjust.rotateOnly)
               setAdjust((a) =>
                 a && (a.point.x !== p.x || a.point.y !== p.y) ? { ...a, point: p } : a,
               );
@@ -1802,6 +2104,23 @@ export default function Home() {
             }
           }}
           onPointerUp={(e) => {
+            if (areaEditor && areaPointer.current && e.button === 0) {
+              const start = areaPointer.current,
+                p = tileAt(e),
+                live = park.current!;
+              areaPointer.current = null;
+              const end = {
+                x: Math.max(0, Math.min(mapWidth(live) - 1, p.x)),
+                y: Math.max(0, Math.min(mapHeight(live) - 1, p.y)),
+              };
+              if (start.x !== end.x || start.y !== end.y)
+                setAreaEditor((a) => (a ? { ...a, to: end, ready: true } : a));
+              return;
+            }
+            if (areaEditor && e.button === 2) {
+              drag.current = null;
+              return;
+            }
             const d = drag.current;
             drag.current = null;
             if (
@@ -1838,10 +2157,12 @@ export default function Home() {
             finishStroke();
           }}
           onPointerCancel={() => {
+            areaPointer.current = null;
             drag.current = null;
             finishStroke();
           }}
           onLostPointerCapture={() => {
+            areaPointer.current = null;
             drag.current = null;
             finishStroke();
           }}
@@ -2036,6 +2357,28 @@ export default function Home() {
                     )[category]
                   }
                 </h2>
+                {category === "detail" && b && supportsBuildingRotation(b.kind) && (
+                  <button
+                    className="iconbtn focus-attraction"
+                    aria-label={`${b.name} drehen`}
+                    title="Drehen · Vorschau in 90°-Schritten"
+                    data-testid="rotate-selected-building"
+                    onClick={startRotation}
+                  >
+                    <RotateCw />
+                  </button>
+                )}
+                {category === "detail" && b && (
+                  <button
+                    className="iconbtn focus-attraction"
+                    aria-label={`${b.name} im Park ansehen`}
+                    title="Im Park ansehen · Kamera bewegen und heranzoomen"
+                    data-testid="focus-selected-attraction"
+                    onClick={() => focusAttraction(b.id)}
+                  >
+                    <Eye />
+                  </button>
+                )}
                 <button
                   className="iconbtn"
                   aria-label="Baufenster schließen"
@@ -2097,56 +2440,91 @@ export default function Home() {
                 )}
                 {category === "rides" && (
                   <>
-                    {catalog([
-                      "wheel",
-                      "carousel",
-                      "bumper",
-                      "balloonride",
-                      "swing",
-                      "drop",
-                      "pirate",
-                      "teacups",
-                      "spinner",
-                    ])}
-                    <button
-                      className="secondary"
-                      style={{ marginTop: 12, width: "100%" }}
-                      onClick={() => {
-                        if (snapshot && isUnlocked(snapshot, "custom")) setWorkshop(true);
-                        else {
-                          setTab("research");
-                          setSettings(true);
-                        }
-                      }}
+                    <div
+                      className="attraction-view-tabs"
+                      role="group"
+                      aria-label="Attraktionen auswählen"
                     >
-                      <Sparkles size={18} />{" "}
-                      {snapshot && isUnlocked(snapshot, "custom")
-                        ? "Eigene Attraktion entwickeln"
-                        : "Werkstatt erforschen"}
-                    </button>
-                    {customDesign && (
                       <button
-                        className="primary"
-                        style={{ marginTop: 8 }}
-                        onClick={() => pickTool("custom", "rides")}
+                        aria-pressed={ridesView === "catalog"}
+                        onClick={() => setRidesView("catalog")}
                       >
-                        {customDesign.name} platzieren · {EUR(designStats(customDesign).cost)}
+                        Neu bauen
                       </button>
-                    )}
-                    <button
-                      className="primary"
-                      style={{ marginTop: 12 }}
-                      onClick={() => pickTool("coaster", "coaster")}
-                    >
-                      <RollerCoaster size={18} /> Eigene Achterbahn bauen
-                    </button>
-                    <div className="hintbox">
-                      <Info />
-                      <span>
-                        Platziere die Attraktion. Danach legt „Anschließen & öffnen“ den Weg für
-                        dich an.
-                      </span>
+                      <button
+                        aria-pressed={ridesView === "park"}
+                        onClick={() => {
+                          setRidesView("park");
+                          setTool("select");
+                        }}
+                      >
+                        Im Park{" "}
+                        {snapshot
+                          ? `(${snapshot.buildings.filter((item) => isAttraction(item.kind) || isTransport(item.kind)).length})`
+                          : ""}
+                      </button>
                     </div>
+                    {ridesView === "park" && snapshot ? (
+                      <AttractionDirectory
+                        park={snapshot}
+                        selectedId={selected}
+                        onSelect={selectAttraction}
+                        onFocus={focusAttraction}
+                      />
+                    ) : (
+                      <>
+                        {catalog([
+                          "wheel",
+                          "carousel",
+                          "bumper",
+                          "balloonride",
+                          "swing",
+                          "drop",
+                          "pirate",
+                          "teacups",
+                          "spinner",
+                        ])}
+                        <button
+                          className="secondary"
+                          style={{ marginTop: 12, width: "100%" }}
+                          onClick={() => {
+                            if (snapshot && isUnlocked(snapshot, "custom")) setWorkshop(true);
+                            else {
+                              setTab("research");
+                              setSettings(true);
+                            }
+                          }}
+                        >
+                          <Sparkles size={18} />{" "}
+                          {snapshot && isUnlocked(snapshot, "custom")
+                            ? "Eigene Attraktion entwickeln"
+                            : "Werkstatt erforschen"}
+                        </button>
+                        {customDesign && (
+                          <button
+                            className="primary"
+                            style={{ marginTop: 8 }}
+                            onClick={() => pickTool("custom", "rides")}
+                          >
+                            {customDesign.name} platzieren · {EUR(designStats(customDesign).cost)}
+                          </button>
+                        )}
+                        <button
+                          className="primary"
+                          style={{ marginTop: 12 }}
+                          onClick={() => pickTool("coaster", "coaster")}
+                        >
+                          <RollerCoaster size={18} /> Eigene Achterbahn bauen
+                        </button>
+                        <div className="hintbox">
+                          <Info />
+                          <span>
+                            Platziere die Attraktion. Danach legt „Anschließen & öffnen“ den Weg für
+                            dich an.
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
                 {category === "shops" && (
@@ -2570,22 +2948,29 @@ export default function Home() {
                         <div className="adjust-heading">
                           {adjust.mode === "station" ? <MapPin /> : <Move />}
                           <h3>
-                            {adjust.mode === "station" ? "Station versetzen" : "Position anpassen"}
+                            {adjust.rotateOnly
+                              ? "Ausrichtung ändern"
+                              : adjust.mode === "station"
+                                ? "Station versetzen"
+                                : "Position anpassen"}
                           </h3>
                         </div>
                         <p className="small">
-                          {adjust.mode === "station"
-                            ? "Wähle ein grün markiertes Gleisfeld. Die Station braucht einen geraden, ebenen Abschnitt am Boden."
-                            : "Bewege die Bahn über den Park. Ihre Station ist der Ankerpunkt. Die bisherige Position bleibt bis zur Bestätigung bestehen."}
+                          {adjust.rotateOnly
+                            ? "Das Objekt bleibt an seinem Platz. Drehe die Vorschau in 90°-Schritten und übernimm die gewünschte Ausrichtung."
+                            : adjust.mode === "station"
+                              ? "Wähle ein grün markiertes Gleisfeld. Die Station braucht einen geraden, ebenen Abschnitt am Boden."
+                              : "Bewege die Bahn über den Park. Ihre Station ist der Ankerpunkt. Die bisherige Position bleibt bis zur Bestätigung bestehen."}
                         </p>
-                        {adjust.mode === "move" && b.kind === "coaster" && (
+                        {adjust.mode === "move" && supportsBuildingRotation(b.kind) && (
                           <button
                             className="secondary"
                             onClick={() =>
                               setAdjust((a) => (a ? { ...a, rotation: (a.rotation + 1) % 4 } : a))
                             }
                           >
-                            <RotateCw size={16} /> Um 90° drehen <kbd>R</kbd>
+                            <RotateCw size={16} /> Um 90° drehen <kbd>R</kbd> ·{" "}
+                            {(((b.orientation ?? 0) + adjust.rotation) % 4) * 90}°
                           </button>
                         )}
                         {adjust.mode === "station" && recommendedStation && (
@@ -2621,7 +3006,8 @@ export default function Home() {
                           disabled={!!adjustmentPlan?.error || !adjustmentPlan?.changed}
                           onClick={() => act(adjust.point)}
                         >
-                          <Check size={16} /> Position übernehmen
+                          <Check size={16} />{" "}
+                          {adjust.rotateOnly ? "Drehung übernehmen" : "Position übernehmen"}
                         </button>
                         <button className="secondary" onClick={cancelAdjustment}>
                           <X size={16} /> Abbrechen
@@ -4053,7 +4439,7 @@ export default function Home() {
           )}
         <aside
           key={snapshot?.scenario}
-          className={`objective ${showGoals ? "show-goals" : ""} ${tool !== "select" ? "while-building" : ""}`}
+          className={`objective ${areaEditor ? "area-hidden" : ""} ${showGoals ? "show-goals" : ""} ${tool !== "select" ? "while-building" : ""}`}
         >
           <div className="eyebrow">
             <Flag /> {snapshot?.mode === "sandbox" ? "Freies Spiel" : "Dein nächstes Ziel"}
@@ -4223,7 +4609,7 @@ export default function Home() {
                     ? `${podEdit.role === "entry" ? "Eingangs" : "Ausgangs"}pod versetzen`
                     : (placement?.error ??
                       (adjust
-                        ? `${adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
+                        ? `${adjust.rotateOnly ? "Ausrichtung ändern" : adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
                         : placement
                           ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? COASTER_TYPES[coasterType].name : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Eingangsweg (blau)" : tool === "exit" ? "Ausgangsweg (rot)" : "Wasser"))} · ${EUR(placement.cost)}`
                           : "Bewege den Zeiger auf den Bauplatz"))}
@@ -4779,6 +5165,8 @@ export default function Home() {
               {snapshot && (
                 <StaffPanel
                   onLocateStaff={locateStaff}
+                  onEditCleanerArea={beginCleanerArea}
+                  onClearCleanerArea={clearCleanerArea}
                   park={snapshot}
                   onAssignKeeper={(workerId, habitatId) => {
                     const error = assignZooKeeperToHabitat(park.current!, workerId, habitatId);

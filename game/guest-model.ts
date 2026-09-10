@@ -2,10 +2,19 @@ import { FOOD } from "./park-life";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { guestAppearance } from "./visitors";
+import { createSouvenirModel } from "./souvenir-model";
 import type { Guest } from "./simulation";
 type GuestSource = Pick<Guest, "id" | "skin"> &
-  Partial<Pick<Guest, "food" | "ageGroup" | "appearance" | "party">>;
-type Part = { p: number[]; s: number[]; color: string; angle?: number; head?: boolean };
+  Partial<Pick<Guest, "food" | "souvenir" | "ageGroup" | "appearance" | "party">>;
+type Part = {
+  p: number[];
+  s: number[];
+  color: string;
+  angle?: number;
+  head?: boolean;
+  grip?: boolean;
+  leashGrip?: boolean;
+};
 const sphere = new THREE.SphereGeometry(1, 12, 8);
 /** Human proportions in metres, looking along -Z. Seated origin is the cushion. */
 export function personParts(
@@ -65,13 +74,17 @@ export function personParts(
     const shoulder = [side * 0.215, neck - 0.06, 0.03],
       elbow = [side * 0.27, hip + 0.27, seated ? -0.14 : 0.03 + swing * 0.12],
       hand =
-        g?.food && side > 0
-          ? [side * 0.2, hip + 0.36 + Math.max(0, Math.sin(phase * 1.1)) * 0.3, -0.29]
-          : [side * 0.27, hip + 0.12, seated ? -0.32 : swing * 0.21];
+        g?.souvenir && side < 0 && !seated
+          ? [side * 0.27, hip + 0.23 + swing * 0.025, -0.12 + swing * 0.055]
+          : g?.food && side > 0
+            ? [side * 0.2, hip + 0.36 + Math.max(0, Math.sin(phase * 1.1)) * 0.3, -0.29]
+            : [side * 0.27, hip + 0.12, seated ? -0.32 : swing * 0.21];
     limb(c.shirt, shoulder, [side * 0.25, hip + 0.37, seated ? -0.08 : swing * 0.06], 0.07, 0.073);
     limb(c.skin, [side * 0.25, hip + 0.37, seated ? -0.08 : swing * 0.06], elbow, 0.046);
     limb(c.skin, elbow, hand, 0.039);
     add(c.skin, hand, [0.05, 0.07, 0.038]);
+    if (side < 0 && g?.souvenir && !seated) parts[parts.length - 1].grip = true;
+    if (side > 0) parts[parts.length - 1].leashGrip = true;
     const knee = [side * 0.11, seated ? hip - 0.09 : 0.46, seated ? -0.36 : -swing * 0.18],
       ankle = [side * 0.11, seated ? -0.4 : 0.14, seated ? -0.41 : -swing * 0.3];
     limb(c.pants, [side * 0.105, hip, 0], knee, 0.083);
@@ -178,6 +191,13 @@ export function createGuestModel(g?: GuestSource, seated = true) {
     mesh.name = isHead ? "head" : "body";
     root.add(mesh);
   }
+  if (g?.souvenir && !seated) {
+    const souvenir = createSouvenirModel(g),
+      grip = parts.find((p) => p.grip);
+    if (grip) souvenir.root.position.fromArray(grip.p);
+    souvenir.root.scale.setScalar(appearance.ageGroup === "child" ? 0.86 : 1);
+    root.add(souvenir.root);
+  }
   return root;
 }
 export function createCrowd(guests: Guest[]) {
@@ -193,6 +213,10 @@ export function createCrowd(guests: Guest[]) {
     return { id: g.id, ageGroup: appearance.ageGroup, heightScale: appearance.heightScale };
   });
   mesh.frustumCulled = false;
+  const souvenirs = guests.map((g) => (g.souvenir ? createSouvenirModel(g) : undefined));
+  souvenirs.forEach((souvenir) => {
+    if (souvenir) mesh.add(souvenir.root);
+  });
   const base = new THREE.Matrix4(),
     local = new THREE.Matrix4(),
     world = new THREE.Matrix4(),
@@ -216,13 +240,15 @@ export function createCrowd(guests: Guest[]) {
       walking: boolean,
       seated = false,
       height = 0,
+      time = phase / 7,
     ) {
       base.compose(
         p.set(x, height + (walking ? Math.abs(Math.sin(phase)) * 0.025 : 0), z),
         q.setFromAxisAngle(THREE.Object3D.DEFAULT_UP, yaw),
         s.set(1, 1, 1),
       );
-      personParts(guests[i], seated, phase, walking).forEach((part, j) => {
+      const parts = personParts(guests[i], seated, phase, walking);
+      parts.forEach((part, j) => {
         local.compose(
           p.fromArray(part.p),
           r.setFromAxisAngle(new THREE.Vector3(1, 0, 0), -(part.angle ?? 0)),
@@ -231,6 +257,17 @@ export function createCrowd(guests: Guest[]) {
         world.multiplyMatrices(base, local);
         mesh.setMatrixAt(i * count + j, world);
       });
+      const souvenir = souvenirs[i],
+        grip = parts.find((part) => part.grip);
+      if (souvenir) {
+        souvenir.root.visible = !!grip && !seated;
+        if (grip) {
+          souvenir.root.position.fromArray(grip.p).applyMatrix4(base);
+          souvenir.root.quaternion.copy(q);
+          souvenir.root.scale.setScalar(guestAppearance(guests[i]).ageGroup === "child" ? 0.86 : 1);
+          souvenir.update(time);
+        }
+      }
     },
     finish() {
       mesh.instanceMatrix.needsUpdate = true;

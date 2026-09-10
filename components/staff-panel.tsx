@@ -1,4 +1,5 @@
-"use client";
+import { cleanerAreaInfo } from "../game/cleanliness";
+("use client");
 
 import {
   BrushCleaning,
@@ -261,11 +262,16 @@ function CleanerEmployeeCard({
   park,
   worker,
   onLocateStaff,
+  onEditCleanerArea,
+  onClearCleanerArea,
 }: {
   park: Park;
   worker: Cleaner;
+  onEditCleanerArea?: (id: number) => void;
+  onClearCleanerArea?: (id: number) => void;
   onLocateStaff?: (ref: StaffRef) => void;
 }) {
+  const area = cleanerAreaInfo(park, worker);
   const location = staffLocation(park, { kind: "cleaner", id: worker.id });
   const name = location?.name ?? `Reinigungskraft #${worker.id}`;
   const bin =
@@ -299,6 +305,45 @@ function CleanerEmployeeCard({
         busy={worker.mode !== "idle"}
         onLocateStaff={location ? onLocateStaff : undefined}
       />
+      <div className="cleaner-area-card" data-testid={`cleaner-area-${worker.id}`}>
+        <div>
+          <MapPin size={15} />
+          <strong>
+            {area.mode === "manual" ? "Fester Reinigungsbereich" : "Automatisch verteilt"}
+          </strong>
+        </div>
+        <p>
+          {area.mode === "manual"
+            ? `${area.reachablePaths} erreichbare Wegfelder · ${area.litter} Müllteile · ${area.bins} Tonnen`
+            : "Übernimmt freie Aufträge und verteilt sich mit dem Team im Park."}
+        </p>
+        {area.mode === "manual" && !area.connected && (
+          <p className="cleaner-area-warning">
+            Bereich nicht erreichbar. Verbinde die Wege oder ändere den Bereich.
+          </p>
+        )}
+        <div className="cleaner-area-actions">
+          <button
+            className="secondary"
+            onClick={() => onEditCleanerArea?.(worker.id)}
+            disabled={!onEditCleanerArea}
+            data-testid={`cleaner-area-edit-${worker.id}`}
+          >
+            <MapPin size={16} />
+            {worker.area ? "Bereich ansehen / ändern" : "Bereich markieren"}
+          </button>
+          {worker.area && (
+            <button
+              className="secondary"
+              onClick={() => onClearCleanerArea?.(worker.id)}
+              disabled={!onClearCleanerArea}
+              data-testid={`cleaner-area-auto-${worker.id}`}
+            >
+              Automatik
+            </button>
+          )}
+        </div>
+      </div>
       <details className="sc-person-details" data-testid={`staff-details-cleaner-${worker.id}`}>
         <summary>
           <span>Qualifikation & Einsatz</span>
@@ -351,8 +396,10 @@ function CleanerEmployeeCard({
               Einsatzgebiet
             </h5>
             <p>
-              Automatisch im ganzen Park. Die Reinigung kontrolliert die Wege und bringt Müll zu
-              freien Tonnen oder einer erreichbaren Sammelstelle.
+              {worker.area
+                ? `Felder ${worker.area.x1 + 1}/${worker.area.y1 + 1} bis ${worker.area.x2 + 1}/${worker.area.y2 + 1}. Neue Reinigungsaufträge bleiben in diesem Bereich.`
+                : "Automatisch im ganzen Park. Das Team verteilt freie Reinigungsaufträge untereinander."}
+              Für Anreise und Müllentsorgung darf die Person den Bereich auf den Wegen verlassen.
             </p>
           </div>
         </div>
@@ -369,6 +416,8 @@ export function StaffPanel({
   onAssignKeeper,
   onSelectRide,
   onLocateStaff,
+  onEditCleanerArea,
+  onClearCleanerArea,
   ...crewActions
 }: {
   park: Park;
@@ -378,6 +427,8 @@ export function StaffPanel({
   onAssignKeeper?: ZooKeeperAssignmentHandler;
   onSelectRide: (id: number) => void;
   onLocateStaff?: (ref: StaffRef) => void;
+  onEditCleanerArea?: (id: number) => void;
+  onClearCleanerArea?: (id: number) => void;
 } & CrewAssignmentHandlers) {
   const ops = operationsStats(park),
     zoo = zooTeamTotals(park);
@@ -443,6 +494,8 @@ export function StaffPanel({
                 park={park}
                 worker={worker}
                 onLocateStaff={onLocateStaff}
+                onEditCleanerArea={onEditCleanerArea}
+                onClearCleanerArea={onClearCleanerArea}
               />
             ))}
           </div>

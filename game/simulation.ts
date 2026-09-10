@@ -192,6 +192,7 @@ export type Kind =
   | "keeperhut";
 export type Tile = "grass" | "path" | "queue" | "exit" | "water";
 export type Building = {
+  orientation?: 0 | 1 | 2 | 3;
   photoPoint?: number;
   operations?: RideOperations;
   condition?: number;
@@ -2618,6 +2619,8 @@ export function validSave(v: unknown): v is Park {
         !b ||
         !Object.hasOwn(CATALOG, b.kind) ||
         !point(b) ||
+        (b.orientation !== undefined &&
+          (!Number.isInteger(b.orientation) || b.orientation < 0 || b.orientation > 3)) ||
         (b.pods !== undefined &&
           ((!usesPods(b.kind) && !isHabitat(b.kind)) ||
             !validPods(b.pods, CATALOG[b.kind].size) ||

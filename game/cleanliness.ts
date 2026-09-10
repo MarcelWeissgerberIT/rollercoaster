@@ -1,5 +1,6 @@
 /** Park care simulation. Guest navigation and economy remain caller-owned. */
 export type Cell = { x: number; y: number };
+export type CleanerArea = { x1: number; y1: number; x2: number; y2: number };
 export type WasteKind = "wrapper" | "cup";
 export type Waste = { kind: WasteKind; remaining: number; waited: number };
 export type Litter = Cell & { id: number; kind: WasteKind; amount: number };
@@ -17,6 +18,10 @@ export type Cleaner = Cell & {
   walked?: number;
   workTotal?: number;
   patrolStep?: number;
+  /** Inclusive assigned work area. Missing means automatic park-wide coverage. */
+  area?: CleanerArea;
+  workStep?: number;
+  fairCursor?: number;
   transferred?: boolean;
   serviceTarget?: Cell;
   returning?: { from: Cell; left: number; total: number; distanceStart: number };
@@ -63,6 +68,79 @@ const walkCells = (s: CleaningPark) =>
   s.tiles.flatMap((r, y) => r.flatMap((_, x) => (walkable(s, { x, y }) ? [{ x, y }] : [])));
 const bins = (s: CleaningPark) => s.buildings.filter((b) => b.kind === "bin");
 const distance = (a: Cell, b: Cell) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+const inArea = (area: CleanerArea | undefined, p: Cell) =>
+  !area || (p.x >= area.x1 && p.x <= area.x2 && p.y >= area.y1 && p.y <= area.y2);
+function validArea(s: CleaningPark, area: CleanerArea): boolean {
+  return (
+    !!area &&
+    !Array.isArray(area) &&
+    [area.x1, area.y1, area.x2, area.y2].every(Number.isSafeInteger) &&
+    area.x1 >= 0 &&
+    area.y1 >= 0 &&
+    area.x1 <= area.x2 &&
+    area.y1 <= area.y2 &&
+    area.y2 < s.tiles.length &&
+    s.tiles.slice(area.y1, area.y2 + 1).every((row) => area.x2 < row.length)
+  );
+}
+
+/** Detached, read-only area facts; an interrupted connection never clears an assignment. */
+export function cleanerAreaInfo(s: CleaningPark, w: Cleaner) {
+  const area = w.area ? { ...w.area } : null,
+    paths = walkCells(s).filter((p) => inArea(w.area, p)),
+    reachable = new Set(reachableCells(s, w).map(key)),
+    reachablePaths = paths.filter((p) => reachable.has(key(p))).length,
+    containers = bins(s).filter((b) => inArea(w.area, b)),
+    connected = reachablePaths > 0;
+  return {
+    area,
+    mode: w.area ? ("manual" as const) : ("auto" as const),
+    reachablePaths,
+    totalPaths: paths.length,
+    litter:
+      s.cleanliness?.litter.reduce((sum, l) => sum + (inArea(w.area, l) ? l.amount : 0), 0) ?? 0,
+    bins: containers.length,
+    fullBins: containers.filter((b) => (b.binFill ?? 0) >= BIN_CAPACITY).length,
+    connected,
+    label: !connected
+      ? "Bereich nicht erreichbar – verbinde die Wege."
+      : w.area
+        ? `Fester Bereich · ${reachablePaths} von ${paths.length} Wegfeldern erreichbar`
+        : "Automatisch im ganzen Park",
+  };
+}
+
+/** A reassignment changes the next work destination, never the worker's physical position or bag. */
+export function assignCleanerArea(
+  s: CleaningPark,
+  id: number,
+  area: CleanerArea | null,
+): string | null {
+  const w = s.cleanliness?.workers.find((worker) => worker.id === id);
+  if (!Number.isSafeInteger(id) || !w) return "Diese Reinigungskraft ist nicht mehr verfügbar.";
+  if (area !== null) {
+    if (!validArea(s, area)) return "Wähle einen rechteckigen Bereich innerhalb des Parks.";
+    if (!walkCells(s).some((p) => inArea(area, p)))
+      return "Der Bereich braucht mindestens ein Wegfeld.";
+    if (!reachableCells(s, w).some((p) => inArea(area, p)))
+      return "Dieser Bereich ist nicht erreichbar. Verbinde zuerst die Wege.";
+  }
+  if (area) w.area = { ...area };
+  else delete w.area;
+  const target = liveTarget(s, w),
+    carryingTask = w.target?.kind === "deposit" || w.target?.kind === "collection",
+    activeService = w.workTotal && ["sweep", "empty", "deposit"].includes(w.mode);
+  // Finish a physical service/return already under way. Deposits may use bins outside the area.
+  if (
+    !w.returning &&
+    !activeService &&
+    !carryingTask &&
+    (w.mode === "patrol" || (target && !inArea(w.area, target)))
+  )
+    resetWorker(w);
+  w.retry = 0;
+  return null;
+}
 
 export function initCleanliness(s: CleaningPark): Cleanliness {
   const c = (s.cleanliness ??= {
@@ -140,11 +218,22 @@ export function dropWaste(s: CleaningPark, point: Cell, kind: WasteKind, amount 
   return true;
 }
 
-type Job = { kind: NonNullable<Cleaner["target"]>["kind"]; id: number; cells: Cell[] };
-function routeToJob(s: CleaningPark, from: Cell, jobs: Job[]): { job: Job; route: Cell[] } | null {
+type Job = {
+  kind: NonNullable<Cleaner["target"]>["kind"];
+  id: number;
+  cells: Cell[];
+  point?: Cell;
+};
+function routeToJob(
+  s: CleaningPark,
+  from: Cell,
+  jobs: Job[],
+  area?: CleanerArea,
+): { job: Job; route: Cell[] } | null {
   const targets = new Map<string, Job>();
   for (const job of jobs)
-    for (const p of job.cells) if (walkable(s, p) && !targets.has(key(p))) targets.set(key(p), job);
+    for (const p of job.cells)
+      if (walkable(s, p) && inArea(area, p) && !targets.has(key(p))) targets.set(key(p), job);
   if (!targets.size) return null;
   const start = cell(from),
     queue = [start],
@@ -164,7 +253,7 @@ function routeToJob(s: CleaningPark, from: Cell, jobs: Job[]): { job: Job; route
       return { job, route };
     }
     for (const n of adjacent(p))
-      if (walkable(s, n) && !previous.has(key(n))) {
+      if (walkable(s, n) && inArea(area, n) && !previous.has(key(n))) {
         previous.set(key(n), p);
         queue.push(n);
       }
@@ -271,13 +360,13 @@ export function cleanerServicePose(s: CleaningPark, w: Cleaner) {
     distanceWalked: (w.walked ?? 0) + travel * (returning ? 2 - fraction : fraction),
   };
 }
-function reachableCells(s: CleaningPark, from: Cell): Cell[] {
+function reachableCells(s: CleaningPark, from: Cell, area?: CleanerArea): Cell[] {
   const start = cell(from),
     queue = walkable(s, start) ? [start] : [],
     seen = new Set(queue.map(key));
   for (let i = 0; i < queue.length; i++)
     for (const p of adjacent(queue[i]))
-      if (walkable(s, p) && !seen.has(key(p))) {
+      if (walkable(s, p) && inArea(area, p) && !seen.has(key(p))) {
         seen.add(key(p));
         queue.push(p);
       }
@@ -322,11 +411,23 @@ function disposalJob(s: CleaningPark, w: Cleaner) {
   return point ? routeToJob(s, w, [{ kind: "collection", id: 0, cells: [point] }]) : null;
 }
 function patrol(s: CleaningPark, w: Cleaner) {
-  const reachable = reachableCells(s, w),
+  const routeArea = w.area && inArea(w.area, cell(w)) ? w.area : undefined,
+    reachable = reachableCells(s, w, routeArea).filter((p) => inArea(w.area, p)),
     preferred = reachable.filter(
       (p) => s.tiles[p.y][p.x] === "path" && distance(p, cell(w)) >= 2 && distance(p, cell(w)) <= 9,
     ),
-    candidates = preferred.length ? preferred : reachable.filter((p) => !same(p, cell(w)));
+    all = reachable.filter((p) => !same(p, cell(w))),
+    covered = neighborhoodCoverage(s, w),
+    uncovered = (points: Cell[]) => points.filter((p) => !covered(p)),
+    localFree = w.area ? preferred : uncovered(preferred),
+    farFree = w.area ? [] : uncovered(all),
+    candidates = localFree.length
+      ? localFree
+      : farFree.length
+        ? farFree
+        : preferred.length
+          ? preferred
+          : all;
   if (!candidates.length) {
     w.mode = "idle";
     w.retry = 1.2;
@@ -334,12 +435,32 @@ function patrol(s: CleaningPark, w: Cleaner) {
   }
   const step = w.patrolStep ?? 0,
     point = candidates[(w.id * 17 + step * 13) % candidates.length],
-    found = routeToJob(s, w, [{ kind: "collection", id: 0, cells: [point] }]);
+    found = routeToJob(s, w, [{ kind: "collection", id: 0, cells: [point] }], routeArea);
   if (!found) return;
   w.patrolStep = step + 1;
   w.route = found.route;
   w.mode = "patrol";
   w.retry = 0.8;
+}
+/** Reserve neighborhoods as well as individual jobs, so a second worker sees distant demand. */
+function neighborhoodCoverage(s: CleaningPark, w: Cleaner, patrols = true) {
+  const neighbors = s
+    .cleanliness!.workers.filter((other) => other.id !== w.id)
+    .map((other) => ({
+      area: other.area,
+      point:
+        other.target?.kind === "litter" || other.target?.kind === "bin"
+          ? liveTarget(s, other)
+          : patrols && !other.target
+            ? (other.route.at(-1) ?? other)
+            : undefined,
+    }));
+  return (point: Cell) =>
+    neighbors.some(
+      (neighbor) =>
+        (neighbor.area && inArea(neighbor.area, point)) ||
+        (neighbor.point && distance(point, neighbor.point) <= 6),
+    );
 }
 function update(s: CleaningPark, dt: number) {
   const c = initCleanliness(s),
@@ -376,11 +497,38 @@ function update(s: CleaningPark, dt: number) {
     if ((w.carried ?? 0) > 0) return disposalJob(s, w);
     const available = (kind: Job["kind"], id: number) => !reserved.has(`${kind}:${id}`);
     const binJobs = containers
-      .filter((b) => (b.binFill ?? 0) >= BIN_CAPACITY * 0.75 && available("bin", b.id))
-      .map((b) => ({ kind: "bin" as const, id: b.id, cells: adjacent(b) }));
+      .filter(
+        (b) =>
+          inArea(w.area, b) && (b.binFill ?? 0) >= BIN_CAPACITY * 0.75 && available("bin", b.id),
+      )
+      .map((b) => ({ kind: "bin" as const, id: b.id, cells: adjacent(b), point: b }));
     const litterJobs = c.litter
-      .filter((l) => available("litter", l.id))
-      .map((l) => ({ kind: "litter" as const, id: l.id, cells: [l] }));
+      .filter((l) => inArea(w.area, l) && available("litter", l.id))
+      .map((l) => ({ kind: "litter" as const, id: l.id, cells: [l], point: l }));
+    if (!w.area) {
+      const accepted = (found: ReturnType<typeof routeToJob>) => {
+        if (found) w.workStep = (w.workStep ?? 0) + 1;
+        return found;
+      };
+      // Periodically walk the stable job order. A constantly replenished nearby
+      // corner must not indefinitely postpone an older reachable task elsewhere.
+      if ((w.workStep ?? 0) % 4 === 3) {
+        const reachable = new Set(reachableCells(s, w).map(key)),
+          token = (job: Job) => job.id * 2 + (job.kind === "litter" ? 1 : 0),
+          jobs = [...binJobs, ...litterJobs]
+            .filter((job) => job.cells.some((p) => reachable.has(key(p))))
+            .sort((a, b) => token(a) - token(b)),
+          next = jobs.find((job) => token(job) > (w.fairCursor ?? 0)) ?? jobs[0];
+        if (next) {
+          w.fairCursor = token(next);
+          return accepted(routeToJob(s, w, [next]));
+        }
+      }
+      const covered = neighborhoodCoverage(s, w, false),
+        uncovered = (jobs: Job[]) => jobs.filter((job) => !covered(job.point!)),
+        spread = routeToJob(s, w, uncovered(binJobs)) ?? routeToJob(s, w, uncovered(litterJobs));
+      return accepted(spread ?? routeToJob(s, w, binJobs) ?? routeToJob(s, w, litterJobs));
+    }
     return routeToJob(s, w, binJobs) ?? routeToJob(s, w, litterJobs);
   };
   for (const w of c.workers) {
@@ -672,6 +820,9 @@ export function validCleanliness(s: CleaningPark): boolean {
         (w.walked !== undefined && !nonnegative(w.walked)) ||
         (w.workTotal !== undefined && !nonnegative(w.workTotal)) ||
         (w.patrolStep !== undefined && !integer(w.patrolStep)) ||
+        (w.area !== undefined && !validArea(s, w.area)) ||
+        (w.workStep !== undefined && !integer(w.workStep)) ||
+        (w.fairCursor !== undefined && !integer(w.fairCursor)) ||
         (w.transferred !== undefined && typeof w.transferred !== "boolean") ||
         (w.serviceTarget !== undefined && !grid(w.serviceTarget)) ||
         (w.returning !== undefined &&

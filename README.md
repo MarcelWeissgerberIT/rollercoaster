@@ -4,6 +4,15 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 
 **[Jetzt spielen](https://marcelweissgerberit.github.io/rollercoaster/)**
 
+## Nahansicht, Reinigungsflächen und Besucher
+
+- **Bauen → Fahrgeschäfte → Im Park** listet die vorhandenen Anlagen mit Suche. Das **Auge** öffnet ihre Details und fährt die Kamera passend heran; es steht auch direkt im ausgewählten Objekt. Mausrad und +/− reichen jetzt bis **500 %**.
+- **Verwalten → Personal → Bereich markieren**: Für eine Reinigungskraft ein Rechteck aufziehen oder zwei Ecken anklicken und **Bereich zuweisen** wählen. Andere Bereiche bleiben farbig sichtbar. Mit **Automatik** arbeitet die Person wieder parkweit; freie Kräfte verteilen sich auf unbesetzte Aufträge. Wege zur Arbeit und zur Müllentsorgung dürfen außerhalb des Arbeitsbereichs liegen.
+- **Drehen** im Objektkopf zeigt bei Achterbahnen, Bänken und Picknicktischen eine Vorschau in 90°-Schritten. **R** dreht weiter, **Drehung übernehmen** bestätigt; Rückgängig stellt die vorige Ausrichtung wieder her. Andere Objekte bieten die Aktion erst, wenn ihre Darstellung eine korrekte Drehung unterstützt.
+- Gäste tragen vier Ballonformen (rund, Folienstern, Folienherz, Bärengesicht) in acht Farben oder Teddys in sechs Farben mit Schal beziehungsweise Schleife. Varianten bleiben beim Laden gleich und stimmen in 2D und 3D überein. Familien gehen versetzt in zwei Reihen; auf engen Wegen bleibt die Formation auf begehbaren Feldern.
+
+Seltene erwachsene Einzelbesucher oder Paare bringen einen Hund mit; höchstens drei Hunde sind gleichzeitig zu sehen. Drei Fellvarianten, gelenkige Schritte, Leine, Ohren und Schwanz teilen sich in 2D und 3D dieselbe Darstellung. Hunde bleiben außerhalb von Fahrgeschäften.
+
 ## Parkleben, Fahrbetrieb und Forschung
 
 - Das Pastell-Halbrad gruppiert Bauen, Zoo, Park und Verwaltung. Der Bulldozer ist direkt erreichbar; das runde Forschungsicon öffnet einen Baum mit sichtbaren Voraussetzungen.
