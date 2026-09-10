@@ -12,6 +12,7 @@ export function createStaffModel(initial: StaffMotion) {
     direction = new THREE.Vector3();
   root.name = `staff-${initial.role}-${initial.id}${initial.post && initial.post !== "control" ? `-${initial.post}` : ""}`;
   root.userData.staffPost = initial.post;
+  root.userData.staffCrewId = initial.role === "operator" ? initial.appearanceId : undefined;
   root.userData.staffId = initial.id;
   root.userData.staffKind = initial.role;
   const update = (motion: StaffMotion) => {

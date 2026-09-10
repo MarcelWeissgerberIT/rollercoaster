@@ -33,6 +33,18 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
+.fp-balances--unlimited {
+  grid-template-columns: 1fr;
+}
+.fp-balances--unlimited article {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+}
+.fp-balances--unlimited strong {
+  font-size: 32px;
+  line-height: 1;
+}
 .fp-balances article {
   display: flex;
   flex-direction: column;

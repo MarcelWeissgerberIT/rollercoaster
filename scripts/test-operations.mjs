@@ -202,6 +202,11 @@ test("Undo cannot remove active crew: entire mixed batch remains identical; work
   );
   assert.deepEqual(s, before);
   while (b.riders.length) S.tick(s, 0.25);
+  assert.equal(b.operations.phase, "unloading");
+  const unloading = structuredClone(s);
+  assert(C.undoEdits(s, [crew, path]), "The crew still supervises the final exit phase");
+  assert.deepEqual(s, unloading);
+  while (b.operations.phase === "unloading") S.tick(s, 0.25);
   assert.equal(C.undoEdits(s, [crew, path]), null);
   assert.equal(b.operations.staffed, false);
   assert.equal(s.tiles[1][1], "grass");

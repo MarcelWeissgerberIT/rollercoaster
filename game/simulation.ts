@@ -1,4 +1,5 @@
 import { tickLoanDay, validateLoan, type LoanState } from "./loans";
+import { spendCash, creditCash } from "./budget";
 import { difficultyCost, validDifficulty } from "./difficulty";
 import { validEntrance, type GateStyle } from "./entrance";
 import {
@@ -10,6 +11,7 @@ import {
 } from "./research-coins";
 import {
   initOperations,
+  autoAssignRideCrews,
   hasOperator,
   tickOperations,
   repeatRideRound,
@@ -20,7 +22,9 @@ import {
   programRemaining,
   operatorWages,
   validOperations,
+  validCrewPool,
   type RideOperations,
+  type RideCrewPool,
 } from "./operations";
 import {
   FOOD,
@@ -247,6 +251,8 @@ export type Guest = {
   souvenir?: "balloon" | "plush";
 };
 export type Park = {
+  unlimitedBudget?: boolean;
+  crewPool?: RideCrewPool;
   difficulty?: import("./difficulty").Difficulty;
   loan?: LoanState;
   entrance?: { style: GateStyle; owned: GateStyle[] };
@@ -1309,8 +1315,7 @@ export function findRoute(s: Park, start: Point, end: Point): Point[] {
   return [];
 }
 export function spend(s: Park, cost: number) {
-  if (s.cash < cost) return false;
-  s.cash -= cost;
+  if (!spendCash(s, cost)) return false;
   s.expenses += cost;
   s.dayExpenses += cost;
   return true;
@@ -1464,6 +1469,7 @@ export function validateTrack(s: Park, track: Point[]): string | null {
   }
   return null;
 }
+const startingParks = new WeakSet<Park>();
 export function build(
   s: Park,
   kind: Kind,
@@ -1489,6 +1495,7 @@ export function build(
     return { error: "Hier ist kein Platz. Wähle freie Wiese." };
   const cost = track ? trackCost(track) : design ? designStats(design).cost : CATALOG[kind].cost;
   if (!spend(s, cost)) return { error: "Dafür reicht dein Parkbudget nicht." };
+  if (!startingParks.has(s)) initOperations(s);
   const b: Building = {
     ...proto,
     id: s.nextId++,
@@ -1517,6 +1524,7 @@ export function build(
   };
   if (isHabitat(kind)) ensureHabitat(b)!.accessVersion = 1;
   s.buildings.push(b);
+  if (!startingParks.has(s)) initOperations(s);
   return { id: b.id };
 }
 export function paint(s: Park, x: number, y: number, type: Tile, style?: PathStyle): string | null {
@@ -1554,6 +1562,7 @@ export function remove(s: Park, x: number, y: number) {
     return;
   const b = occupant(s, x, y);
   if (b) {
+    if (!startingParks.has(s)) initOperations(s);
     for (const l of s.transitLines ?? [])
       if (l.a === b.id || l.b === b.id) {
         for (const g of s.guests) if (g.transit?.line === l.id) releaseTransit(s, g, l);
@@ -1566,7 +1575,7 @@ export function remove(s: Park, x: number, y: number) {
       s.draft = undefined;
     }
     const refund = Math.round(buildingBaseCost(b) * 0.4);
-    s.cash += refund;
+    creditCash(s, refund);
     s.income += refund;
     s.dayIncome += refund;
     for (const g of s.guests)
@@ -1574,6 +1583,7 @@ export function remove(s: Park, x: number, y: number) {
         if (cancelTransitDestination(s, g)) continue;
         leaveBuilding(s, b, g);
       }
+    if (!startingParks.has(s)) autoAssignRideCrews(s);
   } else if (inBounds(x, y, s) && !(x === ENTRANCE.x && y === ENTRANCE.y)) {
     s.tiles[y][x] = "grass";
     if (s.pathStyles) delete s.pathStyles[`${x},${y}`];
@@ -1607,7 +1617,7 @@ function newGuest(s: Park) {
   s.guests.push(g);
   s.arrivals++;
   recordMarketingRevenue(s, g, s.ticket, "ticket");
-  s.cash += s.ticket;
+  creditCash(s, s.ticket);
   s.income += s.ticket;
   s.dayIncome += s.ticket;
   s.operatingIncomeToday = (s.operatingIncomeToday ?? 0) + s.ticket;
@@ -1671,6 +1681,9 @@ export function newPark(
       remaining: 0,
     },
   };
+  // Starter/campaign parks explicitly begin with the crews their initial rides
+  // already had. Later builds use this finite pool and never hire implicitly.
+  startingParks.add(s);
   for (let y = 6; y < SIZE; y++) s.tiles[y][15] = "path";
   for (let x = 5; x <= 25; x++) {
     s.tiles[18][x] = "path";
@@ -1767,6 +1780,7 @@ export function newPark(
   if (mode === "scenario") populateCampaign(s, scenario, { build, newGuest });
   initCleanliness(s);
   initZoo(s);
+  startingParks.delete(s);
   initOperations(s);
   return s;
 }
@@ -2040,7 +2054,7 @@ export function tick(s: Park, dt: number) {
             b.served++;
             b.revenue += price;
             recordMarketingRevenue(s, g, price, "shop");
-            s.cash += price;
+            creditCash(s, price);
             s.income += price;
             s.dayIncome += price;
             s.operatingIncomeToday! += price;
@@ -2051,7 +2065,7 @@ export function tick(s: Park, dt: number) {
                 : b.kind === "plush"
                   ? 4
                   : 0.4;
-            s.cash -= supplies;
+            spendCash(s, supplies, true);
             s.expenses += supplies;
             s.dayExpenses += supplies;
             s.operatingExpensesToday! += supplies;
@@ -2091,7 +2105,7 @@ export function tick(s: Park, dt: number) {
           b.served++;
           b.revenue += b.price;
           recordMarketingRevenue(s, g, b.price, "ride");
-          s.cash += b.price;
+          creditCash(s, b.price);
           s.income += b.price;
           s.dayIncome += b.price;
           s.operatingIncomeToday! += b.price;
@@ -2402,7 +2416,7 @@ export function tick(s: Park, dt: number) {
       );
     const cost =
       difficultyCost(s, payroll, "wages") + difficultyCost(s, upkeep, "upkeep") + tickLoanDay(s);
-    s.cash -= cost;
+    spendCash(s, cost, true);
     s.expenses += cost;
     s.dayExpenses += cost;
     s.operatingExpensesToday! += cost;
@@ -2430,6 +2444,7 @@ export function tick(s: Park, dt: number) {
       (b) => isRide(b.kind) && b.open && hasOperator(b) && b.tested && access(s, b, net),
     );
   if (
+    s.mode === "scenario" &&
     !s.won &&
     s.arrivals >= goal.arrivals &&
     s.rating >= goal.rating &&
@@ -2474,6 +2489,7 @@ export function validSave(v: unknown): v is Park {
     if (
       !validateLoan(s) ||
       !validDifficulty(s) ||
+      (s.unlimitedBudget !== undefined && typeof s.unlimitedBudget !== "boolean") ||
       s.version !== 1 ||
       !["scenario", "sandbox"].includes(s.mode) ||
       typeof s.open !== "boolean" ||
@@ -2592,7 +2608,8 @@ export function validSave(v: unknown): v is Park {
       !validMarketing(s) ||
       !validZoo(s) ||
       !validParkLife(s) ||
-      !validOperations(s)
+      !validOperations(s) ||
+      !validCrewPool(s)
     )
       return false;
     const ids = new Set<number>();

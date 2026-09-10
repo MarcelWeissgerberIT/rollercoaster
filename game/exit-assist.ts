@@ -1,3 +1,4 @@
+import { canAfford } from "./budget";
 import {
   type Park,
   type Building,
@@ -69,7 +70,7 @@ export function applyExitSuggestion(
   const fresh = suggestExit(s, b, clear);
   if (!fresh || JSON.stringify(fresh) !== JSON.stringify(proposal))
     return "Der Bauplatz hat sich geändert. Lass den Ausgang erneut prüfen.";
-  if (s.cash < fresh.cost) return "Das Budget reicht für diesen Ausgang nicht.";
+  if (!canAfford(s, fresh.cost)) return "Das Budget reicht für diesen Ausgang nicht.";
   const error = setAccessPod(s, b, "exit", fresh.pod, clear);
   if (error) return error;
   // setAccessPod may already clear the first cell and charge its ten euros.

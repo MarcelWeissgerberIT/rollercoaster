@@ -1,4 +1,5 @@
 import { recordMarketingRevenue } from "./marketing";
+import { canAfford, spendCash, creditCash } from "./budget";
 import type { Park, Point, Building, Guest } from "./simulation";
 import { connected, exitFromCells, exitNetwork } from "./walkways";
 import { podPort } from "./pods";
@@ -90,13 +91,13 @@ export function transitPlan(s: Park, a: Building, b: Building) {
   return {
     route,
     cost,
-    error: cost > s.cash ? "Für die Linie reicht das Budget noch nicht." : null,
+    error: !canAfford(s, cost) ? "Für die Linie reicht das Budget noch nicht." : null,
   };
 }
 export function createTransitLine(s: Park, a: Building, b: Building): string | null {
   const plan = transitPlan(s, a, b);
   if (plan.error) return plan.error;
-  s.cash -= plan.cost;
+  spendCash(s, plan.cost);
   s.expenses += plan.cost;
   s.dayExpenses += plan.cost;
   (s.transitLines ??= []).push({
@@ -306,7 +307,7 @@ export function tickTransit(s: Park, dt: number) {
           line.served++;
           line.revenue += fare;
           recordMarketingRevenue(s, g, fare, "ride");
-          s.cash += fare;
+          creditCash(s, fare);
           s.income += fare;
           s.dayIncome += fare;
           s.operatingIncomeToday = (s.operatingIncomeToday ?? 0) + fare;
@@ -389,7 +390,8 @@ export function repairTransitPlan(s: Park, line: TransitLine) {
   if (!a || !b) return { route: [] as Point[], cost: 0, error: "Ein Halt fehlt." };
   const virtual = {
       ...s,
-      cash: Infinity,
+      mode: "sandbox" as const,
+      unlimitedBudget: true,
       transitLines: s.transitLines?.filter((l) => l.id !== line.id),
     },
     plan = transitPlan(virtual, a, b);
@@ -402,7 +404,7 @@ export function repairTransitPlan(s: Park, line: TransitLine) {
     cost,
     error:
       plan.error ??
-      (cost > s.cash ? "Das Budget reicht für die neue Verbindung noch nicht." : null),
+      (!canAfford(s, cost) ? "Das Budget reicht für die neue Verbindung noch nicht." : null),
   };
 }
 export function repairTransit(s: Park, line: TransitLine) {
@@ -421,7 +423,7 @@ export function repairTransit(s: Park, line: TransitLine) {
   line.passengers = [];
   line.enabled = true;
   line.fault = undefined;
-  s.cash -= plan.cost;
+  spendCash(s, plan.cost);
   s.expenses += plan.cost;
   s.dayExpenses += plan.cost;
   return null;

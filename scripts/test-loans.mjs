@@ -216,6 +216,7 @@ test("The real daily simulation books interest once at every difficulty and resp
     Object.assign(s, {
       difficulty,
       buildings: [],
+      crewPool: { version: 1, nextId: 1, crews: [] },
       guests: [],
       staff: 0,
       cash: 0,

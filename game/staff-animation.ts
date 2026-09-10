@@ -15,6 +15,7 @@ export type StaffAction =
   | "console";
 export type StaffMotion = {
   id: number;
+  appearanceId?: number;
   post?: "control" | "entry" | "exit";
   role: "cleaner" | "keeper" | "operator";
   action: StaffAction;
@@ -43,14 +44,15 @@ export function staffPose(m: StaffMotion): StaffPart[] {
     parts.push({ id, color, a, size, shape });
   const limb = (id: string, color: string, a: V3, b: V3, r: number) =>
     parts.push({ id, color, a, b, size: [r, r, r], shape: "round" });
-  const appearanceId = m.id + (m.post === "entry" ? 1 : m.post === "exit" ? 2 : 0);
+  const appearanceId =
+    (m.appearanceId ?? m.id) + (m.post === "entry" ? 1 : m.post === "exit" ? 2 : 0);
   const skin = ["#e6b48e", "#b57d59", "#825339", "#f1cba8"][Math.abs(appearanceId) % 4],
     hair = ["#4a3227", "#282b29", "#916942", "#684333"][Math.abs(appearanceId) % 4],
     shirt = m.role === "cleaner" ? "#268996" : m.role === "keeper" ? "#67834e" : "#3e6689",
     pants = m.role === "keeper" ? "#685d42" : "#34485a",
     hat = m.role === "keeper" ? "#c7b277" : m.role === "cleaner" ? "#efe3b9" : "#304e71",
     walk = m.action === "walk" || m.action === "carry",
-    phase = (m.distance === undefined ? m.time * 8 : m.distance * 9) + m.id * 1.7,
+    phase = (m.distance === undefined ? m.time * 8 : m.distance * 9) + appearanceId * 1.7,
     beat = Math.sin(m.time * 5),
     progress = Math.max(0, Math.min(1, m.progress ?? 0)),
     working = ["sweep", "feed", "water", "empty", "deposit", "inspect"].includes(m.action),
@@ -64,7 +66,9 @@ export function staffPose(m: StaffMotion): StaffPart[] {
             : working
               ? 0.08
               : 0,
-    bounce = walk ? Math.abs(Math.cos(phase)) * 0.025 : Math.sin(m.time * 1.6 + m.id) * 0.006,
+    bounce = walk
+      ? Math.abs(Math.cos(phase)) * 0.025
+      : Math.sin(m.time * 1.6 + appearanceId) * 0.006,
     hip: V3 = [0, 0.84 + bounce, 0],
     neck: V3 = [0, 1.37 + bounce - bend * 0.3, -bend],
     head: V3 = [0, neck[1] + 0.22, neck[2] - 0.01];

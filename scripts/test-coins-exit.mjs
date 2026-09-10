@@ -28,6 +28,7 @@ function emptyPark(mode = "scenario") {
   const s = S.newPark("sandbox");
   s.mode = mode;
   s.buildings = [];
+  s.crewPool = { version: 1, nextId: 1, crews: [] };
   s.guests = [];
   s.transitLines = [];
   s.tiles = Array.from({ length: 30 }, () => Array(30).fill("grass"));

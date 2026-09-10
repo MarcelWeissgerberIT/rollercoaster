@@ -26,8 +26,11 @@ export function staffMotion(park: Park, ref: StaffRef, time = park.time): StaffM
     action = "console";
   const cleaner =
     ref.kind === "cleaner" ? park.cleanliness?.workers.find((w) => w.id === ref.id) : undefined;
+  const building =
+    ref.kind === "operator" ? park.buildings.find((b) => b.id === location.targetId) : undefined;
   return {
-    id: ref.id,
+    id: ref.kind === "operator" ? (location.targetId ?? ref.id) : ref.id,
+    appearanceId: building ? (building.operations?.crewId ?? building.id) : undefined,
     post: ref.kind === "operator" ? (ref.post ?? "control") : undefined,
     role: ref.kind,
     action,

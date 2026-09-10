@@ -1,12 +1,17 @@
 /** One read-only position/action source for employee cards, camera focus and both
  * renderers. No snapshot poses, random animation clocks or synthetic employees. */
 import { CATALOG, type Park, type Point } from "./simulation";
-import { operatorState, type OperatorPost } from "./operations";
+import { operatorState, crewPoolOf, type OperatorPost } from "./operations";
 import { accessLayout, gateMotion } from "./ride-access";
 import { SPECIALIST_ROLES, type Keeper } from "./zoo";
 import { cleanerServicePose } from "./cleanliness";
 
-export type StaffRef = { kind: "cleaner" | "keeper" | "operator"; id: number; post?: OperatorPost };
+export type StaffRef = {
+  kind: "cleaner" | "keeper" | "operator";
+  id: number;
+  post?: OperatorPost;
+  crewId?: number;
+};
 export type StaffActivity =
   | "idle"
   | "patrol"
@@ -164,7 +169,12 @@ export function staffLocation(s: Park, ref: StaffRef): StaffLocation | null {
     };
   }
   if (ref.kind !== "operator") return null;
-  const b = s.buildings.find((b) => b.id === ref.id),
+  const buildingId =
+    ref.crewId === undefined
+      ? ref.id
+      : crewPoolOf(s).crews.find((crew) => crew.id === ref.crewId)?.buildingId;
+  if (buildingId === null || buildingId === undefined) return null;
+  const b = s.buildings.find((b) => b.id === buildingId),
     post = ref.post ?? "control",
     state = b && operatorState(b, post);
   if (!b || !state) return null;

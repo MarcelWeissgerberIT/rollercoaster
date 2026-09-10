@@ -21,6 +21,7 @@ function park() {
   s.tiles = Array.from({ length: 36 }, () => Array(36).fill("grass"));
   for (let y = 0; y < 36; y++) s.tiles[y][15] = "path";
   s.buildings = [];
+  s.crewPool = { version: 1, nextId: 1, crews: [] };
   s.guests = [];
   s.open = false;
   s.staff = 0;

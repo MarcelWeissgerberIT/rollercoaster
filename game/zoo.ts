@@ -3,6 +3,7 @@
  * 150/specialist/day) and
  * SPECIES.upkeep are charged ONLY by the caller's existing daily economy. */
 import type { Park, Building, Point } from "./simulation";
+import { canAfford, spendCash } from "./budget";
 import {
   HABITAT_PROFILES,
   SPECIALIST_ROLES,
@@ -554,9 +555,7 @@ export function inspectHabitat(s: Park, b: Building): string | null {
   return null;
 }
 function charge(s: Park, amount: number, operating = false): boolean {
-  if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(s.cash) || s.cash < amount)
-    return false;
-  s.cash -= amount;
+  if (!spendCash(s, amount)) return false;
   s.expenses += amount;
   s.dayExpenses += amount;
   if (operating) s.operatingExpensesToday = (s.operatingExpensesToday ?? 0) + amount;
@@ -719,7 +718,7 @@ function step(s: ZooPark, dt: number, access: ZooAccess) {
     const eligible = (b: ZooBuilding) =>
       !reserved.has(b.id) &&
       needsWorker(w, b) &&
-      s.cash >= (w.role === "technical" ? HABITAT_INSPECTION_COST : serviceCost(b.habitat!)) &&
+      canAfford(s, w.role === "technical" ? HABITAT_INSPECTION_COST : serviceCost(b.habitat!)) &&
       ports.has(b.id);
     if (w.mode === "patrol" && list.some(eligible)) clear(0);
     if (

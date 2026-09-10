@@ -18,6 +18,7 @@ function fixture() {
     b = s.buildings.find((b) => b.kind === "wheel");
   s.tiles = Array.from({ length: 36 }, () => Array(36).fill("grass"));
   s.buildings = [b];
+  s.crewPool.crews = s.crewPool.crews.filter((crew) => crew.buildingId === b.id);
   s.guests = [];
   s.open = false;
   s.staff = 0;
@@ -68,8 +69,10 @@ test("One assignment creates three stable people while wages and dispatch remain
   assert.equal(O.setRideStaffed(b, false), null);
   assert.deepEqual(O.rideCrew(b), []);
   for (const post of O.OPERATOR_POSTS) assert.equal(location(s, b, post), null);
-  assert.equal(O.operationsStats(s).personCount, 0);
-  assert.equal(O.operatorWages(s), 0);
+  assert.equal(O.operationsStats(s).staffed, 0);
+  assert.equal(O.operationsStats(s).availableCrews, 1);
+  assert.equal(O.operationsStats(s).personCount, 3);
+  assert.equal(O.operatorWages(s), 70, "Releasing an assignment keeps the real crew on payroll");
   assert.equal(O.setRideStaffed(b, true), null);
   assert.deepEqual(
     O.rideCrew(b).map((w) => [w.id, w.name]),
@@ -405,6 +408,7 @@ test("Open transport station gateways stay usable without inventing ride crews o
   for (const kind of ["train", "shuttle"]) {
     const { s, b } = fixture();
     b.kind = kind;
+    s.crewPool = { version: 1, nextId: 1, crews: [] };
     delete b.operations;
     const before = structuredClone(s);
     for (const role of ["entry", "exit"]) {

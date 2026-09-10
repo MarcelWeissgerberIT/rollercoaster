@@ -1,4 +1,5 @@
 import { CATALOG, spend, type Building, type Park, type Point } from "./simulation";
+import { canAfford, hasUnlimitedBudget } from "./budget";
 import {
   planConnection,
   planPod,
@@ -116,12 +117,12 @@ export function planStationReverse(
       plan.cost = plan.clearIds.length * 10;
       virtual = {
         ...virtual,
-        cash: s.cash - plan.cost,
+        cash: hasUnlimitedBudget(s) ? s.cash : s.cash - plan.cost,
         buildings: virtual.buildings.filter((item) => !plan.clearIds.includes(item.id)),
       };
     }
   }
-  if (plan.cost > 0 && plan.cost > s.cash)
+  if (plan.cost > 0 && !canAfford(s, plan.cost))
     return { ...plan, error: "Das Budget reicht zum Freiräumen der gedrehten Anschlüsse nicht." };
   plan.changed = true;
   plan.connection = planConnection(virtual, moved, settings.clear);

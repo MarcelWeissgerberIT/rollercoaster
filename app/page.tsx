@@ -1,3 +1,6 @@
+import { createFreePark } from "@/game/free-play";
+import { hasUnlimitedBudget, canAfford, spendCash } from "@/game/budget";
+import { saveParkSwitch, readPreviousPark, PARK_SAVE_KEY } from "@/game/park-storage";
 import type { HabitatFeatureId } from "../game/habitat-needs";
 import {
   planStationReverse,
@@ -14,7 +17,15 @@ import { borrowLoan, repayLoan } from "../game/loans";
 import { StaffPanel } from "../components/staff-panel";
 import { staffLocation, type StaffRef } from "../game/staff";
 import { RideOperationsPanel } from "../components/ride-operations-panel";
-import { setRideStaffed, setRideRounds, hasOperator } from "../game/operations";
+import {
+  setRideRounds,
+  hasOperator,
+  hireRideCrew,
+  dismissRideCrew,
+  assignRideCrew,
+  setCrewAutomatic,
+  setRideStaffingMode,
+} from "../game/operations";
 import { PATH_STYLES, pathStyleAt, isAmenity, type PathStyle } from "../game/park-life";
 import { habitatViewingSpots } from "../game/zoo-access";
 ("use client");
@@ -77,6 +88,7 @@ import { TrackPieceCatalog, TrackRangeMap } from "@/components/track-pieces";
 import { draftHistoryData, restoreDraftHistory } from "@/game/draft";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Infinity as InfinityIcon,
   Volume2,
   VolumeX,
   RollerCoaster,
@@ -150,7 +162,6 @@ import {
   queueCapacity,
   occupant,
   footprint,
-  leaveBuilding,
   trackStats,
   isRide,
   isAttraction,
@@ -315,6 +326,7 @@ export default function Home() {
   const [help, setHelp] = useState(false);
   const [settings, setSettings] = useState(false);
   const [newDialog, setNewDialog] = useState(false);
+  const [previousPark, setPreviousPark] = useState<Park | null>(null);
   const [message, setMessage] = useState(
     "Willkommen im Waldhain. Dein erster Park wartet auf neue Ideen.",
   );
@@ -700,17 +712,79 @@ export default function Home() {
   const save = useCallback(() => {
     if (!park.current) return;
     try {
-      localStorage.setItem("coaster-grove-v1", JSON.stringify(park.current));
+      localStorage.setItem(PARK_SAVE_KEY, JSON.stringify(park.current));
       setSaved("Gespeichert");
       notify("Dein Park wurde in diesem Browser gespeichert.");
     } catch {
       notify("Speichern fehlgeschlagen. Der Browserspeicher ist nicht verfügbar.");
     }
   }, [notify]);
+  function switchPark(next: Park) {
+    if (!park.current) return;
+    let storage: Storage;
+    try {
+      storage = localStorage;
+    } catch {
+      notify("Der Browserspeicher ist nicht verfügbar. Dein aktueller Park bleibt geöffnet.");
+      return;
+    }
+    const error = saveParkSwitch(storage, park.current, next);
+    if (error) {
+      notify(error);
+      return;
+    }
+    setPreviousPark(readPreviousPark(storage));
+    park.current = next;
+    setAdjust(null);
+    setPodEdit(null);
+    setHoverInfo(null);
+    setHoverTile(null);
+    setCut(null);
+    setBatchPreview(null);
+    setFitPreview(null);
+    setProfilePreview(null);
+    setRide(null);
+    rideActive.current = false;
+    audio.current?.ride(0, false);
+    setWorkshop(false);
+    workshopReturn.current = false;
+    setBuildWorld(null);
+    setTrafficMode(null);
+    history.current = [];
+    stroke.current = null;
+    draftHistory.current = [];
+    setUndoCount(0);
+    setWorldRevision((v) => v + 1);
+    setNewDialog(false);
+    setSettings(false);
+    setMenuOpen(false);
+    setShowGoals(hasUnlimitedBudget(next));
+    setSelected(null);
+    setCategory("");
+    setTool("select");
+    setHeight(0);
+    setRotation(0);
+    setBlueprintMode(true);
+    setCoasterType("steel");
+    setPiece("straight");
+    cameraTarget.current = null;
+    const fitZoom = Math.min(1, 30 / next.tiles.length);
+    view.current = { ...blankView, zoom: fitZoom };
+    setZoom(Math.round(fitZoom * 100));
+    restoreDraft(next);
+    announced.current = next.won;
+    sync();
+    setSaved("Gespeichert · vorheriger Park gesichert");
+    notify(
+      hasUnlimitedBudget(next)
+        ? "Dein freier Park ist bereit. Baue los – alle Inhalte sind freigeschaltet."
+        : `Willkommen in ${scenarioOf(next).name}.`,
+    );
+  }
   useEffect(() => {
     let initial = newPark();
     try {
-      const raw = localStorage.getItem("coaster-grove-v1");
+      const raw = localStorage.getItem(PARK_SAVE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
         if (validSave(data)) {
@@ -718,6 +792,9 @@ export default function Home() {
           setMessage("Willkommen zurück. Dein gespeicherter Park ist bereit.");
         }
       }
+    } catch {}
+    try {
+      setPreviousPark(readPreviousPark(localStorage));
     } catch {}
     park.current = initial;
     restoreDraft(initial);
@@ -742,7 +819,7 @@ export default function Home() {
     const auto = setInterval(() => {
       try {
         if (park.current) {
-          localStorage.setItem("coaster-grove-v1", JSON.stringify(park.current));
+          localStorage.setItem(PARK_SAVE_KEY, JSON.stringify(park.current));
           setSaved("Automatisch gespeichert");
         }
       } catch {}
@@ -1521,26 +1598,22 @@ export default function Home() {
       ))}
     </div>
   );
-  const staffRide = (id: number, staffed: boolean) =>
-    edit("Bedienpersonal zuweisen", () => {
-      const s = park.current!,
-        building = s.buildings.find((b) => b.id === id);
-      if (!building) return;
-      const error = setRideStaffed(building, staffed);
-      if (error) {
-        notify(error);
-        return;
-      }
-      if (!staffed) {
-        for (const id of building.queue) {
-          const g = s.guests.find((g) => g.id === id);
-          if (g) leaveBuilding(s, building, g);
-        }
-        building.queue = [];
-        building.open = false;
-      }
-      sync();
+  const changeCrew = (label: string, change: (s: Park) => string | null) =>
+    edit(label, () => {
+      const error = change(park.current!);
+      if (error) notify(error);
     });
+  const crewActions = {
+    onHireCrew: () => changeCrew("Crew einstellen", hireRideCrew),
+    onDismissCrew: (crewId: number) =>
+      changeCrew("Crew entlassen", (s) => dismissRideCrew(s, crewId)),
+    onAssignCrew: (crewId: number, buildingId: number | null) =>
+      changeCrew("Creweinsatz ändern", (s) => assignRideCrew(s, crewId, buildingId)),
+    onCrewAutomatic: (crewId: number) =>
+      changeCrew("Crew automatisch verteilen", (s) => setCrewAutomatic(s, crewId)),
+    onRideStaffingMode: (buildingId: number, mode: "auto" | "off") =>
+      changeCrew("Personalautomatik ändern", (s) => setRideStaffingMode(s, buildingId, mode)),
+  };
   const changeBuilding = (fn: (b: Building) => void) => {
     const b = park.current?.buildings.find((b) => b.id === selected);
     if (b) {
@@ -1566,8 +1639,12 @@ export default function Home() {
           <div className="metric">
             <Wallet />
             <div>
-              <strong>{EUR(snapshot?.cash ?? 16000)}</strong>
-              <span>Parkbudget</span>
+              <strong>
+                {snapshot && hasUnlimitedBudget(snapshot) ? "∞" : EUR(snapshot?.cash ?? 16000)}
+              </strong>
+              <span>
+                {snapshot && hasUnlimitedBudget(snapshot) ? "Unbegrenztes Budget" : "Parkbudget"}
+              </span>
             </div>
           </div>
           <div className="metric">
@@ -1902,7 +1979,13 @@ export default function Home() {
         )}
         <div className="parklabel">
           <div>
-            <strong>{snapshot ? scenarioOf(snapshot).name : "Waldhain Park"}</strong>
+            <strong>
+              {snapshot && hasUnlimitedBudget(snapshot)
+                ? "Dein freier Park"
+                : snapshot
+                  ? scenarioOf(snapshot).name
+                  : "Waldhain Park"}
+            </strong>
             <p>
               {snapshot?.mode === "sandbox"
                 ? "Freies Spiel"
@@ -2660,7 +2743,7 @@ export default function Home() {
                             park={snapshot}
                             building={b}
                             onLocateStaff={locateStaff}
-                            onStaffed={(v) => staffRide(b.id, v)}
+                            {...crewActions}
                             onRounds={(n) =>
                               edit("Fahrtprogramm ändern", () => {
                                 const live = park.current!.buildings.find((x) => x.id === b.id)!;
@@ -2785,7 +2868,7 @@ export default function Home() {
                               className="secondary"
                               disabled={
                                 condition(b) >= 99.99 ||
-                                snapshot.cash < repairCost(b, CATALOG[b.kind].cost)
+                                !canAfford(snapshot, repairCost(b, CATALOG[b.kind].cost))
                               }
                               onClick={() => {
                                 const live = park.current!.buildings.find((x) => x.id === b.id)!;
@@ -3209,7 +3292,7 @@ export default function Home() {
                                             </p>
                                             <button
                                               className="primary cut-confirm"
-                                              disabled={removalPreview.cost > snapshot.cash}
+                                              disabled={!canAfford(snapshot, removalPreview.cost)}
                                               onClick={commitRemoval}
                                             >
                                               <Eraser size={16} /> Entfernen & Lücken verbinden
@@ -3383,13 +3466,13 @@ export default function Home() {
                             ) : (
                               <button
                                 className="primary"
-                                disabled={snapshot.cash < 180}
+                                disabled={!canAfford(snapshot, 180)}
                                 onClick={() =>
                                   edit("Foto-Laser montieren", () => {
                                     const live = park.current!.buildings.find(
                                       (x) => x.id === b.id,
                                     )!;
-                                    if (park.current!.cash < 180) return;
+                                    if (!canAfford(park.current!, 180)) return;
                                     const track = editableTrack(live),
                                       point =
                                         cut?.id === b.id
@@ -3402,7 +3485,7 @@ export default function Home() {
                                           z: point.y * 5,
                                         })?.u ?? 0.5)
                                       : 0.5;
-                                    park.current!.cash -= 180;
+                                    spendCash(park.current!, 180);
                                     park.current!.expenses += 180;
                                     park.current!.dayExpenses += 180;
                                     notify(
@@ -3561,7 +3644,7 @@ export default function Home() {
                                         </p>
                                         <button
                                           className="primary"
-                                          disabled={snapshot.cash < exitProposal.cost}
+                                          disabled={!canAfford(snapshot, exitProposal.cost)}
                                           onMouseEnter={() => {
                                             view.current.connection = exitProposal.points;
                                           }}
@@ -3977,123 +4060,158 @@ export default function Home() {
             {showGoals && (
               <button
                 className="iconbtn"
-                aria-label="Kampagnenziele schließen"
+                aria-label={
+                  snapshot?.mode === "sandbox"
+                    ? "Freispielhinweise schließen"
+                    : "Kampagnenziele schließen"
+                }
                 onClick={() => setShowGoals(false)}
               >
                 <X size={16} />
               </button>
             )}
           </div>
-          <h3>{snapshot?.won ? "Ein Publikumsliebling!" : goal.subtitle}</h3>
-          {snapshot && !snapshot.open && (
-            <button
-              className="primary"
-              onClick={() => {
-                park.current!.open = true;
-                sync();
-                notify("Park geöffnet. Erreichbare, geöffnete Attraktionen ziehen neue Gäste an.");
-              }}
-            >
-              Park für Gäste öffnen
-            </button>
-          )}
-          <div className="goalrow">
-            <span>Besucher begrüßen</span>
-            <b>
-              {Math.min(goal.arrivals, snapshot?.arrivals ?? 0)} / {goal.arrivals}
-            </b>
-          </div>
-          <div className="progressrail">
-            <div
-              style={{
-                width: Math.min(100, ((snapshot?.arrivals ?? 0) / goal.arrivals) * 100) + "%",
-              }}
-            />
-          </div>
-          {goal.rides > 0 && (
+          {snapshot?.mode === "sandbox" ? (
             <>
+              <h3>Dein Park. Deine Regeln.</h3>
+              <p>
+                Alle Attraktionen, Tiere und Forschungsprojekte sind freigeschaltet. Es gibt keine
+                Kampagnenziele.
+              </p>
+              {hasUnlimitedBudget(snapshot) && (
+                <p>∞ Unbegrenztes Baubudget. Gestalte deinen Freizeitpark, Zoo oder beides.</p>
+              )}
+              {!snapshot.open && (
+                <button
+                  className="primary"
+                  onClick={() => {
+                    park.current!.open = true;
+                    sync();
+                  }}
+                >
+                  Park für Gäste öffnen
+                </button>
+              )}
+              <button className="secondary" onClick={() => pickTool("select", "rides")}>
+                Attraktionen entdecken
+              </button>
+            </>
+          ) : (
+            <>
+              <h3>{snapshot?.won ? "Ein Publikumsliebling!" : goal.subtitle}</h3>
+              {snapshot && !snapshot.open && (
+                <button
+                  className="primary"
+                  onClick={() => {
+                    park.current!.open = true;
+                    sync();
+                    notify(
+                      "Park geöffnet. Erreichbare, geöffnete Attraktionen ziehen neue Gäste an.",
+                    );
+                  }}
+                >
+                  Park für Gäste öffnen
+                </button>
+              )}
               <div className="goalrow">
-                <span>Attraktionen eröffnen</span>
+                <span>Besucher begrüßen</span>
                 <b>
-                  {Math.min(goal.rides, readyRides)} / {goal.rides}
+                  {Math.min(goal.arrivals, snapshot?.arrivals ?? 0)} / {goal.arrivals}
                 </b>
               </div>
               <div className="progressrail">
-                <div style={{ width: Math.min(100, (readyRides / goal.rides) * 100) + "%" }} />
+                <div
+                  style={{
+                    width: Math.min(100, ((snapshot?.arrivals ?? 0) / goal.arrivals) * 100) + "%",
+                  }}
+                />
+              </div>
+              {goal.rides > 0 && (
+                <>
+                  <div className="goalrow">
+                    <span>Attraktionen eröffnen</span>
+                    <b>
+                      {Math.min(goal.rides, readyRides)} / {goal.rides}
+                    </b>
+                  </div>
+                  <div className="progressrail">
+                    <div style={{ width: Math.min(100, (readyRides / goal.rides) * 100) + "%" }} />
+                  </div>
+                </>
+              )}
+              <div className="goalrow">
+                <span>Zufriedenheit</span>
+                <b>
+                  {snapshot?.rating ?? 80} / {goal.rating} %
+                </b>
+              </div>
+              {goal.cleanliness > 0 && (
+                <div className="goalrow">
+                  <span>Sauberkeit</span>
+                  <b>
+                    {snapshot ? cleanlinessScore(snapshot) : 100} / {goal.cleanliness}%
+                  </b>
+                </div>
+              )}
+              {goal.condition > 0 && (
+                <div className="goalrow">
+                  <span>Zustand der Fahrgeschäfte</span>
+                  <b>
+                    {snapshot ? maintenanceScore(snapshot) : 100} / {goal.condition}%
+                  </b>
+                </div>
+              )}
+              {goal.species > 0 && (
+                <>
+                  <div className="goalrow">
+                    <span>Gesunde Arten geöffnet</span>
+                    <b>
+                      {snapshot ? zooStats(snapshot).healthyOpen : 0} / {goal.species}
+                    </b>
+                  </div>
+                  <div className="goalrow">
+                    <span>Tierwohl</span>
+                    <b>
+                      {snapshot ? zooStats(snapshot).welfare : 100} / {goal.welfare}%
+                    </b>
+                  </div>
+                </>
+              )}
+              {goal.value > 0 && (
+                <div className="goalrow">
+                  <span>Parkwert</span>
+                  <b>
+                    {EUR(snapshot ? parkValue(snapshot) : 0)} / {EUR(goal.value)}
+                  </b>
+                </div>
+              )}
+              {goal.profit > 0 && (
+                <div className="goalrow">
+                  <span>Betriebsgewinn / Tag</span>
+                  <b>
+                    {EUR(snapshot?.operatingProfit ?? 0)} / {EUR(goal.profit)}
+                  </b>
+                </div>
+              )}
+              {goal.coasters > 0 && (
+                <div className="goalrow">
+                  <span>Achterbahnen geöffnet</span>
+                  <b>
+                    {snapshot?.buildings.filter(
+                      (b) => b.kind === "coaster" && b.open && b.tested && access(snapshot, b),
+                    ).length ?? 0}{" "}
+                    / {goal.coasters}
+                  </b>
+                </div>
+              )}
+              <div className="reward">
+                <Trophy />{" "}
+                {snapshot?.won
+                  ? "Ziel erreicht – baue weiter!"
+                  : "Erreiche alle Ziele und entdecke weitere Szenarien."}
               </div>
             </>
           )}
-          <div className="goalrow">
-            <span>Zufriedenheit</span>
-            <b>
-              {snapshot?.rating ?? 80} / {goal.rating} %
-            </b>
-          </div>
-          {goal.cleanliness > 0 && (
-            <div className="goalrow">
-              <span>Sauberkeit</span>
-              <b>
-                {snapshot ? cleanlinessScore(snapshot) : 100} / {goal.cleanliness}%
-              </b>
-            </div>
-          )}
-          {goal.condition > 0 && (
-            <div className="goalrow">
-              <span>Zustand der Fahrgeschäfte</span>
-              <b>
-                {snapshot ? maintenanceScore(snapshot) : 100} / {goal.condition}%
-              </b>
-            </div>
-          )}
-          {goal.species > 0 && (
-            <>
-              <div className="goalrow">
-                <span>Gesunde Arten geöffnet</span>
-                <b>
-                  {snapshot ? zooStats(snapshot).healthyOpen : 0} / {goal.species}
-                </b>
-              </div>
-              <div className="goalrow">
-                <span>Tierwohl</span>
-                <b>
-                  {snapshot ? zooStats(snapshot).welfare : 100} / {goal.welfare}%
-                </b>
-              </div>
-            </>
-          )}
-          {goal.value > 0 && (
-            <div className="goalrow">
-              <span>Parkwert</span>
-              <b>
-                {EUR(snapshot ? parkValue(snapshot) : 0)} / {EUR(goal.value)}
-              </b>
-            </div>
-          )}
-          {goal.profit > 0 && (
-            <div className="goalrow">
-              <span>Betriebsgewinn / Tag</span>
-              <b>
-                {EUR(snapshot?.operatingProfit ?? 0)} / {EUR(goal.profit)}
-              </b>
-            </div>
-          )}
-          {goal.coasters > 0 && (
-            <div className="goalrow">
-              <span>Achterbahnen geöffnet</span>
-              <b>
-                {snapshot?.buildings.filter(
-                  (b) => b.kind === "coaster" && b.open && b.tested && access(snapshot, b),
-                ).length ?? 0}{" "}
-                / {goal.coasters}
-              </b>
-            </div>
-          )}
-          <div className="reward">
-            <Trophy />{" "}
-            {snapshot?.won
-              ? "Ziel erreicht – baue weiter!"
-              : "Erreiche alle Ziele und entdecke weitere Szenarien."}
-          </div>
         </aside>
         {tool !== "select" && !(tool === "coaster" && !blueprintMode) && (
           <div className={`build-status ${placement?.error ? "invalid" : ""}`} aria-live="polite">
@@ -4352,6 +4470,13 @@ export default function Home() {
               Icon: Flag,
               run: () => setNewDialog(true),
             },
+            {
+              id: "freeplay",
+              label: "Freies Spiel starten",
+              Icon: InfinityIcon,
+              description: "Ein leerer Park, alle Freischaltungen und unbegrenztes Budget.",
+              run: () => setNewDialog(true),
+            },
             { id: "help", label: "Spielanleitung", Icon: HelpCircle, run: () => setHelp(true) },
           ]}
         />
@@ -4583,7 +4708,7 @@ export default function Home() {
                           key={style}
                           className={`entrance-card ${gateStyle(snapshot) === style ? "active" : ""}`}
                           aria-pressed={gateStyle(snapshot) === style}
-                          disabled={!owned && snapshot.cash < gate.cost}
+                          disabled={!owned && !canAfford(snapshot, gate.cost)}
                           onClick={() => {
                             notify(changeGate(park.current!, style) ?? `${gate.name} ausgewählt.`);
                             setWorldRevision((v) => v + 1);
@@ -4676,7 +4801,7 @@ export default function Home() {
                     initZoo(park.current!);
                     sync();
                   }}
-                  onStaffRide={staffRide}
+                  {...crewActions}
                   onSelectRide={(id) => {
                     setSettings(false);
                     setSelected(id);
@@ -4929,7 +5054,7 @@ export default function Home() {
                   className="secondary"
                   onClick={() => {
                     try {
-                      const raw = localStorage.getItem("coaster-grove-v1");
+                      const raw = localStorage.getItem(PARK_SAVE_KEY);
                       if (!raw) throw Error();
                       const s = JSON.parse(raw);
                       if (!validSave(s)) throw Error();
@@ -4970,62 +5095,82 @@ export default function Home() {
       </Dialog>
       <Dialog open={newDialog} onOpenChange={setNewDialog}>
         <DialogContent className="manual">
-          <DialogTitle>Ein neuer Anfang.</DialogTitle>
+          <DialogTitle>Dein nächster Park</DialogTitle>
           <DialogDescription>
-            Dein aktueller Park wird ersetzt. Der neue Park überschreibt beim nächsten Speichern den
-            bisherigen Spielstand.
+            Beim Wechsel wird dein aktueller Park gesichert. Du kannst ihn hier mit „Vorherigen Park
+            fortsetzen“ wieder öffnen.
           </DialogDescription>
-          <div className="stack">
-            {[...Object.keys(SCENARIOS), "sandbox"].map((id) => {
-              const scenario = id === "sandbox" ? null : SCENARIOS[id as ScenarioId];
-              return (
-                <button
-                  className="scenario-card secondary"
-                  key={id}
-                  onClick={() => {
-                    park.current = newPark(
-                      id === "sandbox" ? "sandbox" : "scenario",
-                      id === "sandbox" ? "waldhain" : (id as ScenarioId),
-                    );
-                    setAdjust(null);
-                    history.current = [];
-                    stroke.current = null;
-                    draftHistory.current = [];
-                    setUndoCount(0);
-                    setWorldRevision((v) => v + 1);
-                    setNewDialog(false);
-                    setMenuOpen(false);
-                    setShowGoals(false);
-                    setSelected(null);
-                    setCategory(
-                      id === "zoo"
-                        ? "zoo"
-                        : ["ruinenpark", "grosspark"].includes(id)
-                          ? "analysis"
-                          : "rides",
-                    );
-                    setTool("select");
-                    const fitZoom = Math.min(1, 30 / park.current.tiles.length);
-                    view.current = { ...blankView, zoom: fitZoom };
-                    setZoom(Math.round(fitZoom * 100));
-                    setDraft([]);
-                    setCoasterType("steel");
-                    announced.current = false;
-                    sync();
-                    notify(`Willkommen in ${scenario?.name ?? "deinem freien Park"}.`);
-                  }}
-                >
-                  <strong>
-                    {scenario?.name ?? "Freies Spiel"} · {EUR(scenario?.cash ?? 100000)}
-                  </strong>
-                  <span>
-                    {scenario?.description ??
-                      "Alle Bahntypen und Attraktionen sind sofort freigeschaltet."}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <button
+            className="free-play-card"
+            data-testid="start-free-play"
+            onClick={() => switchPark(createFreePark())}
+          >
+            <span className="free-play-icon">
+              <InfinityIcon size={36} />
+            </span>
+            <span>
+              <strong>Freies Spiel starten</strong>
+              <small>Ein leerer Park für deine Ideen</small>
+            </span>
+            <span className="free-play-features">
+              <span>∞ Budget</span>
+              <span>Alles freigeschaltet</span>
+              <span>Keine Ziele</span>
+            </span>
+            <span className="free-play-description">
+              Baue Achterbahnen, einen Zoo oder deinen eigenen Mix. Gäste, Personal und Tiere
+              reagieren weiterhin auf deinen Park.
+            </span>
+            <span className="free-play-start">
+              Jetzt frei bauen <Play size={17} />
+            </span>
+          </button>
+          {previousPark && (
+            <button
+              className="secondary previous-park"
+              data-testid="restore-previous-park"
+              onClick={() => {
+                let previous: Park | null = null;
+                try {
+                  previous = readPreviousPark(localStorage);
+                } catch {}
+                if (previous) switchPark(previous);
+                else
+                  notify(
+                    "Die Sicherung ist nicht mehr verfügbar. Dein aktueller Park bleibt geöffnet.",
+                  );
+              }}
+            >
+              <FolderOpen size={19} />
+              <span>
+                <strong>Vorherigen Park fortsetzen</strong>
+                <small>
+                  {hasUnlimitedBudget(previousPark) ? "Freier Park" : scenarioOf(previousPark).name}{" "}
+                  · Tag {Math.floor(previousPark.time / 90) + 1}
+                </small>
+              </span>
+            </button>
+          )}
+          <details className="new-game-campaigns">
+            <summary>Lieber eine Kampagne spielen</summary>
+            <div className="stack">
+              {Object.keys(SCENARIOS).map((id) => {
+                const scenario = SCENARIOS[id as ScenarioId];
+                return (
+                  <button
+                    className="scenario-card secondary"
+                    key={id}
+                    onClick={() => switchPark(newPark("scenario", id as ScenarioId))}
+                  >
+                    <strong>
+                      {scenario.name} · {EUR(scenario.cash)}
+                    </strong>
+                    <span>{scenario.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </details>
         </DialogContent>
       </Dialog>
     </main>

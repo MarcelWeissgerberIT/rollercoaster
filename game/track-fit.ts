@@ -1,4 +1,5 @@
 import { invertingPiece } from "./track-parts";
+import { canAfford } from "./budget";
 import {
   appendPiece,
   pieceError,
@@ -100,7 +101,7 @@ export function findTrackFit(s: Park, draft: Point[], piece: Piece, clear = true
     };
   };
   const offer = (edit: TrackEdit, track: Point[], from: number, to: number, approach: Piece[]) => {
-    const state = { ...s, cash: Number.MAX_SAFE_INTEGER, trackEdit: edit },
+    const state = { ...s, mode: "sandbox" as const, unlimitedBudget: true, trackEdit: edit },
       plan = trackEditPlan(state, track, clear);
     if (plan.error) return;
     const solution: TrackFit = {
@@ -118,7 +119,7 @@ export function findTrackFit(s: Park, draft: Point[], piece: Piece, clear = true
       extraBefore: range.from - from,
       extraAfter: to - range.to,
     };
-    if (plan.cost <= s.cash) return solution;
+    if (canAfford(s, plan.cost)) return solution;
     if (!best || plan.cost < best.cost) best = solution;
   };
   // Check simple connections first, including earlier starts and short approaches around obstacles.

@@ -1,5 +1,6 @@
 import { prepareRoute } from "./motion";
 import { driveCost, validDrive, type TrackDrive } from "./drive";
+import { canAfford, creditCash } from "./budget";
 import {
   type Park,
   type Point,
@@ -310,7 +311,7 @@ export function trackEditPlan(s: Park, track: Point[], clear = true) {
   const material = Math.max(0, trackCost(track) - trackCost([track[0]]) - retained);
   plan.cost = Math.max(0, material - Math.round(e.removedLength * 0.4)) + plan.clearIds.length * 10;
   if (plan.error === "Das Parkbudget reicht nicht") plan.error = null;
-  if (!plan.error && s.cash < plan.cost) plan.error = "Das Parkbudget reicht nicht";
+  if (!plan.error && !canAfford(s, plan.cost)) plan.error = "Das Parkbudget reicht nicht";
   return plan;
 }
 export function commitTrackEdit(s: Park, track: Point[], clear = true): string | null {
@@ -379,7 +380,8 @@ export function batchTrackRemovalPlan(
   result.groups = groups;
   const work = structuredClone(s),
     copy = work.buildings.find((x) => x.id === b.id)!;
-  work.cash = Number.MAX_SAFE_INTEGER;
+  work.mode = "sandbox";
+  work.unlimitedBudget = true;
   copy.track = track;
   // Later gaps cannot change the indices of earlier, retained sections.
   for (const group of [...groups].reverse()) {
@@ -403,7 +405,8 @@ export function batchTrackRemovalPlan(
   result.track = copy.track!;
   const retained = new Set(work.buildings.map((x) => x.id));
   result.clearIds = s.buildings.filter((x) => !retained.has(x.id)).map((x) => x.id);
-  if (s.cash < result.cost) result.error = "Das Parkbudget reicht für den gesamten Umbau nicht.";
+  if (!canAfford(s, result.cost))
+    result.error = "Das Parkbudget reicht für den gesamten Umbau nicht.";
   return result;
 }
 export function removeTrackSections(
@@ -487,7 +490,7 @@ export function installTrackDrive(
   if (!plan.changed) return null;
   if (plan.cost > 0 && !spend(s, plan.cost)) return "Das Parkbudget reicht nicht.";
   if (plan.cost < 0) {
-    s.cash -= plan.cost;
+    creditCash(s, -plan.cost);
     s.income -= plan.cost;
     s.dayIncome -= plan.cost;
   }

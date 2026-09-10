@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import ts from "typescript";
 import { moduleURL } from "./ts-loader.mjs";
 const M = await import(moduleURL("game/simulation.ts"));
+const O = await import(moduleURL("game/operations.ts"));
 Math.random = () => 0.5;
 const json = (v) => JSON.parse(JSON.stringify(v));
 let failed = 0;
@@ -114,6 +115,8 @@ test("Scenario completion requires a tested fourth coaster", () => {
   assert(id);
   M.paint(s, 8, 19, "queue");
   const b = s.buildings.find((b) => b.id === id);
+  assert.equal(O.hireRideCrew(s), null);
+  assert(O.hasOperator(b), "The fourth coaster needs a real hired crew before opening");
   b.open = true;
   s.open = false;
   s.arrivals = 150;

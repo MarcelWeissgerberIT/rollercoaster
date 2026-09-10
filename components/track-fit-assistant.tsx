@@ -1,3 +1,4 @@
+import { canAfford } from "../game/budget";
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { WandSparkles } from "lucide-react";
 import { PIECES, type Piece } from "../game/prefabs";
@@ -142,12 +143,12 @@ export default function TrackFitAssistant(props: Props) {
             <span>Rot: ersetzen</span>
             <span>Türkis: neuer Verlauf</span>
           </p>
-          {fit.cost > props.park.cash && (
+          {!canAfford(props.park, fit.cost) && (
             <p>Es fehlen noch {money(fit.cost - props.park.cash)}. Die Vorschau ist kostenlos.</p>
           )}
           <button
             className="primary"
-            disabled={fit.cost > props.park.cash}
+            disabled={!canAfford(props.park, fit.cost)}
             onClick={() => props.onApply(fit)}
           >
             Lösung übernehmen · {money(fit.cost)}

@@ -1,4 +1,5 @@
 import { hasOperator } from "./operations";
+import { canAfford, spendCash } from "./budget";
 /** Campaign costs, demand and attribution share the park's simulation clock. */
 import type { Park, Guest, Building } from "./simulation";
 export const MARKETING_DAY = 90;
@@ -122,7 +123,7 @@ export function quoteMarketing(
   if (running.some((c) => c.kind === kind))
     return reject("Von diesem Typ läuft bereits eine Kampagne.");
   if (running.length >= 2) return reject("Es können höchstens zwei Kampagnen gleichzeitig laufen.");
-  if (!finite(s.cash) || s.cash < quote.cost) return reject("Das Parkbudget reicht nicht.");
+  if (!canAfford(s, quote.cost)) return reject("Das Parkbudget reicht nicht.");
   if (s.marketing && (!id(s.marketing.nextId) || s.marketing.nextId >= Number.MAX_SAFE_INTEGER))
     return reject("Die Kampagnenkennung ist ungültig.");
   if ((s.marketing?.campaigns.length ?? 0) >= 512) return reject("Die Kampagnenhistorie ist voll.");
@@ -167,7 +168,7 @@ export function startMarketing(
     cost: quote.cost,
     ...(b ? { targetId: b.id, targetName: b.name } : {}),
   };
-  s.cash -= quote.cost;
+  spendCash(s, quote.cost);
   s.expenses += quote.cost;
   s.dayExpenses += quote.cost;
   s.operatingExpensesToday = (s.operatingExpensesToday ?? 0) + quote.cost;

@@ -1,3 +1,4 @@
+import { canAfford } from "../game/budget";
 import { useEffect, useId, useRef, useState } from "react";
 import { Check, LoaderCircle, WandSparkles, X } from "lucide-react";
 import {
@@ -201,7 +202,7 @@ export default function RideProfileAssistant({
     }
   };
   const plan = result?.plan,
-    missing = plan ? Math.max(0, plan.cost - park.cash) : 0;
+    missing = plan && !canAfford(park, plan.cost) ? Math.max(0, plan.cost - park.cash) : 0;
   const apply = () => {
     if (!plan || missing) return;
     const b = latest.current.park.buildings.find((b) => b.id === plan.id);

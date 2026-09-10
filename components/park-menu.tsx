@@ -92,6 +92,7 @@ const SHORT_LABELS: Record<string, string> = {
   paths: "Wege",
   workshop: "Werkstatt",
   erase: "Abreißen",
+  freeplay: "Freies Spiel",
   zoo: "Tiere & Gehege",
   habitats: "Gehege",
   animals: "Tiere",
@@ -111,6 +112,7 @@ const SHORT_LABELS: Record<string, string> = {
 };
 const DESCRIPTIONS: Record<string, string> = {
   entrance: "Das Eingangstor gestalten oder gegen ein anderes Modell tauschen.",
+  freeplay: "Einen freien Park mit unbegrenztem Budget starten.",
   personal: "Personal einstellen und Reinigung sowie Tierpflege organisieren.",
   select: "Gebäude und Gäste im Park auswählen.",
   rides: "Fertige Fahrgeschäfte für deinen Park bauen.",
@@ -215,10 +217,14 @@ export default function ParkMenu({ actions, open, setOpen }: Props) {
   const tipId = useId();
   const research = actions.find((a) => a.id === "research");
   const demolition = actions.find((a) => a.id === "erase");
+  const freeplay = actions.find((a) => a.id === "freeplay");
   const entries = GROUPS.map((g) => ({
     ...g,
     actions: actions
-      .filter((a) => a.id !== "research" && a.id !== "erase" && actionGroup(a) === g.id)
+      .filter(
+        (a) =>
+          a.id !== "research" && a.id !== "erase" && a.id !== "freeplay" && actionGroup(a) === g.id,
+      )
       .sort((a, b) => {
         const rank = (id: string) => {
           const n = ORDER[g.id].indexOf(id);
@@ -227,7 +233,8 @@ export default function ParkMenu({ actions, open, setOpen }: Props) {
         return rank(a.id) - rank(b.id);
       }),
   })).filter((g) => g.actions.length > 0);
-  const rootCount = entries.length + (demolition ? 1 : 0);
+  const freeplayIndex = entries.length + (demolition ? 1 : 0);
+  const rootCount = freeplayIndex + (freeplay ? 1 : 0);
   const current = entries.find((g) => g.id === group);
   const totalPages = Math.max(1, Math.ceil((current?.actions.length ?? 0) / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
@@ -476,6 +483,32 @@ export default function ParkMenu({ actions, open, setOpen }: Props) {
                     {demolition.active && <Check className="pm8-check" size={12} />}
                   </span>
                   <span>Abreißen</span>
+                </span>
+              </button>
+            )}
+            {!current && freeplay && (
+              <button
+                data-pm8-item="freeplay"
+                data-pm8-label={shortLabel(freeplay)}
+                className={`pm8-item pm8-group pm8-freeplay ${freeplay.active ? "is-active" : ""}`}
+                style={tileStyle(freeplayIndex, rootCount, 1)}
+                disabled={freeplay.disabled}
+                aria-label={freeplay.label}
+                aria-pressed={freeplay.active === undefined ? undefined : freeplay.active}
+                aria-describedby={tipId}
+                onMouseEnter={() => setTip(detail(freeplay))}
+                onMouseLeave={() => setTip("")}
+                onFocus={() => setTip(detail(freeplay))}
+                onBlur={() => setTip("")}
+                onClick={() => run(freeplay)}
+              >
+                <Sector index={freeplayIndex} count={rootCount} />
+                <span className="pm8-label">
+                  <span className="pm8-icon">
+                    <freeplay.Icon size={30} strokeWidth={1.65} />
+                    {freeplay.active && <Check className="pm8-check" size={12} />}
+                  </span>
+                  <span>{shortLabel(freeplay)}</span>
                 </span>
               </button>
             )}

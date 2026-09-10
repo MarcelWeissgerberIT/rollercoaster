@@ -1,11 +1,18 @@
-/** Ride crew and dispatch programs. This module never mutates guests, queues,
- * revenue, routes, Park.time or payroll. The simulation owns those transitions. */
+/** Ride crew assignments and dispatch programs. Crew edits may release waiting
+ * guests; revenue, ride rewards, Park.time and payroll billing remain caller-owned. */
 import type { Building, Kind, Park } from "./simulation";
 
 export const OPERATOR_WAGE = 70;
 /** One assignment hires the complete three-person crew; wages remain per crew. */
 export const OPERATOR_POSTS = ["control", "entry", "exit"] as const;
 export type OperatorPost = (typeof OPERATOR_POSTS)[number];
+export type RideCrew = { id: number; buildingId: number | null; mode: "auto" | "manual" };
+export type RideCrewPool = { version: 1; nextId: number; crews: RideCrew[] };
+export type CrewPool = RideCrewPool;
+export type RideStaffingMode = "auto" | "off";
+export const MAX_RIDE_CREWS = 200;
+type CrewPark = Pick<Park, "buildings"> & Partial<Pick<Park, "crewPool" | "guests">>;
+const crewOwners = new WeakMap<Building, CrewPark>();
 export const OPERATOR_ROLES: Record<OperatorPost, string> = {
   control: "Fahrsteuerung",
   entry: "Einlass",
@@ -17,6 +24,8 @@ export const UNLOADING_SECONDS = 1.2;
 export type OperationPhase = "idle" | "boarding" | "checking" | "running" | "unloading";
 export type RideOperations = {
   staffed: boolean;
+  crewId?: number;
+  assignment?: RideStaffingMode;
   rounds: number;
   remainingRounds: number;
   phase: OperationPhase;
@@ -59,8 +68,16 @@ export function ensureOperations(b: Building): RideOperations {
   return (item.operations ??= fresh(b));
 }
 /** Missing fields are migration only; explicit false/round counts are never overwritten. */
-export function initOperations(s: Pick<Park, "buildings">): void {
-  for (const b of s.buildings) if (needsOperator(b.kind)) ensureOperations(b);
+export function initOperations(s: CrewPark): void {
+  const legacy = s.crewPool === undefined;
+  for (const b of s.buildings)
+    if (needsOperator(b.kind)) {
+      const o = ensureOperations(b);
+      o.assignment ??= legacy && !o.staffed ? "off" : "auto";
+      crewOwners.set(b, s);
+    }
+  ensureCrewPool(s);
+  autoAssignRideCrews(s);
 }
 export function hasOperator(b: Building): boolean {
   return !needsOperator(b.kind) || operationsOf(b).staffed;
@@ -68,10 +85,13 @@ export function hasOperator(b: Building): boolean {
 export function setRideStaffed(b: Building, staffed: boolean): string | null {
   if (!needsOperator(b.kind)) return "Diese Einrichtung benötigt kein Fahrpersonal.";
   if (typeof staffed !== "boolean") return "Ungültige Personalzuweisung.";
+  const owner = crewOwners.get(b);
+  if (owner?.crewPool) return setRideStaffingMode(owner, b.id, staffed ? "auto" : "off");
   const o = ensureOperations(b);
   if (!staffed && b.riders.length)
     return "Die Crew kann nach Ende der laufenden Fahrt abgezogen werden.";
   o.staffed = staffed;
+  o.assignment = staffed ? "auto" : "off";
   if (!staffed) resetRideOperations(b);
   return null;
 }
@@ -220,8 +240,10 @@ const CREW_NAMES = [
   "Paul",
   "Mila",
 ];
+export const crewMemberName = (crewId: number, post: OperatorPost = "control") =>
+  CREW_NAMES[(Math.abs(crewId) + OPERATOR_POSTS.indexOf(post) * 4) % CREW_NAMES.length];
 export const operatorName = (b: Building, post: OperatorPost = "control") =>
-  CREW_NAMES[(Math.abs(b.id) + OPERATOR_POSTS.indexOf(post) * 4) % CREW_NAMES.length];
+  crewMemberName(operationsOf(b).crewId ?? b.id, post);
 /** Real crew posts share one assignment. Attendants take a short step toward
  * their gate, work there, then return within the actual admission/unload phase. */
 export function operatorState(b: Building, post: OperatorPost = "control") {
@@ -236,7 +258,8 @@ export function operatorState(b: Building, post: OperatorPost = "control") {
     returning = onDuty && progress > 0.8,
     activity = post === "control" ? (b.open ? "control" : "idle") : onDuty ? phase : "idle";
   return {
-    id: `operator-${b.id}-${post}`,
+    id: `operator-${operationsOf(b).crewId ?? b.id}-${post}`,
+    crewId: operationsOf(b).crewId ?? b.id,
     buildingId: b.id,
     post,
     role: OPERATOR_ROLES[post],
@@ -257,22 +280,25 @@ export function rideCrew(b: Building) {
     return member ? [member] : [];
   });
 }
-export function operationsStats(s: Pick<Park, "buildings">) {
+export function operationsStats(s: CrewPark) {
   const rides = s.buildings.filter((b) => needsOperator(b.kind));
-  const staffed = rides.filter(hasOperator).length;
+  const staffed = rides.filter(hasOperator).length,
+    pool = crewPoolOf(s);
   return {
     rides: rides.length,
     staffed,
-    crewCount: staffed,
-    personCount: staffed * OPERATOR_POSTS.length,
+    crewCount: pool.crews.length,
+    personCount: pool.crews.length * OPERATOR_POSTS.length,
+    availableCrews: availableRideCrews(s).length,
+    manualCrews: pool.crews.filter((c) => c.mode === "manual").length,
     unstaffed: rides.length - staffed,
     active: rides.filter((b) => operationsOf(b).phase === "running").length,
     boarding: rides.filter((b) => ["boarding", "checking"].includes(operationsOf(b).phase)).length,
-    dailyCost: staffed * OPERATOR_WAGE,
+    dailyCost: pool.crews.length * OPERATOR_WAGE,
   };
 }
 /** Add this exactly once to the existing daily cost block; this function never charges. */
-export const operatorWages = (s: Pick<Park, "buildings">) => operationsStats(s).dailyCost;
+export const operatorWages = (s: CrewPark) => operationsStats(s).dailyCost;
 export function validOperations(s: Pick<Park, "buildings">): boolean {
   return s.buildings.every((b) => {
     const o = (b as OperatedBuilding).operations;
@@ -282,6 +308,8 @@ export function validOperations(s: Pick<Park, "buildings">): boolean {
       !o ||
       typeof o !== "object" ||
       typeof o.staffed !== "boolean" ||
+      (o.crewId !== undefined && (!Number.isSafeInteger(o.crewId) || o.crewId < 1)) ||
+      (o.assignment !== undefined && o.assignment !== "auto" && o.assignment !== "off") ||
       !Number.isInteger(o.rounds) ||
       o.rounds < 1 ||
       o.rounds > 5 ||
@@ -298,4 +326,311 @@ export function validOperations(s: Pick<Park, "buildings">): boolean {
     if (o.phase !== "running" && o.remainingRounds !== 0) return false;
     return true;
   });
+}
+
+/** Legacy saves retain exactly the crews they already employed; reads never hire. */
+export function crewPoolOf(s: CrewPark): Readonly<RideCrewPool> {
+  if (s.crewPool) return s.crewPool;
+  const crews: RideCrew[] = s.buildings
+    .filter((b) => needsOperator(b.kind) && operationsOf(b).staffed)
+    .map((b) => ({ id: b.id, buildingId: b.id, mode: "auto" }));
+  return { version: 1, nextId: Math.max(0, ...crews.map((c) => c.id)) + 1, crews };
+}
+function ensureCrewPool(s: CrewPark): RideCrewPool {
+  return (s.crewPool ??= structuredClone(crewPoolOf(s)));
+}
+export function availableRideCrews(s: CrewPark): RideCrew[] {
+  return crewPoolOf(s).crews.filter(
+    (c) =>
+      c.buildingId === null ||
+      !s.buildings.some((b) => b.id === c.buildingId && needsOperator(b.kind)),
+  );
+}
+function crewRide(s: CrewPark, id: number | null) {
+  return s.buildings.find((b) => b.id === id && needsOperator(b.kind));
+}
+function busy(b: Building | undefined) {
+  return !!b && (b.riders.length > 0 || ["running", "unloading"].includes(operationsOf(b).phase));
+}
+/** Waiting visitors remain at their existing reachable path position. */
+function releaseWaiting(s: CrewPark, b: Building) {
+  const queued = new Set(b.queue);
+  for (const g of s.guests ?? [])
+    if (g.state === "queue" && queued.has(g.id)) {
+      g.state = "walk";
+      g.target = null;
+      g.route = [];
+      g.timer = 1;
+      g.transit = undefined;
+      g.thought = "Die Crew wechselt ihren Einsatz. Ich suche ein anderes Ziel.";
+    }
+  b.queue = [];
+}
+function detach(s: CrewPark, crew: RideCrew) {
+  const b = crewRide(s, crew.buildingId);
+  if (b) {
+    releaseWaiting(s, b);
+    const o = ensureOperations(b);
+    o.staffed = false;
+    delete o.crewId;
+    resetRideOperations(b);
+  }
+  crew.buildingId = null;
+}
+function synchronizeCrewFlags(s: CrewPark) {
+  const pool = ensureCrewPool(s);
+  for (const b of s.buildings)
+    if (needsOperator(b.kind)) {
+      crewOwners.set(b, s);
+      const o = ensureOperations(b),
+        crew = pool.crews.find((c) => c.buildingId === b.id);
+      o.assignment ??= "auto";
+      if (crew) {
+        o.staffed = true;
+        o.crewId = crew.id;
+      } else {
+        if (o.staffed && !busy(b)) {
+          releaseWaiting(s, b);
+          resetRideOperations(b);
+        }
+        o.staffed = false;
+        delete o.crewId;
+      }
+    }
+}
+/** Allocate existing people only. Closed automatic assignments are retained
+ * unless an open/tested ride needs them and no free crew can take that job. */
+export function autoAssignRideCrews(s: CrewPark, preferredBuildingId?: number): void {
+  const pool = ensureCrewPool(s);
+  for (const crew of pool.crews) {
+    const b = crewRide(s, crew.buildingId);
+    if (!b) {
+      if (crew.buildingId !== null) {
+        crew.buildingId = null;
+        crew.mode = "auto";
+      }
+    } else if (operationsOf(b).assignment === "off" && !busy(b)) detach(s, crew);
+  }
+  const rides = s.buildings.filter(
+      (b) => needsOperator(b.kind) && operationsOf(b).assignment !== "off",
+    ),
+    assigned = () => new Set(pool.crews.map((c) => c.buildingId)),
+    free = () => pool.crews.filter((c) => c.buildingId === null).sort((a, b) => a.id - b.id),
+    ready = rides
+      .filter(
+        (b) =>
+          (b.id === preferredBuildingId || (b.open && b.tested)) &&
+          !busy(b) &&
+          !assigned().has(b.id),
+      )
+      .sort(
+        (a, b) =>
+          Number(b.id === preferredBuildingId) - Number(a.id === preferredBuildingId) ||
+          a.id - b.id,
+      );
+  for (const b of ready) {
+    let crew: RideCrew | undefined = free()[0];
+    if (!crew)
+      crew = pool.crews.find(
+        (c) =>
+          c.mode === "auto" &&
+          c.buildingId !== null &&
+          c.buildingId !== preferredBuildingId &&
+          !crewRide(s, c.buildingId)?.open &&
+          !busy(crewRide(s, c.buildingId)),
+      );
+    if (crew) {
+      if (crew.buildingId !== null) detach(s, crew);
+      crew.buildingId = b.id;
+    }
+  }
+  const occupied = assigned(),
+    waiting = rides
+      .filter((b) => !busy(b) && !occupied.has(b.id))
+      .sort(
+        (a, b) =>
+          Number(b.open) - Number(a.open) || Number(b.tested) - Number(a.tested) || a.id - b.id,
+      );
+  for (const b of waiting) {
+    const crew = free()[0];
+    if (!crew) break;
+    crew.buildingId = b.id;
+  }
+  synchronizeCrewFlags(s);
+}
+export function canAssignRideCrew(
+  s: CrewPark,
+  id: number,
+  buildingId: number | null,
+): string | null {
+  const pool = crewPoolOf(s),
+    crew = pool.crews.find((c) => c.id === id);
+  if (!Number.isSafeInteger(id) || !crew) return "Diese Crew ist nicht mehr verfügbar.";
+  if (buildingId !== null && (!Number.isSafeInteger(buildingId) || !crewRide(s, buildingId)))
+    return "Wähle ein vorhandenes Fahrgeschäft.";
+  if (crew.buildingId === buildingId) return null;
+  if (busy(crewRide(s, crew.buildingId)))
+    return "Die Crew bleibt bis nach Fahrt und Ausstieg im Einsatz.";
+  if (buildingId !== null && busy(crewRide(s, buildingId)))
+    return "Die Zielcrew bleibt bis nach Fahrt und Ausstieg im Einsatz.";
+  return null;
+}
+export function assignRideCrew(s: CrewPark, id: number, buildingId: number | null): string | null {
+  const error = canAssignRideCrew(s, id, buildingId);
+  if (error) return error;
+  const pool = ensureCrewPool(s),
+    crew = pool.crews.find((c) => c.id === id)!;
+  if (crew.buildingId !== buildingId) {
+    const old = crewRide(s, crew.buildingId);
+    if (old && buildingId === null) ensureOperations(old).assignment = "off";
+    const replaced =
+      buildingId === null ? undefined : pool.crews.find((c) => c.buildingId === buildingId);
+    if (replaced) {
+      detach(s, replaced);
+      replaced.mode = "auto";
+    }
+    detach(s, crew);
+    crew.buildingId = buildingId;
+  }
+  crew.mode = buildingId === null ? "auto" : "manual";
+  if (buildingId !== null) ensureOperations(crewRide(s, buildingId)!).assignment = "auto";
+  autoAssignRideCrews(s);
+  return null;
+}
+export function setCrewAutomatic(s: CrewPark, id: number): string | null {
+  if (!Number.isSafeInteger(id) || !crewPoolOf(s).crews.some((c) => c.id === id))
+    return "Diese Crew ist nicht mehr verfügbar.";
+  ensureCrewPool(s).crews.find((c) => c.id === id)!.mode = "auto";
+  autoAssignRideCrews(s);
+  return null;
+}
+export function setRideStaffingMode(
+  s: CrewPark,
+  buildingId: number,
+  mode: RideStaffingMode,
+): string | null {
+  const b = crewRide(s, buildingId);
+  if (!b || (mode !== "auto" && mode !== "off")) return "Ungültige Crewzuweisung.";
+  if (mode === "off" && busy(b)) return "Die Crew bleibt bis nach Fahrt und Ausstieg im Einsatz.";
+  ensureCrewPool(s);
+  ensureOperations(b).assignment = mode;
+  if (mode === "off") {
+    const crew = s.crewPool!.crews.find((c) => c.buildingId === b.id);
+    if (crew) {
+      detach(s, crew);
+      crew.mode = "auto";
+    } else {
+      releaseWaiting(s, b);
+      ensureOperations(b).staffed = false;
+      resetRideOperations(b);
+    }
+  }
+  autoAssignRideCrews(s, mode === "auto" ? buildingId : undefined);
+  return null;
+}
+export function hireRideCrew(s: CrewPark): string | null {
+  if (crewPoolOf(s).crews.length >= MAX_RIDE_CREWS)
+    return `Maximal ${MAX_RIDE_CREWS} Crews können beschäftigt werden.`;
+  const pool = ensureCrewPool(s);
+  pool.crews.push({ id: pool.nextId++, buildingId: null, mode: "auto" });
+  autoAssignRideCrews(s);
+  return null;
+}
+export function dismissRideCrew(s: CrewPark, id: number): string | null {
+  const error = canAssignRideCrew(s, id, null);
+  if (error) return error;
+  const pool = ensureCrewPool(s),
+    crew = pool.crews.find((c) => c.id === id)!;
+  detach(s, crew);
+  pool.crews = pool.crews.filter((c) => c.id !== id);
+  autoAssignRideCrews(s);
+  return null;
+}
+function validPoolShape(value: unknown): value is RideCrewPool {
+  if (!value || typeof value !== "object") return false;
+  const p = value as RideCrewPool;
+  if (
+    p.version !== 1 ||
+    !Number.isSafeInteger(p.nextId) ||
+    p.nextId < 1 ||
+    !Array.isArray(p.crews) ||
+    p.crews.length > 10000
+  )
+    return false;
+  const ids = new Set<number>(),
+    buildings = new Set<number>();
+  for (const c of p.crews) {
+    if (
+      !c ||
+      !Number.isSafeInteger(c.id) ||
+      c.id < 1 ||
+      c.id >= p.nextId ||
+      ids.has(c.id) ||
+      (c.mode !== "auto" && c.mode !== "manual") ||
+      (c.buildingId !== null &&
+        (!Number.isSafeInteger(c.buildingId) || c.buildingId < 1 || buildings.has(c.buildingId)))
+    )
+      return false;
+    ids.add(c.id);
+    if (c.buildingId !== null) buildings.add(c.buildingId);
+  }
+  return true;
+}
+export function validCrewPool(s: CrewPark): boolean {
+  if (s.crewPool === undefined) return true;
+  if (!validPoolShape(s.crewPool)) return false;
+  for (const crew of s.crewPool.crews) {
+    const b = s.buildings.find((b) => b.id === crew.buildingId);
+    if (
+      b &&
+      (!needsOperator(b.kind) ||
+        !operationsOf(b).staffed ||
+        operationsOf(b).crewId !== crew.id ||
+        operationsOf(b).assignment === "off")
+    )
+      return false;
+  }
+  return s.buildings.every(
+    (b) =>
+      !needsOperator(b.kind) ||
+      (!operationsOf(b).staffed && operationsOf(b).crewId === undefined) ||
+      s.crewPool!.crews.some((c) => c.id === operationsOf(b).crewId && c.buildingId === b.id),
+  );
+}
+export function canRestoreCrewAssignments(s: CrewPark, snapshot: RideCrewPool): string | null {
+  if (!validPoolShape(snapshot)) return "Die gespeicherte Crewzuweisung ist ungültig.";
+  const current = crewPoolOf(s);
+  for (const c of current.crews) {
+    const desired = snapshot.crews.find((old) => old.id === c.id);
+    if (desired?.buildingId !== c.buildingId && busy(crewRide(s, c.buildingId)))
+      return "Die Crew bleibt bis nach Fahrt und Ausstieg im Einsatz.";
+  }
+  for (const c of snapshot.crews)
+    if (
+      c.buildingId !== null &&
+      busy(crewRide(s, c.buildingId)) &&
+      !current.crews.some((now) => now.id === c.id && now.buildingId === c.buildingId)
+    )
+      return "Eine laufende Fahrt verhindert diese Crewzuweisung.";
+  return null;
+}
+export function restoreCrewAssignments(s: CrewPark, snapshot: RideCrewPool): string | null {
+  const error = canRestoreCrewAssignments(s, snapshot);
+  if (error) return error;
+  const current = ensureCrewPool(s),
+    previousNextId = current.nextId;
+  for (const c of current.crews)
+    if (snapshot.crews.find((old) => old.id === c.id)?.buildingId !== c.buildingId) detach(s, c);
+  s.crewPool = structuredClone(snapshot);
+  s.crewPool.nextId = Math.max(previousNextId, snapshot.nextId);
+  for (const c of s.crewPool.crews)
+    if (c.buildingId !== null) {
+      const b = crewRide(s, c.buildingId);
+      if (!b) {
+        c.buildingId = null;
+        c.mode = "auto";
+      } else ensureOperations(b).assignment = "auto";
+    }
+  synchronizeCrewFlags(s);
+  return null;
 }

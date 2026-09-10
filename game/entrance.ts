@@ -1,4 +1,5 @@
 import type { Park } from "./simulation";
+import { spendCash } from "./budget";
 export const GATES = {
   classic: {
     name: "Waldhain-Bogen",
@@ -28,8 +29,7 @@ export function changeGate(s: Park, style: GateStyle) {
   if (!Object.hasOwn(GATES, style)) return "Unbekanntes Eingangstor.";
   const owned = s.entrance?.owned ?? ["classic"],
     cost = owned.includes(style) ? 0 : GATES[style].cost;
-  if (cost > 0 && s.cash < cost) return "Das Budget reicht für dieses Tor nicht.";
-  s.cash -= cost;
+  if (cost > 0 && !spendCash(s, cost)) return "Das Budget reicht für dieses Tor nicht.";
   s.expenses += cost;
   s.dayExpenses += cost;
   s.entrance = { style, owned: [...new Set([...owned, style])] };

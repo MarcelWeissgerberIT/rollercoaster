@@ -86,6 +86,7 @@ test("Save validation rejects malformed explicit difficulty", () => {
 test("A difficulty change preserves the clock, earned income and paid expenses", () => {
   const s = closePark();
   s.buildings = [];
+  s.crewPool = { version: 1, nextId: 1, crews: [] };
   s.staff = 2;
   S.tick(s, 89);
   s.operatingIncomeToday = 37;

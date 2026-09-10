@@ -1,4 +1,5 @@
 import type { Park, Building, Point } from "./simulation";
+import { canAfford } from "./budget";
 import { releaseBuildingGuests } from "./construction";
 import { findTrackFit, type TrackFit } from "./track-fit";
 import {
@@ -174,7 +175,7 @@ export function planRideProfile(
   }
   candidates.sort(
     (a, b) =>
-      Number(a.cost > s.cash) - Number(b.cost > s.cash) ||
+      Number(!canAfford(s, Math.max(0, a.cost))) - Number(!canAfford(s, Math.max(0, b.cost))) ||
       score(b.after, goal) - score(a.after, goal) ||
       a.cost - b.cost,
   );

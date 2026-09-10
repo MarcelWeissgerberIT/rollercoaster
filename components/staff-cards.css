@@ -439,6 +439,151 @@
   border-style: dashed;
   background: #f8f6e8;
 }
+.sc .sc-crew--available {
+  border-color: #b9cfa9;
+  background: #edf4e4;
+}
+.sc .sc-crew-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.sc .sc-crew-heading > strong {
+  font-size: 13px;
+}
+.sc .sc-crew-heading small {
+  display: block;
+  color: #8b987b;
+  font-size: 9px;
+  font-weight: 400;
+}
+.sc .sc-assignment-badge {
+  background: #dfeccd;
+  color: #547540;
+  border: 1px solid #c2d6b1;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 9px;
+  text-align: right;
+}
+.sc .sc-assignment-badge--manual {
+  background: #f1e8d1;
+  border-color: #dfd2b2;
+  color: #8d7547;
+}
+.sc .sc-available-note {
+  color: #719159;
+  font-size: 11px;
+  margin: 6px 0;
+}
+.sc .sc-pool-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  margin: 12px 0;
+}
+.sc .sc-pool-summary span {
+  display: block;
+  text-align: center;
+  background: #eef3e5;
+  border-radius: 8px;
+  padding: 10px 3px;
+  color: #7c8c6d;
+  font-size: 9px;
+}
+.sc .sc-pool-summary b {
+  display: block;
+  color: #52723e;
+  font-size: 19px;
+}
+.sc .sc-team-automation {
+  margin-top: 22px;
+  padding: 10px;
+  background: #f2f5e9;
+  border-radius: 8px;
+}
+.sc details.sc-crew-assignment {
+  border: 1px solid #dce5d2;
+  border-radius: 9px;
+  background: #fafbf3;
+  padding: 0 9px 9px;
+  margin-top: 12px;
+}
+.sc .sc-crew-assignment > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sc .sc-crew-assignment > summary::-webkit-details-marker {
+  display: none;
+}
+.sc .sc-crew-assignment[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.sc .sc-assignment-options strong,
+.sc .sc-assignment-options small {
+  display: block;
+}
+.sc .sc-assignment-options strong {
+  font-size: 11px;
+}
+.sc .sc-assignment-options small {
+  font-size: 9px;
+  font-weight: 400;
+  color: #8b987c;
+  margin-top: 3px;
+}
+.sc .sc-assignment-options button:disabled {
+  background: #f4f4ec;
+  color: #98a08e;
+  cursor: default;
+}
+.sc .sc-assignment-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 12px;
+}
+.sc .sc-assignment-mode button {
+  min-height: 44px;
+  border: 1px solid #d4dfc9;
+  border-radius: 8px;
+  background: #f7f8ef;
+  padding: 7px;
+  font-size: 10px;
+}
+.sc .sc-assignment-mode button[aria-pressed="true"] {
+  background: #e4efd8;
+  border-color: #aac994;
+  color: #53733f;
+  font-weight: 600;
+}
+.sc .sc-assignment-mode button:disabled {
+  color: #a0a790;
+  cursor: default;
+}
+.sc .sc-dismiss {
+  min-height: 44px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #a1816c;
+  text-decoration: underline;
+  font-size: 10px;
+  margin-top: 4px;
+}
+.sc .sc-dismiss:disabled {
+  color: #aaa999;
+  cursor: default;
+}
 .sc .sc-crew-price {
   display: flex;
   align-items: baseline;

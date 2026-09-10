@@ -10,20 +10,20 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { CATALOG, type Building, type Park } from "../game/simulation";
+import { CATALOG, type Park } from "../game/simulation";
 import { cleanerWorkTarget, type Cleaner } from "../game/cleanliness";
 import { assetUrl } from "../game/assets";
 import { difficultyCost, difficultyEuro } from "../game/difficulty";
 import { staffLocation, type StaffRef } from "../game/staff";
 import {
   needsOperator,
-  hasOperator,
-  operatorName,
-  operatorActivity,
-  OPERATION_LABELS,
   operationsStats,
   OPERATOR_WAGE,
   OPERATOR_POSTS,
+  crewPoolOf,
+  crewMemberName,
+  canAssignRideCrew,
+  type RideCrew,
   type OperatorPost,
 } from "../game/operations";
 import {
@@ -34,6 +34,7 @@ import {
   type ZooSpecialistsHandler,
   type ZooKeeperAssignmentHandler,
 } from "./zoo-panel";
+import type { CrewAssignmentHandlers } from "./ride-operations-panel";
 import "./staff-cards.css";
 
 const crewQualifications: Record<OperatorPost, { label: string; description: string }> = {
@@ -53,140 +54,205 @@ const crewQualifications: Record<OperatorPost, { label: string; description: str
 
 function RideCrewCard({
   park,
-  building: b,
+  crew,
   onLocateStaff,
   onSelectRide,
-  onStaffRide,
+  ...actions
 }: {
   park: Park;
-  building: Building;
+  crew: RideCrew;
   onLocateStaff?: (ref: StaffRef) => void;
   onSelectRide: (id: number) => void;
-  onStaffRide: (id: number, staffed: boolean) => void;
-}) {
-  const assigned = hasOperator(b),
-    occupied = b.riders.length > 0 && assigned,
-    wage = difficultyEuro(difficultyCost(park, OPERATOR_WAGE, "wages"));
+} & CrewAssignmentHandlers) {
+  const building = park.buildings.find((b) => b.id === crew.buildingId),
+    wage = difficultyEuro(difficultyCost(park, OPERATOR_WAGE, "wages")),
+    releaseError = canAssignRideCrew(park, crew.id, null),
+    rides = park.buildings.filter((b) => needsOperator(b.kind));
   return (
     <article
-      className={`sc-crew${assigned ? "" : " sc-crew--vacant"}`}
-      data-testid={`staff-crew-${b.id}`}
+      className={`sc-crew${building ? "" : " sc-crew--available"}`}
+      data-testid={`staff-crew-${crew.id}`}
     >
-      <button type="button" className="sc-workplace" onClick={() => onSelectRide(b.id)}>
-        <img src={assetUrl(CATALOG[b.kind].sprite)} alt="" />
-        <span>
-          <small>{assigned ? "Feste Crew · 3 Personen" : "Crew fehlt · 3 offene Posten"}</small>
-          <strong>{b.name}</strong>
+      <div className="sc-crew-heading">
+        <strong>
+          Crew #{crew.id} <small>3 Personen</small>
+        </strong>
+        <span
+          className={`sc-assignment-badge${crew.mode === "manual" ? " sc-assignment-badge--manual" : ""}`}
+        >
+          {crew.mode === "auto"
+            ? "Automatisch"
+            : building
+              ? "Fest zugewiesen"
+              : "Manuell verfügbar"}
         </span>
-        <MapPin aria-hidden="true" />
-      </button>
+      </div>
+      {building ? (
+        <button type="button" className="sc-workplace" onClick={() => onSelectRide(building.id)}>
+          <img src={assetUrl(CATALOG[building.kind].sprite)} alt="" />
+          <span>
+            <small>Aktueller Einsatz</small>
+            <strong>{building.name}</strong>
+          </span>
+          <MapPin aria-hidden="true" />
+        </button>
+      ) : (
+        <p className="sc-available-note">Verfügbar · aktuell ohne Fahrgeschäft</p>
+      )}
       <div className="sc-crew-price">
         <span>Gesamte Crew / Spieltag</span>
         <b>{wage}</b>
       </div>
-      {assigned ? (
-        <>
-          <div className="sc-crew-people">
-            {OPERATOR_POSTS.map((post) => {
-              const ref: StaffRef = { kind: "operator", id: b.id, post },
-                location = staffLocation(park, ref),
-                qualification = crewQualifications[post],
-                suffix = post === "control" ? `${b.id}` : `${b.id}-${post}`;
-              return (
-                <article
-                  className={`sc-person sc-person--operator sc-person--${post}`}
-                  key={post}
-                  data-testid={`staff-operator-${suffix}`}
-                >
-                  <StaffIdentityButton
-                    staffRef={ref}
-                    name={location?.name ?? operatorName(b, post)}
-                    qualification={location?.role ?? qualification.label}
-                    activity={
-                      b.open
-                        ? (location?.label ?? OPERATION_LABELS[operatorActivity(b)])
-                        : "Fahrgeschäft geschlossen"
-                    }
-                    sprite="keeper-se"
-                    busy={b.open && !!location && location.activity !== "idle"}
-                    onLocateStaff={location ? onLocateStaff : undefined}
-                  />
-                  <details
-                    className="sc-person-details"
-                    data-testid={`staff-details-operator-${suffix}`}
-                  >
-                    <summary>
-                      <span>Qualifikation & Aufgabe</span>
-                      <ChevronDown aria-hidden="true" />
-                    </summary>
-                    <div className="sc-person-body">
-                      <dl className="sc-facts">
-                        <div className="sc-fact-wide">
-                          <dt>Qualifikation</dt>
-                          <dd>{qualification.label}</dd>
-                        </div>
-                        <div className="sc-fact-wide">
-                          <dt>Fester Arbeitsplatz</dt>
-                          <dd>
-                            {b.name} ·{" "}
-                            {post === "control"
-                              ? "Steuerhaus"
-                              : post === "entry"
-                                ? "Einlass"
-                                : "Auslass"}
-                          </dd>
-                        </div>
-                      </dl>
-                      <p className="sc-qualification">
-                        <ShieldCheck aria-hidden="true" />
-                        <span>{qualification.description}</span>
-                      </p>
-                      <p className="sc-hint">
-                        Teil der gemeinsamen Crew. Der oben angezeigte Crewlohn umfasst alle drei
-                        Personen.
-                      </p>
+      <div className="sc-crew-people">
+        {OPERATOR_POSTS.map((post) => {
+          const ref: StaffRef = { kind: "operator", id: building?.id ?? 0, crewId: crew.id, post },
+            location = staffLocation(park, ref),
+            qualification = crewQualifications[post];
+          return (
+            <article
+              className={`sc-person sc-person--operator sc-person--${post}`}
+              key={post}
+              data-testid={`staff-crew-member-${crew.id}-${post}`}
+            >
+              <StaffIdentityButton
+                staffRef={ref}
+                name={location?.name ?? crewMemberName(crew.id, post)}
+                qualification={location?.role ?? qualification.label}
+                activity={
+                  !building
+                    ? "Verfügbar für einen Einsatz"
+                    : building.open
+                      ? (location?.label ?? "Bereit am Arbeitsplatz")
+                      : "Fahrgeschäft geschlossen"
+                }
+                sprite="keeper-se"
+                busy={!!building?.open && !!location && location.activity !== "idle"}
+                onLocateStaff={location ? onLocateStaff : undefined}
+              />
+              <details
+                className="sc-person-details"
+                data-testid={`staff-details-crew-${crew.id}-${post}`}
+              >
+                <summary>
+                  <span>Qualifikation & Aufgabe</span>
+                  <ChevronDown aria-hidden="true" />
+                </summary>
+                <div className="sc-person-body">
+                  <dl className="sc-facts">
+                    <div className="sc-fact-wide">
+                      <dt>Qualifikation</dt>
+                      <dd>{qualification.label}</dd>
                     </div>
-                  </details>
-                </article>
+                    <div className="sc-fact-wide">
+                      <dt>Aktueller Arbeitsplatz</dt>
+                      <dd>
+                        {building
+                          ? `${building.name} · ${post === "control" ? "Steuerhaus" : post === "entry" ? "Einlass" : "Auslass"}`
+                          : "Noch keinem Fahrgeschäft zugewiesen"}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="sc-qualification">
+                    <ShieldCheck aria-hidden="true" />
+                    <span>{qualification.description}</span>
+                  </p>
+                  <p className="sc-hint">
+                    Der gemeinsame Crewlohn umfasst alle drei Personen und fällt auch ohne Einsatz
+                    an.
+                  </p>
+                </div>
+              </details>
+            </article>
+          );
+        })}
+      </div>
+      {!building && (
+        <p className="sc-hint">
+          Sobald das Team eine Anlage übernimmt, kannst du seine Mitarbeitenden im Park zeigen.
+        </p>
+      )}
+      <details className="sc-crew-assignment" data-testid={`crew-assignment-${crew.id}`}>
+        <summary>
+          <span>Einsatz ändern</span>
+          <ChevronDown aria-hidden="true" />
+        </summary>
+        <div className="sc-assignment-options">
+          <button
+            type="button"
+            aria-pressed={crew.mode === "auto"}
+            onClick={() => actions.onCrewAutomatic(crew.id)}
+            data-testid={`crew-auto-${crew.id}`}
+          >
+            <span>
+              <strong>Automatisch verteilen</strong>
+              <small>Offene, getestete Anlagen zuerst</small>
+            </span>
+          </button>
+          {rides.map((ride) => {
+            const error = canAssignRideCrew(park, crew.id, ride.id),
+              current = crew.buildingId === ride.id,
+              replaced = crewPoolOf(park).crews.find(
+                (item) => item.buildingId === ride.id && item.id !== crew.id,
               );
-            })}
-          </div>
-          <p className="sc-hint">
-            Steuerhaus und Bedienpult gehören zum Fahrgeschäft und werden automatisch mitgebaut.
-          </p>
+            return (
+              <button
+                type="button"
+                key={ride.id}
+                disabled={!!error}
+                title={error ?? undefined}
+                aria-pressed={current && crew.mode === "manual"}
+                onClick={() => actions.onAssignCrew(crew.id, ride.id)}
+                data-testid={`crew-assign-${crew.id}-${ride.id}`}
+              >
+                <span>
+                  <strong>{ride.name}</strong>
+                  <small>
+                    {error ??
+                      (current
+                        ? crew.mode === "manual"
+                          ? "Hier fest zugewiesen"
+                          : "Aktueller Einsatz · hier fest zuweisen"
+                        : replaced
+                          ? `Wechsel · Crew #${replaced.id} ablösen · hier fest zuweisen`
+                          : "Hier fest zuweisen")}
+                  </small>
+                </span>
+                <MapPin aria-hidden="true" />
+              </button>
+            );
+          })}
+          {!rides.length && (
+            <p className="sc-hint">Baue ein Fahrgeschäft, um dieser Crew einen Einsatz zu geben.</p>
+          )}
+        </div>
+        {building && (
           <button
             type="button"
             className="sc-release"
-            disabled={occupied}
-            onClick={() => onStaffRide(b.id, false)}
-            aria-label={`Gesamte Crew von ${b.name} abziehen`}
+            disabled={!!releaseError}
+            title={releaseError ?? undefined}
+            onClick={() => actions.onAssignCrew(crew.id, null)}
+            data-testid={`crew-release-${crew.id}`}
           >
-            <Minus aria-hidden="true" /> Gesamte Crew abziehen
+            <Minus aria-hidden="true" /> Freigeben · Crew behalten
           </button>
-          {occupied && (
-            <p className="sc-hint">
-              Während einer Fahrt bleibt die Crew zugewiesen. Nach dem Ausstieg kannst du sie
-              abziehen.
-            </p>
-          )}
-        </>
-      ) : (
-        <>
-          <p className="sc-intro">
-            Fahrsteuerung, Einlass und Auslass werden gemeinsam besetzt. Ohne Crew startet keine
-            Fahrt.
-          </p>
-          <button
-            type="button"
-            className="sc-hire-operator"
-            onClick={() => onStaffRide(b.id, true)}
-            aria-label={`Crew für ${b.name} zuweisen`}
-            data-testid={`staff-vacancy-${b.id}`}
-          >
-            <Plus aria-hidden="true" /> Crew zuweisen · 3 Personen
-          </button>
-        </>
-      )}
+        )}
+        {releaseError && <p className="sc-hint">{releaseError}</p>}
+        <p className="sc-hint">
+          Feste Zuweisungen bleiben erhalten. Freigeben behält das Team und schaltet die Automatik
+          seiner bisherigen Anlage aus.
+        </p>
+        <button
+          type="button"
+          className="sc-dismiss"
+          disabled={!!releaseError}
+          title={releaseError ?? undefined}
+          onClick={() => actions.onDismissCrew(crew.id)}
+          data-testid={`crew-dismiss-${crew.id}`}
+        >
+          Crew entlassen
+        </button>
+      </details>
     </article>
   );
 }
@@ -302,8 +368,8 @@ export function StaffPanel({
   onSpecialists,
   onAssignKeeper,
   onSelectRide,
-  onStaffRide,
   onLocateStaff,
+  ...crewActions
 }: {
   park: Park;
   onCleaners: (count: number) => void;
@@ -311,15 +377,15 @@ export function StaffPanel({
   onSpecialists?: ZooSpecialistsHandler;
   onAssignKeeper?: ZooKeeperAssignmentHandler;
   onSelectRide: (id: number) => void;
-  onStaffRide: (id: number, staffed: boolean) => void;
   onLocateStaff?: (ref: StaffRef) => void;
-}) {
+} & CrewAssignmentHandlers) {
   const ops = operationsStats(park),
     zoo = zooTeamTotals(park);
   const cleanerWage = difficultyCost(park, 80, "wages");
   const operatorWage = difficultyCost(park, OPERATOR_WAGE, "wages");
   const wages = difficultyCost(park, park.staff * 80 + ops.dailyCost, "wages") + zoo.cost;
   const cleaners = park.cleanliness?.workers ?? [];
+  const crews = crewPoolOf(park).crews;
   return (
     <section className="staff-panel z9 sc sc-staff" data-testid="staff-panel">
       <header className="sc-header">
@@ -352,7 +418,10 @@ export function StaffPanel({
         </div>
         <div className="sc-hiring-card">
           <strong>Saubere Wege, zufriedene Gäste</strong>
-          <p>Das Team sammelt Müll und leert volle Mülleimer.</p>
+          <p>
+            Freie Kräfte übernehmen automatisch die nächsten erreichbaren Reinigungsaufträge im
+            ganzen Park.
+          </p>
           <div className="sc-hiring-footer">
             <span>
               <b>{difficultyEuro(cleanerWage)}</b> je Person / Spieltag
@@ -385,6 +454,10 @@ export function StaffPanel({
           </p>
         )}
       </section>
+      <p className="sc-intro sc-team-automation">
+        Tierpflege verteilt Aufgaben automatisch nach Qualifikation. Auf den Personenkarten kannst
+        du ein passendes Gehege fest zuweisen.
+      </p>
       <ZooTeamControls
         park={park}
         onKeepers={onKeepers}
@@ -399,38 +472,60 @@ export function StaffPanel({
             Fahrgeschäft-Crews
           </h4>
           <span>
-            {ops.staffed} / {ops.rides} Crews · {ops.personCount} Personen
+            {ops.crewCount} Crews · {ops.availableCrews} verfügbar
           </span>
         </div>
         <p className="sc-intro">
-          Drei Personen pro Fahrgeschäft: Fahrsteuerung, Einlass und Auslass. Gemeinsam{" "}
-          {difficultyEuro(operatorWage)} pro Crew und Spieltag.
+          Verfügbare Teams übernehmen offene Anlagen automatisch. Jede Crew umfasst Fahrsteuerung,
+          Einlass und Auslass; gemeinsam {difficultyEuro(operatorWage)} pro Spieltag.
         </p>
         {ops.unstaffed > 0 && (
           <p className="sc-note sc-note--warning">
-            {ops.unstaffed} {ops.unstaffed === 1 ? "Fahrgeschäft wartet" : "Fahrgeschäfte warten"}{" "}
-            auf eine Crew.
+            {ops.unstaffed} {ops.unstaffed === 1 ? "Fahrgeschäft ist" : "Fahrgeschäfte sind"} ohne
+            Crew.
           </p>
         )}
-        {!ops.rides && (
+        <div className="sc-pool-summary" data-testid="crew-pool-summary">
+          <span>
+            <b>{ops.staffed}</b> im Einsatz
+          </span>
+          <span>
+            <b>{ops.availableCrews}</b> verfügbar
+          </span>
+          <span>
+            <b>{ops.manualCrews}</b> manuell
+          </span>
+        </div>
+        <button
+          type="button"
+          className="sc-hire-operator"
+          onClick={crewActions.onHireCrew}
+          data-testid="staff-hire-crew"
+        >
+          <Plus aria-hidden="true" /> Neue Crew einstellen · {difficultyEuro(operatorWage)} /
+          Spieltag
+        </button>
+        <p className="sc-hint">
+          Der Bau einer Anlage stellt kein zusätzliches Team ein. Freie Crews bleiben bezahlt; ihre
+          Zuweisung kannst du jederzeit ändern, sobald keine Fahrt läuft.
+        </p>
+        {!crews.length && (
           <p className="sc-empty">
-            Beim Bau eines Fahrgeschäfts werden eine Crew mit drei Personen sowie das Steuerhaus
-            zugewiesen. Hier erscheinen ihre Namen und festen Arbeitsplätze.
+            Noch keine Fahrgeschäft-Crew eingestellt. Stelle eine Crew ein, damit drei Mitarbeitende
+            gemeinsam eine Anlage übernehmen können.
           </p>
         )}
         <div className="sc-roster">
-          {park.buildings
-            .filter((b) => needsOperator(b.kind))
-            .map((b) => (
-              <RideCrewCard
-                key={b.id}
-                park={park}
-                building={b}
-                onLocateStaff={onLocateStaff}
-                onSelectRide={onSelectRide}
-                onStaffRide={onStaffRide}
-              />
-            ))}
+          {crews.map((crew) => (
+            <RideCrewCard
+              key={crew.id}
+              park={park}
+              crew={crew}
+              onLocateStaff={onLocateStaff}
+              onSelectRide={onSelectRide}
+              {...crewActions}
+            />
+          ))}
         </div>
       </section>
     </section>

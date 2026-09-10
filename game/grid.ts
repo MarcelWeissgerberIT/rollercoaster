@@ -1,4 +1,5 @@
 import type { Park, Point } from "./simulation";
+import { canAfford, spendCash } from "./budget";
 export const PARK_ENTRANCE = { x: 15, y: 29 };
 export const INITIAL_SIZE = 30,
   MAX_SIZE = 54,
@@ -64,7 +65,7 @@ export function expansionPlan(s: Park, axis: "east" | "south") {
     error:
       count <= 0
         ? "Der Park ist in dieser Richtung vollständig erweitert."
-        : cost > s.cash
+        : !canAfford(s, cost)
           ? "Das Budget reicht für dieses Grundstück noch nicht."
           : null,
   };
@@ -78,7 +79,7 @@ export function expandPark(s: Park, axis: "east" | "south"): string | null {
     if (!s.tiles[y]) s.tiles[y] = [];
     for (let x = s.tiles[y].length; x < plan.width; x++) s.tiles[y][x] = "grass";
   }
-  s.cash -= plan.cost;
+  spendCash(s, plan.cost);
   s.expenses += plan.cost;
   s.dayExpenses += plan.cost;
   s.landValue = (s.landValue ?? 0) + plan.cost;

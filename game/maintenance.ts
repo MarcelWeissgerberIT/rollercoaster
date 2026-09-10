@@ -1,4 +1,5 @@
 import type { Building, Park } from "./simulation";
+import { spendCash } from "./budget";
 
 const mechanical = (b: Building) =>
   [
@@ -29,8 +30,7 @@ export function repairAttraction(s: Park, b: Building, baseCost: number): string
   if (!s.buildings.includes(b) || !mechanical(b)) return "Wähle ein Fahrgeschäft zum Reparieren.";
   const cost = repairCost(b, baseCost);
   if (!cost) return "Diese Attraktion ist bereits in gutem Zustand.";
-  if (s.cash < cost) return "Für die Reparatur reicht das Parkbudget nicht.";
-  s.cash -= cost;
+  if (!spendCash(s, cost)) return "Für die Reparatur reicht das Parkbudget nicht.";
   s.expenses += cost;
   s.dayExpenses += cost;
   s.operatingExpensesToday = (s.operatingExpensesToday ?? 0) + cost;

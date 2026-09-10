@@ -1,5 +1,14 @@
-import { hasOperator, resetRideOperations, ensureOperations } from "./operations";
+import {
+  hasOperator,
+  resetRideOperations,
+  ensureOperations,
+  crewPoolOf,
+  restoreCrewAssignments,
+  canRestoreCrewAssignments,
+  type RideCrewPool,
+} from "./operations";
 import { pathStyleAt, type PathStyle } from "./park-life";
+import { canAfford, hasUnlimitedBudget, spendCash } from "./budget";
 import { broken } from "./maintenance";
 import { habitatSafety, isHabitat } from "./zoo";
 import { rerouteHabitatViewers } from "./habitat-viewpoint";
@@ -150,7 +159,7 @@ export function planPlacement(
     const error = validateTrack(virtual, track ?? []);
     if (error) return { ...plan, error };
   }
-  if (s.cash < plan.cost) plan.error = "Das Parkbudget reicht nicht";
+  if (!canAfford(s, plan.cost)) plan.error = "Das Parkbudget reicht nicht";
   if (plan.clearIds.length)
     plan.warning = `${plan.clearIds.length} Deko entfernen · ${plan.clearIds.length * 10} € enthalten`;
   return plan;
@@ -304,7 +313,7 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
     points,
     clearIds,
     cost,
-    error: cost > s.cash ? "Das Parkbudget reicht für den Anschluss nicht" : null,
+    error: !canAfford(s, cost) ? "Das Parkbudget reicht für den Anschluss nicht" : null,
   };
 }
 export function connectBuilding(s: Park, b: Building, clear = true): string | null {
@@ -390,7 +399,7 @@ function withConnection(
         ...s.buildings.filter((item) => item.id !== b.id && !plan.clearIds.includes(item.id)),
         moved,
       ],
-      cash: s.cash - plan.cost,
+      cash: hasUnlimitedBudget(s) ? s.cash : s.cash - plan.cost,
     };
   if (isHabitat(b.kind) && b.habitat)
     moved.habitat = { ...b.habitat, viewpoint: relocatedViewpoint(virtual, b, plan.geometry) };
@@ -407,7 +416,7 @@ function withConnection(
         };
       for (const id of pod.clearIds) if (!plan.clearIds.includes(id)) plan.clearIds.push(id);
       plan.cost += pod.cost;
-      virtual.cash -= pod.cost;
+      spendCash(virtual, pod.cost, true);
       virtual.buildings = virtual.buildings.filter((item) => !pod.clearIds.includes(item.id));
     }
   }
@@ -504,7 +513,7 @@ export function planRelocation(
       },
       geometry.track ?? [],
     );
-  if (plan.cost > 0 && plan.cost > s.cash)
+  if (plan.cost > 0 && !canAfford(s, plan.cost))
     plan.error = "Das Parkbudget reicht zum Freiräumen nicht.";
   plan.warning = plan.clearIds.length
     ? `${plan.clearIds.length} Deko freiräumen · ${plan.cost} €`
@@ -590,7 +599,7 @@ export function planPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = t
       role === "entry"
         ? "Eingang: freie Wiese, blauer Eingangsweg oder Parkweg benötigt."
         : "Ausgang: freie Wiese, roter Ausgangsweg oder Parkweg benötigt.";
-  if (plan.cost > s.cash) plan.error = "Das Budget reicht zum Freiräumen nicht.";
+  if (!canAfford(s, plan.cost)) plan.error = "Das Budget reicht zum Freiräumen nicht.";
   return plan;
 }
 export function setAccessPod(s: Park, b: Building, role: PodRole, pod: Pod, clear = true) {
@@ -642,9 +651,12 @@ export type EditRecord = {
   flags: { id: number; open: boolean; autoOpen?: boolean }[];
   geometry: { id: number; before: Geometry }[];
   vehicles?: { id: number; before: Building["vehicle"] }[];
+  crewConfig?: RideCrewPool;
   operationsConfig?: {
     id: number;
-    before: Pick<NonNullable<Building["operations"]>, "staffed" | "rounds"> | undefined;
+    before:
+      | Pick<NonNullable<Building["operations"]>, "staffed" | "rounds" | "crewId" | "assignment">
+      | undefined;
   }[];
   clearedLitter?: Litter[];
   pathStyles?: { key: string; before: PathStyle | undefined }[];
@@ -655,6 +667,8 @@ export type EditRecord = {
 };
 export function recordEdit(s: Park, label: string, fn: () => void): EditRecord | null {
   const stylesBefore = { ...s.pathStyles };
+  const crewBefore = structuredClone(crewPoolOf(s)),
+    hadCrewPool = s.crewPool !== undefined;
   const tiles = s.tiles.map((row) => [...row]),
     buildings = [...s.buildings],
     flags = buildings.map((b) => ({ id: b.id, open: b.open, autoOpen: b.autoOpen }));
@@ -674,7 +688,12 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
   const operationsConfig = buildings.map((b) => ({
     id: b.id,
     before: b.operations
-      ? { staffed: b.operations.staffed, rounds: b.operations.rounds }
+      ? {
+          staffed: b.operations.staffed,
+          rounds: b.operations.rounds,
+          crewId: b.operations.crewId,
+          assignment: b.operations.assignment,
+        }
       : undefined,
   }));
   const lines = structuredClone(s.transitLines ?? []);
@@ -695,6 +714,11 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     .map((id) => ({ id, before: lines.find((l) => l.id === id) ?? null }));
   const changes: EditRecord = {
     label,
+    crewConfig:
+      (!hadCrewPool && s.crewPool !== undefined) ||
+      JSON.stringify(crewBefore) !== JSON.stringify(crewPoolOf(s))
+        ? crewBefore
+        : undefined,
     viewpoints: viewpoints.filter((old) => {
       const b = s.buildings.find((b) => b.id === old.id);
       return b && JSON.stringify(old.before) !== JSON.stringify(b.habitat?.viewpoint);
@@ -716,7 +740,12 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     operationsConfig: operationsConfig.filter((old) => {
       const b = s.buildings.find((b) => b.id === old.id);
       const now = b?.operations
-        ? { staffed: b.operations.staffed, rounds: b.operations.rounds }
+        ? {
+            staffed: b.operations.staffed,
+            rounds: b.operations.rounds,
+            crewId: b.operations.crewId,
+            assignment: b.operations.assignment,
+          }
         : undefined;
       return b && JSON.stringify(old.before) !== JSON.stringify(now);
     }),
@@ -752,6 +781,7 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     changes.geometry.length ||
     changes.vehicles?.length ||
     changes.operationsConfig?.length ||
+    changes.crewConfig ||
     changes.lines
     ? changes
     : null;
@@ -769,6 +799,11 @@ export function undoEdits(s: Park, records: EditRecord[]) {
         s.buildings.some((b) => b.id === old.id && b.riders.length)
       )
         return "Die Crew kann erst nach Ende der laufenden Fahrt abgezogen werden. Rückgängig bleibt unverändert.";
+  for (const record of records) {
+    if (!record.crewConfig) continue;
+    const error = canRestoreCrewAssignments(s, record.crewConfig);
+    if (error) return error;
+  }
   for (const record of [...records].reverse()) {
     const editing = s.trackEdit?.buildingId;
     if (
@@ -847,6 +882,8 @@ export function undoEdits(s: Park, records: EditRecord[]) {
       // Restore user settings only; never rewind the active phase, riders or lap.
       o.staffed = old.before?.staffed ?? true;
       o.rounds = old.before?.rounds ?? 1;
+      o.crewId = old.before?.crewId;
+      o.assignment = old.before?.assignment;
       if (!o.staffed) {
         for (const id of b.queue) {
           const g = s.guests.find((g) => g.id === id);
@@ -899,8 +936,14 @@ export function undoEdits(s: Park, records: EditRecord[]) {
         b.autoOpen = false;
       }
     }
+    if (record.crewConfig) {
+      // Ownership/settings only: active ride time and money are not snapshot state.
+      // All occupied-ride guards were checked before any part of this undo batch.
+      const error = restoreCrewAssignments(s, record.crewConfig);
+      if (error) throw new Error(error);
+    }
     tickTransit(s, 0);
-    s.cash -= record.cash;
+    if (!hasUnlimitedBudget(s)) s.cash -= record.cash;
     s.income -= record.income;
     s.expenses -= record.expenses;
     s.dayIncome -= record.income;

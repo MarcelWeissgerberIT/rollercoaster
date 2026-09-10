@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, Banknote, Landmark, Wallet } from "lucide-react";
 import type { Park } from "../game/simulation";
+import { canAfford, hasUnlimitedBudget } from "../game/budget";
 import {
   LOAN_DAILY_RATE,
   LOAN_LIMIT,
@@ -30,6 +31,7 @@ export function FinancePanel({
   onRepay: LoanAction;
 }) {
   const [feedback, setFeedback] = useState<{ text: string; error: boolean } | null>(null);
+  const unlimited = hasUnlimitedBudget(park);
   const loan = (park as Park & { loan?: LoanState }).loan,
     debt = loan?.principal ?? 0,
     remaining = Math.max(0, LOAN_LIMIT - debt),
@@ -50,97 +52,122 @@ export function FinancePanel({
         <span>
           <Landmark aria-hidden="true" /> Parkfinanzen
         </span>
-        <h3>Spielraum für deinen Park</h3>
-        <p>Ein optionaler Baukredit hilft beim Start und bei der nächsten Erweiterung.</p>
+        <h3>{unlimited ? "Freies Spiel ohne Geldlimit" : "Spielraum für deinen Park"}</h3>
+        <p>
+          {unlimited
+            ? "Dein Budget ist unbegrenzt. Du kannst bauen und deinen Park betreiben, ohne einen Kredit aufzunehmen."
+            : "Ein optionaler Baukredit hilft beim Start und bei der nächsten Erweiterung."}
+        </p>
       </header>
-      <div className="fp-balances">
+      <div className={`fp-balances${unlimited && !debt ? " fp-balances--unlimited" : ""}`}>
         <article>
           <Wallet aria-hidden="true" />
-          <span>Bargeld</span>
-          <strong className={park.cash < 0 ? "fp-negative" : ""}>{money(park.cash)}</strong>
+          <span>{unlimited ? "Unbegrenztes Budget" : "Bargeld"}</span>
+          <strong
+            className={!unlimited && park.cash < 0 ? "fp-negative" : ""}
+            data-testid="finance-budget"
+            aria-label={unlimited ? "Unbegrenzt" : undefined}
+          >
+            {unlimited ? "∞" : money(park.cash)}
+          </strong>
         </article>
-        <article>
-          <Landmark aria-hidden="true" />
-          <span>Offener Kredit</span>
-          <strong>{money(debt)}</strong>
-        </article>
-        <article>
-          <Banknote aria-hidden="true" />
-          <span>Zinsen / Spieltag</span>
-          <strong>{money(dailyInterest)}</strong>
-        </article>
+        {(!unlimited || debt > 0) && (
+          <article>
+            <Landmark aria-hidden="true" />
+            <span>Offener Kredit</span>
+            <strong>{money(debt)}</strong>
+          </article>
+        )}
+        {(!unlimited || debt > 0) && (
+          <article>
+            <Banknote aria-hidden="true" />
+            <span>Zinsen / Spieltag</span>
+            <strong>{money(dailyInterest)}</strong>
+          </article>
+        )}
       </div>
-      <div className="fp-credit-meter">
-        <div>
-          <span>Verfügbarer Kreditrahmen</span>
-          <strong>{money(remaining)}</strong>
-        </div>
-        <progress value={debt} max={LOAN_LIMIT} aria-label="Ausgeschöpfter Kreditrahmen" />
-        <small>
-          {money(debt)} von maximal {money(LOAN_LIMIT)} offen
-        </small>
-      </div>
-      <section className="fp-actions" aria-label="Kredit aufnehmen">
-        <h4>
-          <ArrowDownToLine aria-hidden="true" /> Kredit auszahlen
-        </h4>
-        <p>Der gewählte Betrag wird deiner Kasse sofort gutgeschrieben.</p>
-        <div className="fp-button-row">
-          {[LOAN_STEP, 5000, 10000].map((amount) => (
-            <button
-              type="button"
-              key={amount}
-              disabled={amount > remaining}
-              onClick={() => act(onBorrow, amount, "Kredit ausgezahlt")}
-            >
-              + {money(amount)}
-            </button>
-          ))}
-        </div>
-      </section>
-      <section className="fp-actions fp-repay" aria-label="Kredit zurückzahlen">
-        <h4>
-          <ArrowUpFromLine aria-hidden="true" /> Freiwillig zurückzahlen
-        </h4>
-        <p>
-          {debt > 0
-            ? "Tilge aus deinem verfügbaren Bargeld. Die Restschuld und die nächsten Zinsen sinken sofort."
-            : "Es ist kein Kredit offen. Dein voller Kreditrahmen ist verfügbar."}
-        </p>
-        {debt > 0 && (
-          <div className="fp-button-row">
-            {repayAmounts.map((amount) => (
-              <button
-                type="button"
-                key={amount}
-                disabled={park.cash < amount}
-                onClick={() => act(onRepay, amount, "zurückgezahlt")}
-              >
-                {amount === debt ? `Alles · ${money(amount)}` : money(amount)}
-              </button>
-            ))}
+      {!unlimited && (
+        <>
+          <div className="fp-credit-meter">
+            <div>
+              <span>Verfügbarer Kreditrahmen</span>
+              <strong>{money(remaining)}</strong>
+            </div>
+            <progress value={debt} max={LOAN_LIMIT} aria-label="Ausgeschöpfter Kreditrahmen" />
+            <small>
+              {money(debt)} von maximal {money(LOAN_LIMIT)} offen
+            </small>
           </div>
-        )}
-        {debt > 0 && park.cash < Math.min(LOAN_STEP, debt) && (
-          <small className="fp-cash-note">
-            Für den kleinsten Rückzahlungsbetrag fehlt noch Bargeld.
-          </small>
-        )}
-      </section>
-      <aside className="fp-terms">
-        <strong>{(LOAN_DAILY_RATE * 100).toLocaleString("de-DE")} % Zins je Spieltag</strong>
-        <p>
-          Zinsen werden am Tagesende auf die dann offene Summe berechnet. Ein Spieltag dauert 90
-          Sekunden Simulationszeit. Der Zins bleibt in jeder Schwierigkeit gleich.
-        </p>
-        <p>
-          Keine automatische Tilgung. Kreditaufnahme und Rückzahlung verändern Bargeld und
-          Restschuld. Nur Zinsen zählen zu den laufenden Ausgaben.
-        </p>
-        {loan && loan.interestPaid > 0 && (
-          <small>Bisher berechnete Kreditzinsen: {money(loan.interestPaid)}</small>
-        )}
-      </aside>
+          <section className="fp-actions" aria-label="Kredit aufnehmen">
+            <h4>
+              <ArrowDownToLine aria-hidden="true" /> Kredit auszahlen
+            </h4>
+            <p>Der gewählte Betrag wird deiner Kasse sofort gutgeschrieben.</p>
+            <div className="fp-button-row">
+              {[LOAN_STEP, 5000, 10000].map((amount) => (
+                <button
+                  type="button"
+                  key={amount}
+                  disabled={amount > remaining}
+                  onClick={() => act(onBorrow, amount, "Kredit ausgezahlt")}
+                >
+                  + {money(amount)}
+                </button>
+              ))}
+            </div>
+          </section>
+        </>
+      )}
+      {(!unlimited || debt > 0) && (
+        <>
+          <section className="fp-actions fp-repay" aria-label="Kredit zurückzahlen">
+            <h4>
+              <ArrowUpFromLine aria-hidden="true" /> Freiwillig zurückzahlen
+            </h4>
+            <p>
+              {debt > 0
+                ? unlimited
+                  ? "Du kannst den bestehenden Kredit aus dem unbegrenzten Budget zurückzahlen. Die Restschuld und die nächsten Zinsen sinken sofort."
+                  : "Tilge aus deinem verfügbaren Bargeld. Die Restschuld und die nächsten Zinsen sinken sofort."
+                : "Es ist kein Kredit offen. Dein voller Kreditrahmen ist verfügbar."}
+            </p>
+            {debt > 0 && (
+              <div className="fp-button-row">
+                {repayAmounts.map((amount) => (
+                  <button
+                    type="button"
+                    key={amount}
+                    disabled={!canAfford(park, amount)}
+                    onClick={() => act(onRepay, amount, "zurückgezahlt")}
+                  >
+                    {amount === debt ? `Alles · ${money(amount)}` : money(amount)}
+                  </button>
+                ))}
+              </div>
+            )}
+            {debt > 0 && !canAfford(park, Math.min(LOAN_STEP, debt)) && (
+              <small className="fp-cash-note">
+                Für den kleinsten Rückzahlungsbetrag fehlt noch Bargeld.
+              </small>
+            )}
+          </section>
+          <aside className="fp-terms">
+            <strong>{(LOAN_DAILY_RATE * 100).toLocaleString("de-DE")} % Zins je Spieltag</strong>
+            <p>
+              Zinsen werden am Tagesende auf die dann offene Summe berechnet. Ein Spieltag dauert 90
+              Sekunden Simulationszeit. Der Zins bleibt in jeder Schwierigkeit gleich.
+            </p>
+            <p>
+              {unlimited
+                ? "Keine automatische Tilgung. Rückzahlungen senken die Restschuld. Nur Zinsen zählen zu den laufenden Ausgaben."
+                : "Keine automatische Tilgung. Kreditaufnahme und Rückzahlung verändern Bargeld und Restschuld. Nur Zinsen zählen zu den laufenden Ausgaben."}
+            </p>
+            {loan && loan.interestPaid > 0 && (
+              <small>Bisher berechnete Kreditzinsen: {money(loan.interestPaid)}</small>
+            )}
+          </aside>
+        </>
+      )}
       <section className="fp-day" aria-label="Tatsächliche Tagesfinanzen">
         <h4>Deine tatsächlichen Zahlen</h4>
         <dl>
@@ -158,8 +185,9 @@ export function FinancePanel({
           </div>
         </dl>
         <small>
-          Der Tagessaldo enthält die tatsächlich gebuchten Kosten einschließlich Kreditzinsen und
-          Bauausgaben.
+          {unlimited
+            ? "Die gebuchten Einnahmen und Kosten laufen zur Übersicht weiter. Dein unbegrenztes Budget schränken sie nicht ein."
+            : "Der Tagessaldo enthält die tatsächlich gebuchten Kosten einschließlich Kreditzinsen und Bauausgaben."}
         </small>
       </section>
       {feedback && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { canAfford } from "../game/budget";
 import { useEffect, useRef, useState } from "react";
 import {
   Check,
@@ -144,7 +145,7 @@ export function StaffIdentityButton({
       onClick={() => onLocateStaff?.(staffRef)}
       disabled={!onLocateStaff}
       aria-label={`${name} im Park zeigen`}
-      data-testid={`staff-locate-${staffRef.kind}-${staffRef.id}${staffRef.kind === "operator" && staffRef.post && staffRef.post !== "control" ? `-${staffRef.post}` : ""}`}
+      data-testid={`staff-locate-${staffRef.kind}-${staffRef.kind === "operator" && staffRef.id === 0 && staffRef.crewId !== undefined ? `free-crew-${staffRef.crewId}` : staffRef.id}${staffRef.kind === "operator" && staffRef.post && staffRef.post !== "control" ? `-${staffRef.post}` : ""}`}
     >
       <span className="sc-portrait">
         <img src={assetUrl(sprite)} alt={`Spielfigur von ${name}, ${qualification}`} />
@@ -549,14 +550,14 @@ export function HabitatPanel({
   };
   const carePrice = h.count * CARE_PER_ANIMAL;
   const fullyCared = Math.min(h.food, h.water, h.clean, h.health) >= 99.9;
-  const careDisabled = !h.count || !connected || fullyCared || park.cash < carePrice;
+  const careDisabled = !h.count || !connected || fullyCared || !canAfford(park, carePrice);
   const careReason = !h.count
     ? "Noch keine Tiere im Gehege."
     : !connected
       ? "Ein erreichbarer Parkweg am Zaun fehlt."
       : fullyCared
         ? "Alle Tiere sind vollständig versorgt."
-        : park.cash < carePrice
+        : !canAfford(park, carePrice)
           ? `Es fehlen ${euro(carePrice - park.cash)}.`
           : "Futter und Wasser auffüllen, säubern und Gesundheit unterstützen.";
   return (
@@ -672,7 +673,7 @@ export function HabitatPanel({
             </h5>
             {features.map((f) => {
               const owned = habitatHasFeature(b, f.id),
-                lacking = park.cash < f.cost;
+                lacking = !canAfford(park, f.cost);
               return (
                 <article className={`z9-feature ${owned ? "is-owned" : ""}`} key={f.id}>
                   <div>
@@ -719,7 +720,9 @@ export function HabitatPanel({
         <button
           className="secondary z9-wide"
           disabled={
-            !connected || (h.safety?.condition ?? 100) >= 100 || park.cash < HABITAT_INSPECTION_COST
+            !connected ||
+            (h.safety?.condition ?? 100) >= 100 ||
+            !canAfford(park, HABITAT_INSPECTION_COST)
           }
           onClick={() => act("inspect")}
         >
@@ -731,7 +734,7 @@ export function HabitatPanel({
           <small className="z9-budget">Für den Fachservice fehlt ein erreichbarer Parkweg.</small>
         ) : (
           (h.safety?.condition ?? 100) < 100 &&
-          park.cash < HABITAT_INSPECTION_COST && (
+          !canAfford(park, HABITAT_INSPECTION_COST) && (
             <small className="z9-budget">
               Es fehlen {euro(HABITAT_INSPECTION_COST - park.cash)}.
             </small>
@@ -758,7 +761,7 @@ export function HabitatPanel({
             </p>
             <button
               className="secondary z9-wide"
-              disabled={!electric && park.cash < electricPrice}
+              disabled={!electric && !canAfford(park, electricPrice)}
               onClick={() => act(electric ? "electric-off" : "electric-on")}
             >
               {electric
@@ -767,7 +770,7 @@ export function HabitatPanel({
                   ? "Zusatzsicherung einschalten · kostenlos"
                   : `Zusatzsicherung einbauen · ${euro(electricPrice)}`}
             </button>
-            {!electric && park.cash < electricPrice && (
+            {!electric && !canAfford(park, electricPrice) && (
               <small className="z9-budget">Es fehlen {euro(electricPrice - park.cash)}.</small>
             )}
           </div>
@@ -780,7 +783,7 @@ export function HabitatPanel({
       <div className="z9-adoption">
         <button
           className="primary z9-wide"
-          disabled={h.count >= s.capacity || park.cash < s.adoption}
+          disabled={h.count >= s.capacity || !canAfford(park, s.adoption)}
           onClick={() => act("adopt")}
         >
           {adoptLabel} · {euro(s.adoption)}
@@ -788,7 +791,7 @@ export function HabitatPanel({
         <p className="z9-muted">
           {h.count >= s.capacity
             ? "Das Gehege ist voll."
-            : park.cash < s.adoption
+            : !canAfford(park, s.adoption)
               ? `Für ein weiteres Tier fehlen ${euro(s.adoption - park.cash)}.`
               : !h.count
                 ? "Richte zuerst das Gehege ein. Mit Tieren kann es für Besucher öffnen."

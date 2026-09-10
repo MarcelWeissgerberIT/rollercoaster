@@ -1,4 +1,5 @@
 import type { Park } from "./simulation";
+import { hasUnlimitedBudget, spendCash, creditCash } from "./budget";
 
 export const LOAN_LIMIT = 20000;
 export const LOAN_STEP = 1000;
@@ -10,7 +11,8 @@ export type LoanState = {
   lastInterestDay: number;
   interestPaid: number;
 };
-type LoanPark = Pick<Park, "cash" | "time"> & { loan?: LoanState };
+type LoanPark = Pick<Park, "cash" | "time"> &
+  Partial<Pick<Park, "mode" | "unlimitedBudget">> & { loan?: LoanState };
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 const validMoney = (value: unknown): value is number =>
   typeof value === "number" &&
@@ -48,6 +50,7 @@ export function loanDailyCost(s: Pick<LoanPark, "loan">): number {
 }
 
 export function borrowLoan(s: LoanPark, amount: number): string | null {
+  if (hasUnlimitedBudget(s)) return "Im freien Spiel ist kein Kredit nötig.";
   if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(amount / LOAN_STEP))
     return "Kredite sind in Schritten von 1.000 € möglich.";
   if (!Number.isFinite(s.cash) || !Number.isFinite(s.time) || s.time < 0 || !validateLoan(s))
@@ -58,7 +61,7 @@ export function borrowLoan(s: LoanPark, amount: number): string | null {
   if (!Number.isFinite(s.cash + amount)) return "Dieser Betrag kann nicht ausgezahlt werden.";
   const loan = (s.loan ??= { principal: 0, lastInterestDay: dayOf(s), interestPaid: 0 });
   loan.principal = roundMoney(principal + amount);
-  s.cash += amount;
+  creditCash(s, amount);
   return null;
 }
 
@@ -69,9 +72,8 @@ export function repayLoan(s: LoanPark, amount: number): string | null {
     return "Der aktuelle Kassen- oder Kreditstand ist ungültig.";
   const loan = s.loan;
   if (!loan || amount > loan.principal) return "So viel Kredit ist nicht offen.";
-  if (s.cash < amount) return "Für diese Rückzahlung reicht das Bargeld nicht.";
+  if (!spendCash(s, amount)) return "Für diese Rückzahlung reicht das Bargeld nicht.";
   loan.principal = roundMoney(loan.principal - amount);
-  s.cash -= amount;
   return null;
 }
 
