@@ -8,6 +8,7 @@ const O = await import(moduleURL("game/building-orientation.ts"));
 const L = await import(moduleURL("game/park-life.ts"));
 const F = await import(moduleURL("game/furniture.ts"));
 const M = await import(moduleURL("game/furniture-model.ts"));
+const FG = await import(moduleURL("game/furniture-guest.ts"));
 const results = [];
 function test(name, fn) {
   try {
@@ -151,6 +152,77 @@ test("Canvas furniture uses detailed geometry and matching clickable faces in ev
     drawings.push(JSON.stringify(polygons));
   }
   assert.equal(new Set(drawings).size, 4);
+});
+test("Seated adults and children share a real cushion surface with natural low furniture heights", () => {
+  const { building } = fixture();
+  for (const kind of ["bench", "picnic"]) {
+    building.kind = kind;
+    const parts = F.furnitureParts(kind);
+    assert(
+      Math.max(...parts.map((p) => p.z + p.height / 2)) < 1,
+      "Furniture stays below one metre",
+    );
+    for (let slot = 0; slot < (kind === "bench" ? 2 : 4); slot++) {
+      const seat = F.furnitureSeat(kind, slot);
+      assert(seat.height >= 0.44 && seat.height <= 0.52);
+      assert(
+        parts.some(
+          (p) =>
+            Math.abs(p.z + p.height / 2 - seat.height) < 1e-7 &&
+            Math.abs(seat.x - p.x) <= p.width / 2 &&
+            Math.abs(seat.y - p.y) <= p.depth / 2,
+        ),
+        "Seat is on a wooden slat, not a floating coordinate",
+      );
+      for (const ageGroup of ["adult", "child"])
+        for (let orientation = 0; orientation < 4; orientation++) {
+          building.orientation = orientation;
+          const pose = L.restPose(
+            building,
+            { id: 1, skin: 0, ageGroup, rest: { slot, remaining: 10 } },
+            0,
+          );
+          const world = O.furniturePoint(building, seat.x / 5, seat.y / 5);
+          near(pose.x, world.x);
+          near(pose.y, world.y);
+          near(pose.height, seat.height);
+        }
+    }
+  }
+});
+test("Furniture guests retain the full seated legs and scale around their hip anchor", () => {
+  const draws = [],
+    scales = [],
+    anchors = [],
+    image = { naturalWidth: 80, naturalHeight: 96, complete: false };
+  const ctx = {
+    save() {},
+    restore() {},
+    translate(x, y) {
+      anchors.push([x, y]);
+    },
+    scale(x, y) {
+      scales.push([x, y]);
+    },
+    drawImage(...args) {
+      draws.push(args);
+    },
+  };
+  for (const ageGroup of ["adult", "child"])
+    FG.drawFurnitureGuest(ctx, image, { id: 1, skin: 0, ageGroup }, 50, 70, 2);
+  assert(
+    draws.every((args) => args[4] === 96),
+    "All96source rows are retained, including feet",
+  );
+  assert.deepEqual(
+    anchors,
+    [
+      [50, 70],
+      [50, 70],
+    ],
+    "Children sit on the same physical cushion",
+  );
+  assert(scales[1][0] < scales[0][0]);
 });
 if (results.some((r) => !r.pass)) process.exitCode = 1;
 else console.log(`PASS ${results.length}/${results.length} building orientation checks`);

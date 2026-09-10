@@ -1,3 +1,4 @@
+import { RESTROOM_SIZE } from "./restroom";
 import { addPhotoHardware, isPhotoPoint } from "./coaster-photo";
 import { operationsOf, OPERATOR_POSTS } from "./operations";
 import { staffLocation, type StaffRef } from "./staff";
@@ -421,7 +422,62 @@ export function populatePark(
       mesh(cube, "#31564c", 0, 4.39, 0.08, 0.05, 0.25, 0.04, station);
       mesh(cube, "#31564c", 0.12, 4.25, 0.08, 0.25, 0.05, 0.04, station);
       if (b.kind === "shuttle") mesh(cube, "#417f9e", 1.6, 1.6, 1.5, 0.65, 1.2, 0.15, station);
-    } else if (isFood(b.kind) || ["toilet", "balloon", "plush"].includes(b.kind)) {
+    } else if (b.kind === "toilet") {
+      const room = groupAt(x, 0, z),
+        roofGeometry = new THREE.ConeGeometry(1, 1, 4).rotateY(Math.PI / 4);
+      room.name = `restroom-${b.id}`;
+      const { cubicleWidth, depth, wallHeight, doorHeight } = RESTROOM_SIZE;
+      mesh(cube, "#d6c39c", 0, 0.08, 0, 4.65, 0.16, depth + 0.3, room);
+      for (const side of [-1, 1]) {
+        const cx = side * 1.1,
+          front = depth / 2 + 0.025;
+        mesh(cube, "#fff0c6", cx, wallHeight / 2 + 0.12, 0, cubicleWidth, wallHeight, depth, room);
+        mesh(roofGeometry, "#287f82", cx, wallHeight + 0.66, 0, 1.65, 1.24, 2.76, room);
+        mesh(sphere, "#f4da91", cx, wallHeight + 1.31, 0, 0.1, 0.16, 0.1, room);
+        const doorColor = side < 0 ? "#257b7a" : "#be594b";
+        mesh(
+          cube,
+          "#d4bd83",
+          cx,
+          doorHeight / 2 + 0.14,
+          front,
+          1.26,
+          doorHeight + 0.12,
+          0.13,
+          room,
+        );
+        mesh(
+          cube,
+          doorColor,
+          cx,
+          doorHeight / 2 + 0.11,
+          front + 0.08,
+          1.08,
+          doorHeight,
+          0.07,
+          room,
+        );
+        mesh(cube, "#eee1bd", cx + 0.32, 1.2, front + 0.14, 0.06, 0.18, 0.05, room);
+        mesh(cube, "#faf9e9", cx, 2.66, front + 0.08, 0.72, 0.43, 0.09, room);
+        mesh(sphere, "#355f61", cx, 2.75, front + 0.14, 0.045, 0.045, 0.025, room);
+        mesh(cube, "#355f61", cx, 2.61, front + 0.14, 0.105, 0.18, 0.03, room);
+        for (const leg of [-1, 1])
+          mesh(cube, "#355f61", cx + leg * 0.04, 2.51, front + 0.14, 0.03, 0.1, 0.03, room);
+        mesh(cube, "#7aafa9", cx, 1.12, -depth / 2 - 0.01, 0.9, 0.66, 0.05, room);
+        for (const trim of [-1, 1])
+          mesh(
+            cube,
+            "#e2d5aa",
+            cx + trim * (cubicleWidth / 2 - 0.09),
+            1.52,
+            front,
+            0.12,
+            wallHeight,
+            0.1,
+            room,
+          );
+      }
+    } else if (isFood(b.kind) || ["balloon", "plush"].includes(b.kind)) {
       const color = isFood(b.kind) ? FOOD[b.kind].color : "#43878a";
       mesh(cube, "#fff0c6", x, 1.7, z, 3.8, 3.4, 3.8);
       mesh(cone, color, x, 4.3, z, 3.5, 2, 3.5).rotation.y = Math.PI / 4;

@@ -1,3 +1,4 @@
+import { RESTROOM_SPRITE } from "./restroom";
 import { drawCleanerAreas, type CleanerAreaOverlay } from "./cleaner-area-overlay";
 import zooWalkSpecs from "./zoo-walk-sprites.json";
 import { guestAppearance } from "./visitors";
@@ -20,7 +21,8 @@ import lifeSpecs from "./life-sprites.json";
 import { bumperPose, balloonPose } from "./family-rides";
 import { FOOD, isFood, restPose, PATH_STYLES, pathStyleAt } from "./park-life";
 import { isRotatableFurniture } from "./building-orientation";
-import { drawFurniture } from "./furniture";
+import { drawFurniture, FURNITURE_HEIGHT_PIXELS } from "./furniture";
+import { drawFurnitureGuest } from "./furniture-guest";
 import { dogCompanionOwners, dogCompanionPose } from "./guest-dogs";
 import { drawDogCompanion, dogLeashGrip } from "./dog-canvas";
 import zooSpecs from "./zoo-sprites.json";
@@ -219,7 +221,7 @@ const specs: Record<string, SpriteSpec> = {
   carousel: { width: 104, height: 152, anchorX: 52, anchorY: 124 },
   burger: { width: 56, height: 88, anchorX: 28, anchorY: 60 },
   drink: { width: 56, height: 88, anchorX: 28, anchorY: 60 },
-  toilet: { width: 56, height: 88, anchorX: 28, anchorY: 60 },
+  toilet: RESTROOM_SPRITE,
   station: { width: 56, height: 88, anchorX: 28, anchorY: 60 },
   entrance: { width: 112, height: 176, anchorX: 56, anchorY: 136 },
   bench: { width: 36, height: 30, anchorX: 18, anchorY: 15.5 },
@@ -1487,10 +1489,12 @@ function drawPark(
         ctx.ellipse(p.x, p.y, 4.3 * scale, 1.6 * scale, 0, 0, Math.PI * 2);
         ctx.fill();
         if (moving) p.y -= Math.abs(Math.sin((old.phase * Math.PI) / 2)) * 0.8 * scale;
-        if (sitting) p.y -= sitting.height * (sitting.seated ? 15 : 4) * scale;
-        if (sitting?.seated)
-          rider(g.id, p, heading(-Math.sin(sitting.yaw), -Math.cos(sitting.yaw)), 1);
-        else if (sprites[name])
+        if (sitting) p.y -= sitting.height * (sitting.seated ? FURNITURE_HEIGHT_PIXELS : 4) * scale;
+        if (sitting?.seated) {
+          const image =
+            sprites[`rider-red-${heading(-Math.sin(sitting.yaw), -Math.cos(sitting.yaw))}`];
+          if (image) drawFurnitureGuest(ctx, image, g, p.x, p.y, scale);
+        } else if (sprites[name])
           drawWalkingGuest(
             ctx,
             sprites[name],

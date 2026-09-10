@@ -1,3 +1,4 @@
+import { RESTROOM_SPRITE } from "./restroom";
 import type { View } from "./render";
 import { CATALOG, type Building, type Park, type Point } from "./simulation";
 import { prepareRoute } from "./motion";
@@ -32,7 +33,7 @@ const specs: Record<string, SpriteSpec> = {
   carousel: { width: 104, height: 152, anchorX: 52, anchorY: 124 },
   burger: { width: 56, height: 88, anchorX: 28, anchorY: 60 },
   drink: { width: 56, height: 88, anchorX: 28, anchorY: 60 },
-  toilet: { width: 56, height: 88, anchorX: 28, anchorY: 60 },
+  toilet: RESTROOM_SPRITE,
   bench: { width: 36, height: 30, anchorX: 18, anchorY: 15.5 },
   flowers: { width: 48, height: 40, anchorX: 24, anchorY: 19 },
   tree: { width: 64, height: 96, anchorX: 32, anchorY: 82 },

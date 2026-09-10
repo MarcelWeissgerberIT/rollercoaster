@@ -35,28 +35,42 @@ const part = (
   shade: colors[2],
 });
 const BENCH: FurniturePart[] = [
-  ...[-1.28, 1.28].flatMap((x) => [
-    ...[-0.28, 0.28].map((y) => part(x, y, 0.35, 0.14, 0.14, 0.7, IRON)),
-    part(x, 0, 0.63, 0.16, 0.85, 0.13, IRON),
-    part(x, -0.36, 1.0, 0.13, 0.14, 1.1, IRON),
-    part(x, 0, 1.02, 0.13, 0.76, 0.11, IRON),
+  ...[-1.54, 1.54].flatMap((x) => [
+    ...[-0.21, 0.21].map((y) => part(x, y, 0.21, 0.19, 0.19, 0.42, IRON)),
+    ...[-0.21, 0.21].map((y) => part(x, y, 0.04, 0.29, 0.25, 0.08, IRON)),
+    part(x, 0, 0.38, 0.22, 0.65, 0.13, IRON),
+    part(x, -0.27, 0.48, 0.17, 0.17, 0.9, IRON),
+    part(x, 0.22, 0.6, 0.16, 0.16, 0.29, IRON),
+    part(x, -0.025, 0.745, 0.23, 0.68, 0.1, IRON),
   ]),
-  ...[-0.24, 0, 0.24].map((y) => part(0, y, 0.73, 3.2, 0.2, 0.14)),
-  ...[1.0, 1.28, 1.56].map((z) => part(0, -0.39, z, 3.2, 0.12, 0.2)),
+  ...[-0.2, 0, 0.2].map((y) => part(0, y, 0.445, 3.7, 0.18, 0.11)),
+  ...[0.66, 0.85].map((z) => part(0, -0.28, z, 3.7, 0.15, 0.16)),
 ];
 const PICNIC: FurniturePart[] = [
   ...[-1.25, 1.25].flatMap((x) => [
-    part(x, 0, 0.54, 0.17, 2.55, 0.15, IRON),
-    ...[-0.57, 0.57].map((y) => part(x, y, 0.57, 0.17, 0.16, 1.14, IRON)),
-    ...[-0.98, 0.98].map((y) => part(x, y, 0.31, 0.17, 0.16, 0.62, IRON)),
+    part(x, 0, 0.34, 0.2, 2.24, 0.14, IRON),
+    ...[-0.47, 0.47].map((y) => part(x, y, 0.375, 0.18, 0.18, 0.75, IRON)),
+    ...[-0.88, 0.88].map((y) => part(x, y, 0.22, 0.18, 0.18, 0.44, IRON)),
   ]),
-  ...[-0.45, -0.15, 0.15, 0.45].map((y) => part(0, y, 1.19, 3.7, 0.26, 0.16)),
+  ...[-0.405, -0.135, 0.135, 0.405].map((y) => part(0, y, 0.745, 3.7, 0.24, 0.11)),
   ...[-1, 1].flatMap((side) =>
-    [-0.13, 0.13].map((offset) => part(0, side * 0.95 + offset, 0.73, 3.5, 0.22, 0.14)),
+    [-0.12, 0.12].map((offset) => part(0, side * 0.88 + offset, 0.445, 3.5, 0.2, 0.11)),
   ),
 ];
 export const furnitureParts = (kind: "bench" | "picnic"): readonly FurniturePart[] =>
   kind === "bench" ? BENCH : PICNIC;
+
+/** Metre coordinates of the actual cushion surface, shared by both seated guest renderers. */
+export const furnitureSeat = (kind: "bench" | "picnic", slot: number) => ({
+  x: slot % 2 ? 1.0 : -1.0,
+  y: kind === "picnic" ? (slot < 2 ? -0.88 : 0.88) : -0.06,
+  height: 0.5,
+  yaw: kind === "picnic" && slot >= 2 ? 0 : Math.PI,
+});
+
+// The map deliberately exaggerates people vertically; furniture uses the same
+// height unit as their cushion anchor. Physical seat/back heights stay in metres.
+export const FURNITURE_HEIGHT_PIXELS = 12;
 
 /** Project each slat and leg after rotating in world space; never rotate a flat sprite. */
 export function drawFurniture(
@@ -71,7 +85,7 @@ export function drawFurniture(
   const rotated = buildingOrientation(b) % 2 !== 0;
   const p = (x: number, y: number, z: number) => {
     const out = project(x, y);
-    return { x: out.x, y: out.y - z * 15 * scale };
+    return { x: out.x, y: out.y - z * FURNITURE_HEIGHT_PIXELS * scale };
   };
   for (const part of furnitureParts(b.kind)) {
     const center = furniturePoint(b, part.x / 5, part.y / 5),

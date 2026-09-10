@@ -3545,6 +3545,9 @@ body:has(.manual[data-slot="dialog-content"] .free-play-card) [data-slot="dialog
 /* ParkMenu v8. Append after the existing park-fan styles; the old selectors no longer match. */
 .pm8 {
   --pm8-ink: #34493f;
+  --pm8-color: #b8cdbd;
+  --pm8-dark: #34493f;
+  --pm8-wash: #edf4e9;
   position: absolute;
   z-index: 12;
   left: 50%;
@@ -3579,6 +3582,11 @@ body:has(.manual[data-slot="dialog-content"] .free-play-card) [data-slot="dialog
   --pm8-color: #c8b9df;
   --pm8-dark: #594774;
   --pm8-wash: #eee5f8;
+}
+.pm8-freeplay {
+  --pm8-color: #a9d2d8;
+  --pm8-dark: #355b65;
+  --pm8-wash: #e5f3f5;
 }
 .pm8 button {
   -webkit-tap-highlight-color: transparent;

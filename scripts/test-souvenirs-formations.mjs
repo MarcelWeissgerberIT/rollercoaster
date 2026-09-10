@@ -198,7 +198,7 @@ test("Canvas uses the same styles, foil gradients and a hand-anchored flexible s
           {},
           {
             get: (_t, key) =>
-              key === "createLinearGradient"
+              key === "createLinearGradient" || key === "createRadialGradient"
                 ? () => gradient
                 : (...args) => calls.push([key, ...args]),
             set: (_t, key, value) => {
