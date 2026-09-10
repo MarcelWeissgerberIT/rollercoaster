@@ -165,15 +165,30 @@ test("Seated adults and children share a real cushion surface with natural low f
     for (let slot = 0; slot < (kind === "bench" ? 2 : 4); slot++) {
       const seat = F.furnitureSeat(kind, slot);
       assert(seat.height >= 0.44 && seat.height <= 0.52);
-      assert(
-        parts.some(
-          (p) =>
-            Math.abs(p.z + p.height / 2 - seat.height) < 1e-7 &&
-            Math.abs(seat.x - p.x) <= p.width / 2 &&
-            Math.abs(seat.y - p.y) <= p.depth / 2,
-        ),
-        "Seat is on a wooden slat, not a floating coordinate",
-      );
+      // A person's hips span adjacent slats; the center can sit over the
+      // intentional drainage gap. Check the contact area for both body sizes.
+      for (const bodyScale of [1, 0.7]) {
+        const width = 0.34 * bodyScale,
+          depth = 0.24 * bodyScale;
+        const supportedArea = parts.reduce((area, p) => {
+          if (Math.abs(p.z + p.height / 2 - seat.height) > 1e-7) return area;
+          const overlapX = Math.max(
+            0,
+            Math.min(seat.x + width / 2, p.x + p.width / 2) -
+              Math.max(seat.x - width / 2, p.x - p.width / 2),
+          );
+          const overlapY = Math.max(
+            0,
+            Math.min(seat.y + depth / 2, p.y + p.depth / 2) -
+              Math.max(seat.y - depth / 2, p.y - p.depth / 2),
+          );
+          return area + overlapX * overlapY;
+        }, 0);
+        assert(
+          supportedArea / (width * depth) >= 0.65,
+          "Hips need real wooden support below their footprint",
+        );
+      }
       for (const ageGroup of ["adult", "child"])
         for (let orientation = 0; orientation < 4; orientation++) {
           building.orientation = orientation;
@@ -212,7 +227,7 @@ test("Furniture guests retain the full seated legs and scale around their hip an
     FG.drawFurnitureGuest(ctx, image, { id: 1, skin: 0, ageGroup }, 50, 70, 2);
   assert(
     draws.every((args) => args[4] === 96),
-    "All96source rows are retained, including feet",
+    "All 96 source rows are retained, including feet",
   );
   assert.deepEqual(
     anchors,
