@@ -21,6 +21,8 @@ const actions = [
   "water",
   "inspect",
   "greet",
+  "admit",
+  "guide",
   "console",
 ];
 let passed = 0;
@@ -208,6 +210,8 @@ test("Work actions articulate the arms and their actual tools", () => {
     ["keeper", "water", "watering-can"],
     ["keeper", "inspect", "clipboard"],
     ["operator", "greet", "radio"],
+    ["operator", "admit", "ticket-scanner"],
+    ["operator", "guide", "radio"],
     ["operator", "console", "radio"],
   ]) {
     const initial = A.staffPose(motion({ role, action, time: 0, progress: 0.1, carried: 3 })),
@@ -229,21 +233,26 @@ test("Work actions articulate the arms and their actual tools", () => {
 test("Activity mapping uses actual movement and waste load, including an operator at the console", () => {
   const s = S.newPark("sandbox"),
     b = s.buildings.find((b) => b.kind === "wheel"),
-    operator = { kind: "operator", id: b.id };
+    operator = { kind: "operator", id: b.id },
+    attendant = { ...operator, post: "entry" };
   O.ensureOperations(b);
   b.operations.phase = "checking";
-  b.operations.phaseTotal = 1.5;
-  b.operations.phaseLeft = 0.75;
-  assert.equal(F.staffLocation(s, operator).carrying, "none");
+  b.operations.phaseLeft = 1.35;
+  assert.equal(F.staffLocation(s, attendant).carrying, "none");
   assert.equal(
-    V.staffMotion(s, operator).action,
+    V.staffMotion(s, attendant).action,
     "walk",
     "The truthy string 'none' must not cause carrying",
   );
   b.operations.phase = "running";
   assert.equal(V.staffMotion(s, operator).action, "console");
   b.operations.phase = "boarding";
-  assert.equal(V.staffMotion(s, operator).action, "greet");
+  b.operations.phaseLeft = 1;
+  assert.equal(V.staffMotion(s, attendant).action, "admit");
+  assert.equal(V.staffMotion(s, operator).action, "console");
+  b.operations.phase = "unloading";
+  b.operations.phaseLeft = 0.6;
+  assert.equal(V.staffMotion(s, { ...operator, post: "exit" }).action, "guide");
   const fixture = cleaningPark(),
     w = fixture.worker;
   w.mode = "walk";
@@ -406,14 +415,13 @@ test("Canvas and 3D consume the same posed joints, tool positions and heading", 
     scale = 1.6,
     project = (p) => [x + (p.x - p.z) * 9 * scale, y + ((p.x + p.z) * 4.5 - p.y * 15) * scale],
     same = (a, b) => a.length === b.length && a.every((n, i) => Math.abs(n - b[i]) < 1e-7);
-  for (const action of ["walk", "sweep", "empty", "feed", "water", "console"]) {
+  for (const action of ["walk", "sweep", "empty", "feed", "water", "admit", "guide", "console"]) {
     const input = motion({
-        role:
-          action === "console"
-            ? "operator"
-            : ["feed", "water"].includes(action)
-              ? "keeper"
-              : "cleaner",
+        role: ["admit", "guide", "console"].includes(action)
+          ? "operator"
+          : ["feed", "water"].includes(action)
+            ? "keeper"
+            : "cleaner",
         action,
         carried: 3,
         heading: -1.2,

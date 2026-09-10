@@ -1,6 +1,7 @@
 import { addPhotoHardware, isPhotoPoint } from "./coaster-photo";
-import { operationsOf } from "./operations";
+import { operationsOf, OPERATOR_POSTS } from "./operations";
 import { staffLocation, type StaffRef } from "./staff";
+import { withAccessLayoutCache } from "./ride-access";
 import { staffMotion } from "./staff-visual";
 import { createStaffModel } from "./staff-model";
 import { GATES, gateStyle } from "./entrance";
@@ -53,7 +54,7 @@ export function populatePark(
   cone: THREE.BufferGeometry,
 ) {
   addExitArrows(scene, park);
-  addAccessPods(scene, park);
+  const updatePods = addAccessPods(scene, park);
   const animations: ((t: number) => void)[] = [],
     sphere = new THREE.IcosahedronGeometry(1, 1);
   const trees = park.buildings.filter((b) => b.kind === "tree" || b.kind === "pine");
@@ -116,43 +117,30 @@ export function populatePark(
     employee.rig.root.position.set(location.x * 5, 0, location.y * 5);
     employee.rig.update(motion);
   };
-  // Preview only the remainder of an existing gate/console transition. Do not
+  // Preview only the remainder of an existing access phase. Do not
   // invent boarding, riders or a new dispatch while the live park is paused.
   const operatorPark: Park = {
     ...park,
     buildings: park.buildings.map((b) => ({ ...b, operations: { ...operationsOf(b) } })),
   };
   for (const building of operatorPark.buildings) {
-    const employee = addEmployee({ kind: "operator", id: building.id });
-    if (!employee) continue;
+    const employees = OPERATOR_POSTS.flatMap((post) => {
+      const employee = addEmployee({ kind: "operator", id: building.id, post });
+      return employee ? [employee] : [];
+    });
+    if (!employees.length) continue;
     const initial = operationsOf(building),
       phase = initial.phase,
       remaining = initial.phaseLeft;
-    const location = staffLocation(operatorPark, employee.ref)!;
-    if (location.control) {
-      // Face the console from its endpoint, not along an in-progress walk toward it.
-      building.operations!.phaseLeft = 0;
-      const facing = staffLocation(operatorPark, employee.ref)!;
-      building.operations!.phaseLeft = remaining;
-      mesh(
-        cube,
-        "#24534d",
-        location.control.x * 5 + facing.dx * 0.55,
-        0.9,
-        location.control.y * 5 + facing.dy * 0.55,
-        0.45,
-        0.3,
-        0.4,
-      );
-    }
     animations.push((t) => {
       operatorPark.time = park.time + t;
-      if (phase === "checking" || phase === "unloading") {
+      if (phase === "boarding" || phase === "checking" || phase === "unloading") {
         building.operations!.phaseLeft = Math.max(0, remaining - Math.max(0, t));
       }
-      updateEmployee(operatorPark, employee, operatorPark.time);
+      for (const employee of employees) updateEmployee(operatorPark, employee, operatorPark.time);
     });
   }
+  animations.push(() => updatePods(operatorPark));
   const groupAt = (x: number, y: number, z: number) => {
     const g = new THREE.Group();
     g.position.set(x, y, z);
@@ -638,5 +626,6 @@ export function populatePark(
     crowd.finish();
   });
 
-  return (time: number) => animations.forEach((fn) => fn(time));
+  return (time: number) =>
+    withAccessLayoutCache(operatorPark, () => animations.forEach((fn) => fn(time)));
 }

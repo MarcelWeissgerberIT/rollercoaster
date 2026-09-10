@@ -187,9 +187,15 @@ test("3D pod positions and outward orientation match all four logical sides", ()
               ? [9.68, 11]
               : [11, 9.68];
       assert(g.position.distanceTo(new THREE.Vector3(expected[0] * 5, 0, expected[1] * 5)) < 1e-8);
-      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(
-        g.getWorldQuaternion(new THREE.Quaternion()),
-      );
+      // Check the actual public-path approach mat, independent of the model's
+      // internal choice of +Z/-Z. It must extend outward from the gate plane.
+      const mat = g.getObjectByName("passage-mat");
+      assert(mat, "Access architecture provides a visible public-path approach");
+      const forward = mat
+        .getWorldPosition(new THREE.Vector3())
+        .sub(g.getWorldPosition(new THREE.Vector3()));
+      forward.y = 0;
+      forward.normalize();
       assert(forward.distanceTo(new THREE.Vector3(dir[0], 0, dir[1])) < 1e-8);
     }
     world.dispose();

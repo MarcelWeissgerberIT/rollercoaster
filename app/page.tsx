@@ -2659,6 +2659,7 @@ export default function Home() {
                           <RideOperationsPanel
                             park={snapshot}
                             building={b}
+                            onLocateStaff={locateStaff}
                             onStaffed={(v) => staffRide(b.id, v)}
                             onRounds={(n) =>
                               edit("Fahrtprogramm ändern", () => {

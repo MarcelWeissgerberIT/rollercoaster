@@ -9,6 +9,9 @@ import { GATES, gateStyle } from "./entrance";
 import { staffLocation, type StaffRef } from "./staff";
 import { staffMotion } from "./staff-visual";
 import { drawStaff } from "./staff-canvas";
+import { OPERATOR_POSTS, needsOperator } from "./operations";
+import { accessLayout, gateMotion, withAccessLayoutCache } from "./ride-access";
+import { drawAccessPod, drawAccessCabin, type AccessHitPolygon } from "./access-canvas";
 import { cleanerTransfer, staffBagLocal, staffLocalWorld } from "./staff-work";
 import lifeSpecs from "./life-sprites.json";
 import { bumperPose, balloonPose } from "./family-rides";
@@ -92,6 +95,12 @@ type HitTarget =
   | { id: number; a: Point; b: Point; pod?: PodRole }
   | {
       id: number;
+      polygons: AccessHitPolygon[];
+      bounds: { left: number; right: number; top: number; bottom: number };
+      pod?: PodRole;
+    }
+  | {
+      id: number;
       name: string;
       p: Point;
       spec: SpriteSpec;
@@ -101,9 +110,34 @@ type HitTarget =
       transform?: [number, number, number, number];
     };
 const masks = new Map<string, { data: Uint8ClampedArray; width: number; height: number }>();
-export function hitBuildingAt(v: View, x: number, y: number): number | null {
+function insideHitPolygon(points: Point[], x: number, y: number): boolean {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const a = points[j],
+      b = points[i],
+      dx = b.x - a.x,
+      dy = b.y - a.y,
+      length = dx * dx + dy * dy,
+      t = length ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / length)) : 0;
+    if (Math.hypot(x - a.x - t * dx, y - a.y - t * dy) < 0.00001) return true;
+    if (a.y > y !== b.y > y && x < a.x + ((y - a.y) * dx) / dy) inside = !inside;
+  }
+  return inside;
+}
+function hitTargetAt(v: View, x: number, y: number): HitTarget | undefined {
   for (let i = (v.hitTargets?.length ?? 0) - 1; i >= 0; i--) {
     const hit = v.hitTargets![i];
+    if ("polygons" in hit) {
+      if (
+        x < hit.bounds.left ||
+        x > hit.bounds.right ||
+        y < hit.bounds.top ||
+        y > hit.bounds.bottom
+      )
+        continue;
+      if (hit.polygons.some((polygon) => insideHitPolygon(polygon, x, y))) return hit;
+      continue;
+    }
     if ("a" in hit) {
       const dx = hit.b.x - hit.a.x,
         dy = hit.b.y - hit.a.y,
@@ -111,7 +145,7 @@ export function hitBuildingAt(v: View, x: number, y: number): number | null {
           0,
           Math.min(1, ((x - hit.a.x) * dx + (y - hit.a.y) * dy) / (dx * dx + dy * dy || 1)),
         );
-      if (Math.hypot(x - hit.a.x - t * dx, y - hit.a.y - t * dy) < 6) return hit.id;
+      if (Math.hypot(x - hit.a.x - t * dx, y - hit.a.y - t * dy) < 6) return hit;
       continue;
     }
     const dx = x - hit.p.x,
@@ -134,22 +168,15 @@ export function hitBuildingAt(v: View, x: number, y: number): number | null {
           3
       ] > 30
     )
-      return hit.id;
+      return hit;
   }
-  return null;
+}
+export function hitBuildingAt(v: View, x: number, y: number): number | null {
+  return hitTargetAt(v, x, y)?.id ?? null;
 }
 export function hitAccessPodAt(v: View, x: number, y: number): PodRole | undefined {
-  const id = hitBuildingAt(v, x, y);
-  for (const hit of [...(v.hitTargets ?? [])].reverse())
-    if ("a" in hit && hit.pod && hit.id === id) {
-      const dx = hit.b.x - hit.a.x,
-        dy = hit.b.y - hit.a.y,
-        t = Math.max(
-          0,
-          Math.min(1, ((x - hit.a.x) * dx + (y - hit.a.y) * dy) / (dx * dx + dy * dy || 1)),
-        );
-      if (Math.hypot(x - hit.a.x - t * dx, y - hit.a.y - t * dy) < 6) return hit.pod;
-    }
+  const hit = hitTargetAt(v, x, y);
+  return hit && "pod" in hit ? hit.pod : undefined;
 }
 type SpriteSpec = { width: number; height: number; anchorX: number; anchorY: number };
 /** Placement ghosts use the same renderer, with a complete, empty ride state. */
@@ -264,7 +291,7 @@ const guestMotion = new WeakMap<
 const motors = new WeakMap<Building, Spin & { time: number }>();
 const trains = new WeakMap<Building, TrainMotor & { track: Point[] }>();
 const service = new WeakMap<Building, { served: number; time: number; value: number }>();
-export function draw(
+function drawPark(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
@@ -503,35 +530,67 @@ export function draw(
       );
   };
   const objects: Array<{ depth: number; draw: () => void; owner?: number }> = [];
+  const registerAccessHits = (id: number, polygons: AccessHitPolygon[], pod?: PodRole) => {
+    if (!polygons.length) return;
+    const bounds = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity };
+    for (const polygon of polygons)
+      for (const p of polygon) {
+        bounds.left = Math.min(bounds.left, p.x);
+        bounds.right = Math.max(bounds.right, p.x);
+        bounds.top = Math.min(bounds.top, p.y);
+        bounds.bottom = Math.max(bounds.bottom, p.y);
+      }
+    v.hitTargets!.push({ id, polygons, bounds, pod });
+  };
   const drawPod = (b: Building, role: PodRole, pod: Pod, ghost = false) => {
-    const q = podPose(b, CATALOG[b.kind].size, pod),
-      port = podPort(b, CATALOG[b.kind].size, pod),
-      color = role === "entry" ? "#367cb9" : "#c54e49";
-    const block = (z: number) =>
-      [
-        [-0.23, -0.23],
-        [0.23, -0.23],
-        [0.23, 0.23],
-        [-0.23, 0.23],
-      ].map(([x, y]) => project(q.x + x, q.y + y, z));
-    const base = block(0.04),
-      roof = block(0.62),
-      p = project(q.x, q.y);
+    const clearIds = ghost ? planPod(s, b, role, pod, v.podEdit?.clear).clearIds : [],
+      previewPark = clearIds.length
+        ? { ...s, buildings: s.buildings.filter((item) => !clearIds.includes(item.id)) }
+        : s,
+      rendered = ghost ? { ...b, pods: { ...(b.pods ?? effectivePods(s, b)), [role]: pod } } : b,
+      layout = accessLayout(previewPark, rendered),
+      q = podPose(b, CATALOG[b.kind].size, pod),
+      pose = { ...q, tx: -q.dy, ty: q.dx, port: podPort(b, CATALOG[b.kind].size, pod) },
+      side =
+        Math.sign(
+          (layout.posts.entry.x - layout.entry.x) * layout.entry.tx +
+            (layout.posts.entry.y - layout.entry.y) * layout.entry.ty,
+        ) || -1;
     ctx.save();
-    ctx.globalAlpha = ghost ? 0.55 : 1;
-    line(project(q.x, q.y), project(port.x, port.y), role === "entry" ? "#91caff" : "#f7aaa0", 5);
-    poly([base[1], base[2], roof[2], roof[1]], "#ded9b9", "#314f48");
-    poly([base[2], base[3], roof[3], roof[2]], "#faf0ce", "#314f48");
-    poly(roof, color, "#344e43");
-    const sign = project(q.x + 0.18, q.y + 0.18, 0.3);
-    ctx.fillStyle = color;
-    ctx.fillRect(sign.x - 4 * scale, sign.y - 6 * scale, 8 * scale, 9 * scale);
-    ctx.fillStyle = "#fff9df";
-    ctx.textAlign = "center";
-    ctx.font = `bold ${8 * scale}px sans-serif`;
-    ctx.fillText(role === "entry" ? "E" : "A", sign.x, sign.y + 1 * scale);
+    ctx.globalAlpha *= ghost ? 0.55 : 1;
+    if (ghost) {
+      const layers = [
+        {
+          depth: q.x + q.y + 0.15,
+          draw: () =>
+            drawAccessPod(
+              ctx,
+              pose,
+              role,
+              gateMotion(previewPark, rendered, role),
+              project,
+              scale,
+              side,
+            ),
+        },
+      ];
+      if (needsOperator(b.kind)) {
+        layers.push({
+          depth: layout.cabin.x + layout.cabin.y - 0.1,
+          draw: () => drawAccessCabin(ctx, layout, project, scale, "back", b.open),
+        });
+        layers.push({
+          depth: layout.cabin.x + layout.cabin.y + 0.4,
+          draw: () => drawAccessCabin(ctx, layout, project, scale, "front", b.open),
+        });
+      }
+      layers.sort((a, b) => a.depth - b.depth).forEach((layer) => layer.draw());
+    } else {
+      const hits: AccessHitPolygon[] = [];
+      drawAccessPod(ctx, pose, role, gateMotion(s, rendered, role), project, scale, side, hits);
+      registerAccessHits(b.id, hits, role);
+    }
     ctx.restore();
-    if (!ghost) v.hitTargets!.push({ id: b.id, a: p, b: project(q.x, q.y, 0.65), pod: role });
   };
   const motor = (b: Building): Spin => {
     if (b.id < 0) return { angle: 0, velocity: 0 };
@@ -1200,6 +1259,26 @@ export function draw(
         objects.push({ depth: p.x + p.y + 0.15, draw: () => drawPod(b, role, pods[role]) });
       }
     }
+    if (needsOperator(b.kind)) {
+      const layout = accessLayout(s, b),
+        c = layout.cabin;
+      objects.push({
+        depth: c.x + c.y - 0.1,
+        draw: () => {
+          const hits: AccessHitPolygon[] = [];
+          drawAccessCabin(ctx, layout, project, scale, "back", b.open, hits);
+          registerAccessHits(b.id, hits);
+        },
+      });
+      objects.push({
+        depth: c.x + c.y + 0.4,
+        draw: () => {
+          const hits: AccessHitPolygon[] = [];
+          drawAccessCabin(ctx, layout, project, scale, "front", b.open, hits);
+          registerAccessHits(b.id, hits);
+        },
+      });
+    }
     if (isRide(b.kind) && (!b.open || !access(s, b, net)))
       objects.push({
         depth: 1000,
@@ -1519,7 +1598,9 @@ export function draw(
     });
   }
   const staffRefs: StaffRef[] = [
-    ...s.buildings.map((b) => ({ kind: "operator" as const, id: b.id })),
+    ...s.buildings.flatMap((b) =>
+      OPERATOR_POSTS.map((post) => ({ kind: "operator" as const, id: b.id, post })),
+    ),
     ...(s.zoo?.workers ?? []).map((worker) => ({ kind: "keeper" as const, id: worker.id })),
     ...(s.cleanliness?.workers ?? []).map((worker) => ({
       kind: "cleaner" as const,
@@ -1530,24 +1611,6 @@ export function draw(
     const location = staffLocation(s, ref),
       motion = staffMotion(s, ref);
     if (!location || !motion) continue;
-    if (ref.kind === "operator" && location.control) {
-      const building = s.buildings.find((b) => b.id === ref.id)!,
-        pod = podPose(building, CATALOG[building.kind].size, effectivePods(s, building).entry),
-        c = { x: location.control.x - pod.dx * 0.11, y: location.control.y - pod.dy * 0.11 };
-      objects.push({
-        depth: c.x + c.y + 0.14,
-        draw: () => {
-          const p = project(c.x, c.y);
-          line({ x: p.x, y: p.y }, { x: p.x, y: p.y - 12 * scale }, "#405950", 1.6);
-          ctx.fillStyle = "#2c5650";
-          ctx.fillRect(p.x - 4 * scale, p.y - 16 * scale, 8 * scale, 5 * scale);
-          ctx.fillStyle = motion.action === "console" ? "#c8ef85" : "#ead29a";
-          ctx.fillRect(p.x - 2 * scale, p.y - 15 * scale, 2 * scale, 2 * scale);
-          ctx.fillStyle = "#d78368";
-          ctx.fillRect(p.x + scale, p.y - 15 * scale, 1.4 * scale, 1.4 * scale);
-        },
-      });
-    }
     objects.push({
       depth: location.x + location.y + 0.13,
       draw: () => {
@@ -1898,4 +1961,16 @@ export function draw(
       if (d && v.tool !== "coaster") drawBuilding(previewBuilding(v.tool as Kind, x, y), 0.65);
     }
   }
+}
+
+/** Cache immutable access geometry once per frame; all visible actors keep live work phases. */
+export function draw(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  s: Park,
+  v: View,
+  realTime: number,
+) {
+  return withAccessLayoutCache(s, () => drawPark(ctx, w, h, s, v, realTime));
 }

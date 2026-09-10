@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { CATALOG, type Park } from "../game/simulation";
+import { CATALOG, type Building, type Park } from "../game/simulation";
 import { cleanerWorkTarget, type Cleaner } from "../game/cleanliness";
 import { assetUrl } from "../game/assets";
 import { difficultyCost, difficultyEuro } from "../game/difficulty";
@@ -23,6 +23,8 @@ import {
   OPERATION_LABELS,
   operationsStats,
   OPERATOR_WAGE,
+  OPERATOR_POSTS,
+  type OperatorPost,
 } from "../game/operations";
 import {
   StaffCounter,
@@ -33,6 +35,161 @@ import {
   type ZooKeeperAssignmentHandler,
 } from "./zoo-panel";
 import "./staff-cards.css";
+
+const crewQualifications: Record<OperatorPost, { label: string; description: string }> = {
+  control: {
+    label: "Fahrsteuerung",
+    description: "Bedient die Anlage vom Steuerhaus aus und überwacht das Fahrprogramm am Pult.",
+  },
+  entry: {
+    label: "Einlass & Sicherheitskontrolle",
+    description: "Begrüßt die Gäste am Einlass und begleitet die Kontrolle vor dem Fahrtbeginn.",
+  },
+  exit: {
+    label: "Ausstiegsbetreuung",
+    description: "Betreut den Auslass und begleitet die Gäste nach dem Ende der Fahrt hinaus.",
+  },
+};
+
+function RideCrewCard({
+  park,
+  building: b,
+  onLocateStaff,
+  onSelectRide,
+  onStaffRide,
+}: {
+  park: Park;
+  building: Building;
+  onLocateStaff?: (ref: StaffRef) => void;
+  onSelectRide: (id: number) => void;
+  onStaffRide: (id: number, staffed: boolean) => void;
+}) {
+  const assigned = hasOperator(b),
+    occupied = b.riders.length > 0 && assigned,
+    wage = difficultyEuro(difficultyCost(park, OPERATOR_WAGE, "wages"));
+  return (
+    <article
+      className={`sc-crew${assigned ? "" : " sc-crew--vacant"}`}
+      data-testid={`staff-crew-${b.id}`}
+    >
+      <button type="button" className="sc-workplace" onClick={() => onSelectRide(b.id)}>
+        <img src={assetUrl(CATALOG[b.kind].sprite)} alt="" />
+        <span>
+          <small>{assigned ? "Feste Crew · 3 Personen" : "Crew fehlt · 3 offene Posten"}</small>
+          <strong>{b.name}</strong>
+        </span>
+        <MapPin aria-hidden="true" />
+      </button>
+      <div className="sc-crew-price">
+        <span>Gesamte Crew / Spieltag</span>
+        <b>{wage}</b>
+      </div>
+      {assigned ? (
+        <>
+          <div className="sc-crew-people">
+            {OPERATOR_POSTS.map((post) => {
+              const ref: StaffRef = { kind: "operator", id: b.id, post },
+                location = staffLocation(park, ref),
+                qualification = crewQualifications[post],
+                suffix = post === "control" ? `${b.id}` : `${b.id}-${post}`;
+              return (
+                <article
+                  className={`sc-person sc-person--operator sc-person--${post}`}
+                  key={post}
+                  data-testid={`staff-operator-${suffix}`}
+                >
+                  <StaffIdentityButton
+                    staffRef={ref}
+                    name={location?.name ?? operatorName(b, post)}
+                    qualification={location?.role ?? qualification.label}
+                    activity={
+                      b.open
+                        ? (location?.label ?? OPERATION_LABELS[operatorActivity(b)])
+                        : "Fahrgeschäft geschlossen"
+                    }
+                    sprite="keeper-se"
+                    busy={b.open && !!location && location.activity !== "idle"}
+                    onLocateStaff={location ? onLocateStaff : undefined}
+                  />
+                  <details
+                    className="sc-person-details"
+                    data-testid={`staff-details-operator-${suffix}`}
+                  >
+                    <summary>
+                      <span>Qualifikation & Aufgabe</span>
+                      <ChevronDown aria-hidden="true" />
+                    </summary>
+                    <div className="sc-person-body">
+                      <dl className="sc-facts">
+                        <div className="sc-fact-wide">
+                          <dt>Qualifikation</dt>
+                          <dd>{qualification.label}</dd>
+                        </div>
+                        <div className="sc-fact-wide">
+                          <dt>Fester Arbeitsplatz</dt>
+                          <dd>
+                            {b.name} ·{" "}
+                            {post === "control"
+                              ? "Steuerhaus"
+                              : post === "entry"
+                                ? "Einlass"
+                                : "Auslass"}
+                          </dd>
+                        </div>
+                      </dl>
+                      <p className="sc-qualification">
+                        <ShieldCheck aria-hidden="true" />
+                        <span>{qualification.description}</span>
+                      </p>
+                      <p className="sc-hint">
+                        Teil der gemeinsamen Crew. Der oben angezeigte Crewlohn umfasst alle drei
+                        Personen.
+                      </p>
+                    </div>
+                  </details>
+                </article>
+              );
+            })}
+          </div>
+          <p className="sc-hint">
+            Steuerhaus und Bedienpult gehören zum Fahrgeschäft und werden automatisch mitgebaut.
+          </p>
+          <button
+            type="button"
+            className="sc-release"
+            disabled={occupied}
+            onClick={() => onStaffRide(b.id, false)}
+            aria-label={`Gesamte Crew von ${b.name} abziehen`}
+          >
+            <Minus aria-hidden="true" /> Gesamte Crew abziehen
+          </button>
+          {occupied && (
+            <p className="sc-hint">
+              Während einer Fahrt bleibt die Crew zugewiesen. Nach dem Ausstieg kannst du sie
+              abziehen.
+            </p>
+          )}
+        </>
+      ) : (
+        <>
+          <p className="sc-intro">
+            Fahrsteuerung, Einlass und Auslass werden gemeinsam besetzt. Ohne Crew startet keine
+            Fahrt.
+          </p>
+          <button
+            type="button"
+            className="sc-hire-operator"
+            onClick={() => onStaffRide(b.id, true)}
+            aria-label={`Crew für ${b.name} zuweisen`}
+            data-testid={`staff-vacancy-${b.id}`}
+          >
+            <Plus aria-hidden="true" /> Crew zuweisen · 3 Personen
+          </button>
+        </>
+      )}
+    </article>
+  );
+}
 
 function CleanerEmployeeCard({
   park,
@@ -176,7 +333,7 @@ export function StaffPanel({
       <div className="sc-overview">
         <div>
           <Users aria-hidden="true" />
-          <b>{park.staff + zoo.count + ops.staffed}</b>
+          <b>{park.staff + zoo.count + ops.personCount}</b>
           <span>Mitarbeitende</span>
         </div>
         <div>
@@ -239,133 +396,41 @@ export function StaffPanel({
         <div className="sc-section-heading">
           <h4>
             <Users aria-hidden="true" />
-            Bedienpersonal
+            Fahrgeschäft-Crews
           </h4>
           <span>
-            {ops.staffed} / {ops.rides} besetzt
+            {ops.staffed} / {ops.rides} Crews · {ops.personCount} Personen
           </span>
         </div>
         <p className="sc-intro">
-          Eine Person pro Fahrgeschäft · {difficultyEuro(operatorWage)} pro Spieltag. Einlass,
-          Sicherheitskontrolle und Bedienpult.
+          Drei Personen pro Fahrgeschäft: Fahrsteuerung, Einlass und Auslass. Gemeinsam{" "}
+          {difficultyEuro(operatorWage)} pro Crew und Spieltag.
         </p>
         {ops.unstaffed > 0 && (
           <p className="sc-note sc-note--warning">
             {ops.unstaffed} {ops.unstaffed === 1 ? "Fahrgeschäft wartet" : "Fahrgeschäfte warten"}{" "}
-            auf Bedienpersonal.
+            auf eine Crew.
           </p>
         )}
         {!ops.rides && (
           <p className="sc-empty">
-            Beim Bau eines Fahrgeschäfts wird Bedienpersonal zugewiesen. Hier erscheinen dann die
-            Mitarbeitenden und ihr fester Arbeitsplatz.
+            Beim Bau eines Fahrgeschäfts werden eine Crew mit drei Personen sowie das Steuerhaus
+            zugewiesen. Hier erscheinen ihre Namen und festen Arbeitsplätze.
           </p>
         )}
         <div className="sc-roster">
           {park.buildings
             .filter((b) => needsOperator(b.kind))
-            .map((b) => {
-              const assigned = hasOperator(b),
-                occupied = b.riders.length > 0 && assigned,
-                location = staffLocation(park, { kind: "operator", id: b.id });
-              return assigned ? (
-                <article
-                  className="sc-person sc-person--operator"
-                  key={b.id}
-                  data-testid={`staff-operator-${b.id}`}
-                >
-                  <StaffIdentityButton
-                    staffRef={{ kind: "operator", id: b.id }}
-                    name={location?.name ?? operatorName(b)}
-                    qualification={b.name}
-                    activity={
-                      b.open
-                        ? (location?.label ?? OPERATION_LABELS[operatorActivity(b)])
-                        : "Fahrgeschäft geschlossen"
-                    }
-                    sprite="keeper-se"
-                    busy={b.open && operatorActivity(b) !== "idle"}
-                    onLocateStaff={location ? onLocateStaff : undefined}
-                  />
-                  <details
-                    className="sc-person-details"
-                    data-testid={`staff-details-operator-${b.id}`}
-                  >
-                    <summary>
-                      <span>Qualifikation & Arbeitsplatz</span>
-                      <ChevronDown aria-hidden="true" />
-                    </summary>
-                    <div className="sc-person-body">
-                      <dl className="sc-facts">
-                        <div>
-                          <dt>Qualifikation</dt>
-                          <dd>Bedienung & Einlass</dd>
-                        </div>
-                        <div>
-                          <dt>Lohn / Spieltag</dt>
-                          <dd>{difficultyEuro(operatorWage)}</dd>
-                        </div>
-                      </dl>
-                      <p className="sc-qualification">
-                        <ShieldCheck aria-hidden="true" />
-                        <span>
-                          Lässt Gäste ein, kontrolliert vor der Fahrt und betreut das Bedienpult.
-                          Fest diesem Fahrgeschäft zugeordnet.
-                        </span>
-                      </p>
-                      <button
-                        type="button"
-                        className="sc-workplace"
-                        onClick={() => onSelectRide(b.id)}
-                      >
-                        <img src={assetUrl(CATALOG[b.kind].sprite)} alt="" />
-                        <span>
-                          <small>Arbeitsplatz öffnen</small>
-                          <strong>{b.name}</strong>
-                        </span>
-                        <MapPin aria-hidden="true" />
-                      </button>
-                      <button
-                        type="button"
-                        className="sc-release"
-                        disabled={occupied}
-                        onClick={() => onStaffRide(b.id, false)}
-                        aria-label={`Bedienpersonal von ${b.name} abziehen`}
-                      >
-                        <Minus aria-hidden="true" />
-                        Personal abziehen
-                      </button>
-                      {occupied && (
-                        <p className="sc-hint">
-                          Während einer Fahrt bleibt das Bedienpersonal zugewiesen. Nach dem
-                          Ausstieg kannst du es abziehen.
-                        </p>
-                      )}
-                    </div>
-                  </details>
-                </article>
-              ) : (
-                <article className="sc-vacancy" key={b.id} data-testid={`staff-vacancy-${b.id}`}>
-                  <button type="button" className="sc-workplace" onClick={() => onSelectRide(b.id)}>
-                    <img src={assetUrl(CATALOG[b.kind].sprite)} alt="" />
-                    <span>
-                      <small>Offene Stelle · Bedienpersonal</small>
-                      <strong>{b.name}</strong>
-                    </span>
-                    <MapPin aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    className="sc-hire-operator"
-                    onClick={() => onStaffRide(b.id, true)}
-                    aria-label={`Bedienpersonal für ${b.name} zuweisen`}
-                  >
-                    <Plus aria-hidden="true" />
-                    Besetzen · {difficultyEuro(operatorWage)} / Spieltag
-                  </button>
-                </article>
-              );
-            })}
+            .map((b) => (
+              <RideCrewCard
+                key={b.id}
+                park={park}
+                building={b}
+                onLocateStaff={onLocateStaff}
+                onSelectRide={onSelectRide}
+                onStaffRide={onStaffRide}
+              />
+            ))}
         </div>
       </section>
     </section>

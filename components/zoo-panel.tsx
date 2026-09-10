@@ -144,7 +144,7 @@ export function StaffIdentityButton({
       onClick={() => onLocateStaff?.(staffRef)}
       disabled={!onLocateStaff}
       aria-label={`${name} im Park zeigen`}
-      data-testid={`staff-locate-${staffRef.kind}-${staffRef.id}`}
+      data-testid={`staff-locate-${staffRef.kind}-${staffRef.id}${staffRef.kind === "operator" && staffRef.post && staffRef.post !== "control" ? `-${staffRef.post}` : ""}`}
     >
       <span className="sc-portrait">
         <img src={assetUrl(sprite)} alt={`Spielfigur von ${name}, ${qualification}`} />

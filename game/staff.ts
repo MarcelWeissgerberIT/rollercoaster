@@ -1,12 +1,12 @@
 /** One read-only position/action source for employee cards, camera focus and both
  * renderers. No snapshot poses, random animation clocks or synthetic employees. */
-import { CATALOG, effectivePods, type Park, type Point } from "./simulation";
-import { operatorState } from "./operations";
-import { podPose } from "./pods";
+import { CATALOG, type Park, type Point } from "./simulation";
+import { operatorState, type OperatorPost } from "./operations";
+import { accessLayout, gateMotion } from "./ride-access";
 import { SPECIALIST_ROLES, type Keeper } from "./zoo";
 import { cleanerServicePose } from "./cleanliness";
 
-export type StaffRef = { kind: "cleaner" | "keeper" | "operator"; id: number };
+export type StaffRef = { kind: "cleaner" | "keeper" | "operator"; id: number; post?: OperatorPost };
 export type StaffActivity =
   | "idle"
   | "patrol"
@@ -165,46 +165,60 @@ export function staffLocation(s: Park, ref: StaffRef): StaffLocation | null {
   }
   if (ref.kind !== "operator") return null;
   const b = s.buildings.find((b) => b.id === ref.id),
-    state = b && operatorState(b);
+    post = ref.post ?? "control",
+    state = b && operatorState(b, post);
   if (!b || !state) return null;
-  const pod = podPose(b, CATALOG[b.kind].size, b.pods?.entry ?? effectivePods(s, b).entry),
-    gate = { x: pod.x - pod.dy * 0.23, y: pod.y + pod.dx * 0.23 },
-    control = {
-      x: gate.x - pod.dy * 0.32 - pod.dx * 0.06,
-      y: gate.y + pod.dx * 0.32 - pod.dy * 0.06,
-    },
-    dx = control.x - gate.x,
-    dy = control.y - gate.y,
+  const layout = accessLayout(s, b),
+    anchor = layout.posts[post],
+    gate = post === "exit" ? layout.exit : layout.entry,
+    dx = gate.x - anchor.x,
+    dy = gate.y - anchor.y,
     length = Math.hypot(dx, dy),
+    stride = post === "control" ? 0 : 0.12,
+    step = state.stepProgress * stride,
+    reverse = state.returning ? -1 : 1,
+    exitGate = post === "exit" ? gateMotion(s, b, "exit") : null,
+    activeExit = !!exitGate?.activeGuests,
     activity: StaffActivity =
-      state.phase === "running" ? "control" : state.phase === "off" ? "idle" : state.phase,
+      post === "control"
+        ? b.open
+          ? "control"
+          : "idle"
+        : post === "entry" && (state.phase === "boarding" || state.phase === "checking")
+          ? state.phase
+          : post === "exit" && (state.phase === "unloading" || activeExit)
+            ? "unloading"
+            : "idle",
     label =
       activity === "control"
-        ? "Bedient das Fahrgeschäft"
+        ? "Bedient das Fahrgeschäft am Pult"
         : activity === "checking"
-          ? "Zum Bedienpult · Sicherheitskontrolle"
+          ? "Prüft den Einlass und die Sicherung"
           : activity === "unloading"
-            ? "Zurück zum Eingang · Ausstieg begleiten"
+            ? "Begleitet Gäste am Ausstieg"
             : activity === "boarding"
               ? "Begrüßt und lässt Gäste ein"
-              : "Bereit am Eingang",
-    reverse = state.phase === "unloading" ? -1 : 1;
+              : post === "control"
+                ? "Bereit in der Fahrerkabine"
+                : post === "entry"
+                  ? "Bereit am Einlass"
+                  : "Bereit am Ausstieg";
   return {
-    x: gate.x + dx * state.consoleProgress,
-    y: gate.y + dy * state.consoleProgress,
+    x: anchor.x + (length ? dx / length : 0) * step,
+    y: anchor.y + (length ? dy / length : 0) * step,
     name: state.name,
-    role: "Bedienpersonal",
+    role: state.role,
     activity,
     label,
-    progress: state.progress,
+    progress: activeExit && state.phase !== "unloading" ? 1 - exitGate!.open : state.progress,
     walking: state.walking,
-    dx: state.walking ? (dx / length) * reverse : -pod.dx,
-    dy: state.walking ? (dy / length) * reverse : -pod.dy,
+    dx: state.walking && length ? (dx / length) * reverse : anchor.dx,
+    dy: state.walking && length ? (dy / length) * reverse : anchor.dy,
     targetId: b.id,
     carrying: "none",
-    distanceWalked: length * (state.walking ? state.progress : state.consoleProgress),
+    distanceWalked: stride * (state.returning ? 2 - state.stepProgress : state.stepProgress),
     carried: 0,
     gate,
-    control,
+    control: { x: layout.posts.control.x, y: layout.posts.control.y },
   };
 }

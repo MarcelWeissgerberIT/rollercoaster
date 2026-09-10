@@ -21,13 +21,14 @@ export function staffMotion(park: Park, ref: StaffRef, time = park.time): StaffM
   else if (activity === "repair" || activity === "inspect" || activity === "checking")
     action = "inspect";
   else if (activity === "greet" || activity === "boarding" || activity === "unloading")
-    action = "greet";
+    action = ref.post === "entry" ? "admit" : ref.post === "exit" ? "guide" : "greet";
   else if (activity === "console" || activity === "control" || activity === "running")
     action = "console";
   const cleaner =
     ref.kind === "cleaner" ? park.cleanliness?.workers.find((w) => w.id === ref.id) : undefined;
   return {
     id: ref.id,
+    post: ref.kind === "operator" ? (ref.post ?? "control") : undefined,
     role: ref.kind,
     action,
     time,

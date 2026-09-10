@@ -10,7 +10,8 @@ export function createStaffModel(initial: StaffMotion) {
     materials = new Map<string, THREE.MeshStandardMaterial>(),
     up = new THREE.Vector3(0, 1, 0),
     direction = new THREE.Vector3();
-  root.name = `staff-${initial.role}-${initial.id}`;
+  root.name = `staff-${initial.role}-${initial.id}${initial.post && initial.post !== "control" ? `-${initial.post}` : ""}`;
+  root.userData.staffPost = initial.post;
   root.userData.staffId = initial.id;
   root.userData.staffKind = initial.role;
   const update = (motion: StaffMotion) => {

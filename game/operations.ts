@@ -3,6 +3,14 @@
 import type { Building, Kind, Park } from "./simulation";
 
 export const OPERATOR_WAGE = 70;
+/** One assignment hires the complete three-person crew; wages remain per crew. */
+export const OPERATOR_POSTS = ["control", "entry", "exit"] as const;
+export type OperatorPost = (typeof OPERATOR_POSTS)[number];
+export const OPERATOR_ROLES: Record<OperatorPost, string> = {
+  control: "Fahrsteuerung",
+  entry: "Einlass",
+  exit: "Ausstieg",
+};
 export const BOARDING_SECONDS = 2;
 export const CHECKING_SECONDS = 1.5;
 export const UNLOADING_SECONDS = 1.2;
@@ -212,32 +220,42 @@ const CREW_NAMES = [
   "Paul",
   "Mila",
 ];
-export const operatorName = (b: Building) => CREW_NAMES[Math.abs(b.id) % CREW_NAMES.length];
-/** Position along the crew's gate-to-console leg, driven only by existing
- * simulation phases. Both transition endpoints meet without changing dispatch
- * timing or adding a second clock that could continue while the park is paused. */
-export function operatorState(b: Building) {
-  if (!needsOperator(b.kind) || !hasOperator(b)) return null;
+export const operatorName = (b: Building, post: OperatorPost = "control") =>
+  CREW_NAMES[(Math.abs(b.id) + OPERATOR_POSTS.indexOf(post) * 4) % CREW_NAMES.length];
+/** Real crew posts share one assignment. Attendants take a short step toward
+ * their gate, work there, then return within the actual admission/unload phase. */
+export function operatorState(b: Building, post: OperatorPost = "control") {
+  if (!needsOperator(b.kind) || !hasOperator(b) || !OPERATOR_POSTS.includes(post)) return null;
   const phase = operatorActivity(b),
     progress = operationProgress(b),
-    consoleProgress =
-      phase === "checking"
-        ? progress
-        : phase === "running"
-          ? 1
-          : phase === "unloading"
-            ? 1 - progress
-            : 0;
+    onDuty =
+      post === "entry"
+        ? phase === "boarding" || phase === "checking"
+        : post === "exit" && phase === "unloading",
+    stepProgress = onDuty ? Math.min(1, progress / 0.2, (1 - progress) / 0.2) : 0,
+    returning = onDuty && progress > 0.8,
+    activity = post === "control" ? (b.open ? "control" : "idle") : onDuty ? phase : "idle";
   return {
-    id: `operator-${b.id}`,
+    id: `operator-${b.id}-${post}`,
     buildingId: b.id,
-    name: operatorName(b),
+    post,
+    role: OPERATOR_ROLES[post],
+    name: operatorName(b, post),
     phase,
-    atGate: phase === "idle" || phase === "boarding" || phase === "unloading",
+    activity,
+    atGate: post !== "control",
     progress,
-    consoleProgress,
-    walking: (phase === "checking" || phase === "unloading") && progress < 1,
+    consoleProgress: post === "control" ? 1 : 0,
+    stepProgress,
+    returning,
+    walking: onDuty && (progress < 0.2 || (progress > 0.8 && progress < 1)),
   };
+}
+export function rideCrew(b: Building) {
+  return OPERATOR_POSTS.flatMap((post) => {
+    const member = operatorState(b, post);
+    return member ? [member] : [];
+  });
 }
 export function operationsStats(s: Pick<Park, "buildings">) {
   const rides = s.buildings.filter((b) => needsOperator(b.kind));
@@ -245,6 +263,8 @@ export function operationsStats(s: Pick<Park, "buildings">) {
   return {
     rides: rides.length,
     staffed,
+    crewCount: staffed,
+    personCount: staffed * OPERATOR_POSTS.length,
     unstaffed: rides.length - staffed,
     active: rides.filter((b) => operationsOf(b).phase === "running").length,
     boarding: rides.filter((b) => ["boarding", "checking"].includes(operationsOf(b).phase)).length,

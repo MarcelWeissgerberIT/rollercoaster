@@ -183,31 +183,35 @@ test("Removed patrol paths cancel movement without leaving invalid routes or cha
   assert(Z.validZoo(s));
 });
 
-test("Operator checking and unloading move continuously between shared gate/control endpoints", () => {
+test("Driver stays at the shared cabin while separate attendants perform admission and unloading", () => {
   const s = S.newPark("sandbox"),
     b = s.buildings.find((b) => b.kind === "wheel"),
     ref = { kind: "operator", id: b.id },
-    read = () => F.staffLocation(s, ref);
+    read = (post) => F.staffLocation(s, { ...ref, post });
   b.queue = [123];
   b.riders = [];
   b.cycle = 0;
   O.resetRideOperations(b);
   const initial = read(),
     money = s.cash;
-  assert.deepEqual({ x: initial.x, y: initial.y }, initial.gate);
+  assert.deepEqual({ x: initial.x, y: initial.y }, initial.control);
+  const entry = read("entry"),
+    exit = read("exit");
   assert.equal(O.tickOperations(b, 2, true), false);
-  assert.equal(O.operatorState(b).consoleProgress, 0);
+  assert.equal(O.operatorState(b).consoleProgress, 1);
   assert.equal(read().x, initial.x);
-  assert.equal(O.tickOperations(b, 0.75, true), false);
-  const mid = read();
-  near(mid.x, (mid.gate.x + mid.control.x) / 2);
-  near(mid.y, (mid.gate.y + mid.control.y) / 2);
+  assert.equal(O.tickOperations(b, 0.15, true), false);
+  const mid = read("entry");
+  near(Math.hypot(mid.x - entry.x, mid.y - entry.y), 0.06);
   assert.equal(mid.walking, true);
   assert.equal(mid.activity, "checking");
-  assert.equal(O.tickOperations(b, 0.75, true), true);
+  assert.equal(read().walking, false);
+  assert.equal(O.tickOperations(b, 1.35, true), true);
   const checked = read();
   near(checked.x, checked.control.x);
   near(checked.y, checked.control.y);
+  near(read("entry").x, entry.x);
+  near(read("entry").y, entry.y);
   b.riders = [123];
   b.queue = [];
   b.cycle = 24;
@@ -220,16 +224,17 @@ test("Operator checking and unloading move continuously between shared gate/cont
   O.finishRideProgram(b);
   assert.equal(read().x, running.x);
   assert.equal(read().y, running.y);
-  O.tickOperations(b, 0.6, true);
-  const unloading = read();
-  near(unloading.x, mid.x);
-  near(unloading.y, mid.y);
-  near(unloading.dx, -mid.dx);
-  near(unloading.dy, -mid.dy);
-  O.tickOperations(b, 0.6, true);
+  O.tickOperations(b, 0.12, true);
+  const unloading = read("exit");
+  near(Math.hypot(unloading.x - exit.x, unloading.y - exit.y), 0.06);
+  assert.equal(unloading.walking, true);
+  assert.equal(unloading.activity, "unloading");
+  O.tickOperations(b, 1.08, true);
   const done = read();
   near(done.x, initial.x);
   near(done.y, initial.y);
+  near(read("exit").x, exit.x);
+  near(read("exit").y, exit.y);
   assert.equal(s.cash, money);
   assert.equal(O.programDuration(b, 24), 28.7);
 });
@@ -239,6 +244,9 @@ test("Operator lookup is pure, follows moved buildings and returns null for miss
     b = s.buildings.find((b) => b.kind === "wheel"),
     ref = { kind: "operator", id: b.id };
   b.pods ??= S.effectivePods(s, b);
+  // Free ground keeps cabin clearance identical while translating the ride.
+  s.buildings = [b];
+  s.tiles = s.tiles.map((row) => row.map(() => "grass"));
   const before = F.staffLocation(s, ref);
   b.x += 1;
   near(F.staffLocation(s, ref).x, before.x + 1);

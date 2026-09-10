@@ -7,6 +7,7 @@ const S = await import(moduleURL("game/simulation.ts")),
   Z = await import(moduleURL("game/zoo.ts")),
   O = await import(moduleURL("game/operations.ts")),
   F = await import(moduleURL("game/staff.ts")),
+  A = await import(moduleURL("game/ride-access.ts")),
   W = await import(moduleURL("game/scene-world.ts"));
 let passed = 0;
 function test(name, run) {
@@ -67,7 +68,9 @@ function cleanerFixture(kind = "bin", progress = 0.5) {
   return { s, bin, worker, ref: { kind: "cleaner", id: worker.id } };
 }
 function employee(world, ref) {
-  const model = world.scene.getObjectByName(`staff-${ref.kind}-${ref.id}`);
+  const suffix =
+      ref.kind === "operator" && ref.post && ref.post !== "control" ? `-${ref.post}` : "",
+    model = world.scene.getObjectByName(`staff-${ref.kind}-${ref.id}${suffix}`);
   assert(model, `Missing real ${ref.kind} #${ref.id}`);
   return model;
 }
@@ -224,33 +227,83 @@ test("Keeper scene callbacks progress through actual feeding, watering and clean
   }
 });
 
-test("Operators reach only their existing phase endpoint without inventing boarding or throughput", () => {
-  for (const phase of ["checking", "unloading"]) {
+test("Three real crew posts and access gates share an existing phase without inventing another cycle", () => {
+  for (const phase of ["boarding", "checking", "unloading"]) {
     const s = park(),
       ride = build(s, "wheel", 16, 15),
-      operations = O.ensureOperations(ride),
-      ref = { kind: "operator", id: ride.id };
-    Object.assign(operations, { phase, phaseLeft: phase === "checking" ? 1.5 : 1.2 });
+      duration =
+        phase === "boarding"
+          ? O.BOARDING_SECONDS
+          : phase === "checking"
+            ? O.CHECKING_SECONDS
+            : O.UNLOADING_SECONDS;
+    ride.open = true;
+    Object.assign(O.ensureOperations(ride), { phase, phaseLeft: duration });
     const before = structuredClone(s),
+      expected = structuredClone(s),
+      expectedRide = expected.buildings.find((b) => b.id === ride.id),
       world = W.createWorld(s),
-      model = employee(world, ref),
-      origin = model.position.clone(),
-      location = F.staffLocation(s, ref);
+      refs = O.OPERATOR_POSTS.map((post) => ({ kind: "operator", id: ride.id, post })),
+      models = refs.map((ref) => employee(world, ref)),
+      origins = models.map((model) => model.position.clone()),
+      entryGate = world.scene.getObjectByName(`entry-pod-${ride.id}`).getObjectByName("gate-hinge"),
+      exitGate = world.scene.getObjectByName(`exit-pod-${ride.id}`).getObjectByName("gate-hinge"),
+      cabin = world.scene.getObjectByName(`control-cabin-${ride.id}`);
     try {
-      atSharedLocation(model, s, ref);
-      world.update(0.5);
-      assert(model.position.distanceTo(origin) > 0.1, `${phase} must visibly move`);
-      world.update(2);
-      const endpoint = phase === "checking" ? location.control : location.gate;
-      near(model.position.x, endpoint.x * 5);
-      near(model.position.z, endpoint.y * 5);
-      const stopped = model.position.clone();
-      world.update(30);
-      assert(model.position.equals(stopped), "An empty paused ride cannot invent another cycle");
+      assert.equal(new Set(models).size, 3, "Each crew post requires its own articulated person");
+      assert.equal(
+        models[0],
+        employee(world, { kind: "operator", id: ride.id }),
+        "Legacy lookup must identify the driver",
+      );
+      assert.equal(new Set(refs.map((ref) => F.staffLocation(s, ref).name)).size, 3);
+      assert(cabin, "Assigned driver needs the automatically included control cabin");
+      near(models[0].position.x, cabin.position.x);
+      near(models[0].position.z, cabin.position.z);
+      let attendantMoved = false,
+        gateMoved = false;
+      const workingPost = phase === "unloading" ? 2 : 1;
+      for (const time of [0, 0.05, 0.1, 0.3, 0.6, duration - 0.1, duration, 3, 30]) {
+        world.update(time);
+        expected.time = s.time + time;
+        expectedRide.operations.phaseLeft = Math.max(0, duration - time);
+        refs.forEach((ref, i) => atSharedLocation(models[i], expected, ref));
+        assert(models[0].position.equals(origins[0]), "Driver must remain at the cabin console");
+        assert(
+          models[workingPost === 1 ? 2 : 1].position.equals(origins[workingPost === 1 ? 2 : 1]),
+          "The other gate attendant cannot imitate this post's work",
+        );
+        attendantMoved ||= models[workingPost].position.distanceTo(origins[workingPost]) > 0.1;
+        const entry = A.gateMotion(expected, expectedRide, "entry"),
+          exit = A.gateMotion(expected, expectedRide, "exit");
+        near(
+          entryGate.rotation.y,
+          (-Math.PI / 2) * entry.open,
+          "Entry gate must share the crew preview phase",
+        );
+        near(
+          exitGate.rotation.y,
+          (Math.PI / 2) * exit.open,
+          "Exit gate must share the crew preview phase",
+        );
+        gateMoved ||= Math.abs((workingPost === 1 ? entryGate : exitGate).rotation.y) > 0.1;
+      }
+      assert(attendantMoved, `${phase} must animate only the assigned gate attendant`);
+      assert(gateMoved, `${phase} must move its actual gate`);
+      models.forEach((model, i) =>
+        assert(model.position.equals(origins[i]), "Crew returns to its assigned post at phase end"),
+      );
       assert.deepEqual(
         s,
         before,
-        "Preview cannot change queues, riders, phase or finance counters",
+        "Preview cannot change crew assignment, queues, riders, phase or finance counters",
+      );
+      const paused = snapshot(world.scene);
+      world.update(30);
+      assert.deepEqual(
+        snapshot(world.scene),
+        paused,
+        "Repeated paused time must freeze crew and gates together",
       );
     } finally {
       world.dispose();

@@ -10,9 +10,12 @@ export type StaffAction =
   | "water"
   | "inspect"
   | "greet"
+  | "admit"
+  | "guide"
   | "console";
 export type StaffMotion = {
   id: number;
+  post?: "control" | "entry" | "exit";
   role: "cleaner" | "keeper" | "operator";
   action: StaffAction;
   time: number;
@@ -40,8 +43,9 @@ export function staffPose(m: StaffMotion): StaffPart[] {
     parts.push({ id, color, a, size, shape });
   const limb = (id: string, color: string, a: V3, b: V3, r: number) =>
     parts.push({ id, color, a, b, size: [r, r, r], shape: "round" });
-  const skin = ["#e6b48e", "#b57d59", "#825339", "#f1cba8"][m.id % 4],
-    hair = ["#4a3227", "#282b29", "#916942", "#684333"][m.id % 4],
+  const appearanceId = m.id + (m.post === "entry" ? 1 : m.post === "exit" ? 2 : 0);
+  const skin = ["#e6b48e", "#b57d59", "#825339", "#f1cba8"][Math.abs(appearanceId) % 4],
+    hair = ["#4a3227", "#282b29", "#916942", "#684333"][Math.abs(appearanceId) % 4],
     shirt = m.role === "cleaner" ? "#268996" : m.role === "keeper" ? "#67834e" : "#3e6689",
     pants = m.role === "keeper" ? "#685d42" : "#34485a",
     hat = m.role === "keeper" ? "#c7b277" : m.role === "cleaner" ? "#efe3b9" : "#304e71",
@@ -147,6 +151,22 @@ export function staffPose(m: StaffMotion): StaffPart[] {
     } else if (m.action === "greet" && side > 0) {
       Object.assign(elbow, [0.33, 1.22, -0.12]);
       Object.assign(hand, [0.42 + beat * 0.05, 1.5, -0.22]);
+    } else if (m.action === "admit") {
+      // Scanner stays in the left hand; the right hand invites the next guests.
+      Object.assign(elbow, [side * 0.29, 1.12, -0.18]);
+      Object.assign(
+        hand,
+        side < 0
+          ? [-0.23, 1.12, -0.38]
+          : [0.4 + Math.sin(progress * Math.PI * 2) * 0.1, 1.18, -0.34],
+      );
+    } else if (m.action === "guide" && side > 0) {
+      Object.assign(elbow, [0.34, 1.13, -0.13]);
+      Object.assign(hand, [
+        0.47,
+        1.16 + Math.sin(progress * Math.PI) * 0.12,
+        -0.23 - Math.sin(progress * Math.PI) * 0.14,
+      ]);
     } else if (m.action === "console") {
       elbow[2] = -0.25;
       Object.assign(hand, [side * 0.22, 1.05 + (side > 0 ? Math.max(0, beat) * 0.035 : 0), -0.44]);
@@ -162,6 +182,22 @@ export function staffPose(m: StaffMotion): StaffPart[] {
     hands.push(hand);
   }
   const [left, right] = hands;
+  if (m.action === "admit") {
+    put(
+      "ticket-scanner",
+      "#334e59",
+      [left[0], left[1] + 0.04, left[2] - 0.04],
+      [0.065, 0.085, 0.035],
+      "box",
+    );
+    put(
+      "scanner-screen",
+      "#a7ddae",
+      [left[0], left[1] + 0.07, left[2] - 0.079],
+      [0.044, 0.036, 0.008],
+      "box",
+    );
+  }
   if (m.role === "cleaner" || m.action === "sweep") {
     const sweeping = m.action === "sweep",
       reach = (right[1] - 0.065) / Math.max(0.01, left[1] - right[1]),
