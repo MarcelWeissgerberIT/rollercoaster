@@ -2,8 +2,9 @@
 import type { Point } from "./simulation";
 import type { AccessLayout, AccessPose, GateMotion } from "./ride-access";
 import type { PodRole } from "./pods";
+import { viewFacing, type IsoProject } from "./isometric-view";
 type Local = [number, number, number]; // tangent, outward, height
-export type AccessProject = (x: number, y: number) => Point;
+export type AccessProject = IsoProject;
 export type AccessHitPolygon = Point[];
 const INK = "#35594f",
   CREAM = "#fff3d6",
@@ -17,7 +18,9 @@ function painter(
   hits?: AccessHitPolygon[],
 ) {
   const tx = -pose.dy,
-    ty = pose.dx;
+    ty = pose.dx,
+    facing = viewFacing(project, pose.dx, pose.dy),
+    tangent = viewFacing(project, tx, ty);
   const p = ([x, z, h]: Local): Point => {
     const q = project(pose.x + (x * tx + z * pose.dx) / 5, pose.y + (x * ty + z * pose.dy) / 5);
     return { x: q.x, y: q.y - h * 15 * scale };
@@ -80,7 +83,7 @@ function painter(
       b = z - d / 2,
       f = z + d / 2,
       u = h + height;
-    if (pose.dx + pose.dy > 0)
+    if (facing.x + facing.y > 0)
       poly(
         [
           [l, f, h],
@@ -100,7 +103,7 @@ function painter(
         ],
         color,
       );
-    if (tx + ty > 0)
+    if (tangent.x + tangent.y > 0)
       poly(
         [
           [r, f, h],
@@ -273,8 +276,10 @@ export function drawAccessCabin(
     d = c.depth * 5;
   // Match the view-facing cutaway to the camera. Lower front walls overlap the driver,
   // while the glazing, rear walls and partial roof render behind the actual person.
-  const frontZ = c.dx + c.dy > 0 ? 1 : -1,
-    frontX = -c.dy + c.dx > 0 ? 1 : -1;
+  const facing = viewFacing(project, c.dx, c.dy),
+    tangent = viewFacing(project, -c.dy, c.dx),
+    frontZ = facing.x + facing.y > 0 ? 1 : -1,
+    frontX = tangent.x + tangent.y > 0 ? 1 : -1;
   ctx.save();
   if (stage === "back") {
     box(0, 0, 0, w + 0.14, d + 0.14, 0.12, "#989c89", "#737f71", "#e1d8b9");

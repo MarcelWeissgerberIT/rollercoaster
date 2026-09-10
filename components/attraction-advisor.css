@@ -1,0 +1,288 @@
+.attraction-advisor {
+  --aa-wash: #f0e9f5;
+  --aa-accent: #6e5a82;
+  --aa-line: #ded1e8;
+  margin: 0 0 18px;
+  border: 1px solid var(--aa-line);
+  border-radius: 17px;
+  overflow: hidden;
+  background: #fffdf7;
+  color: #304e41;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.attraction-advisor.aa-blocked {
+  --aa-wash: #f9e7d8;
+  --aa-accent: #895236;
+  --aa-line: #eacdb6;
+}
+.attraction-advisor.aa-healthy {
+  --aa-wash: #e5f0e3;
+  --aa-accent: #416b4d;
+  --aa-line: #ccddc7;
+}
+.attraction-advisor .aa-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px;
+  background: linear-gradient(110deg, var(--aa-wash), #fffdf7);
+  border-bottom: 1px solid var(--aa-line);
+}
+.aa-header > div {
+  flex: 1;
+  min-width: 0;
+}
+.attraction-advisor .aa-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 38px;
+  flex: 0 0 auto;
+  border: 1px solid var(--aa-line);
+  border-radius: 11px;
+  color: var(--aa-accent);
+  background: #fffdf9bb;
+}
+.attraction-advisor h3 {
+  margin: 0;
+  color: #314e41;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 700;
+}
+.attraction-advisor .aa-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  color: var(--aa-accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+.attraction-advisor .aa-status svg {
+  width: 12px;
+  height: 12px;
+}
+.attraction-advisor .aa-focus {
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--aa-line);
+  border-radius: 10px;
+  background: #fffdf9;
+  color: var(--aa-accent);
+}
+.attraction-advisor .aa-focus svg {
+  width: 17px;
+  height: 17px;
+}
+.attraction-advisor .aa-assessment {
+  padding: 13px 12px 12px;
+}
+.attraction-advisor h4 {
+  margin: 0;
+  color: #304e41;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.attraction-advisor p {
+  margin: 6px 0 0;
+  color: #667463;
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.attraction-advisor .aa-main-issue > strong {
+  display: block;
+  margin-top: 10px;
+  color: var(--aa-accent);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.attraction-advisor .aa-action-group {
+  margin-top: 11px;
+}
+.attraction-advisor .aa-action {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 39px;
+  padding: 9px 10px;
+  border: 1px solid var(--aa-line);
+  border-radius: 10px;
+  background: #fffdf7;
+  color: #3d594b;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  line-height: 1.4;
+}
+.attraction-advisor .aa-action > span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.attraction-advisor .aa-action-cost {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.attraction-advisor .aa-action svg {
+  width: 14px;
+  height: 14px;
+}
+.attraction-advisor .aa-action--primary {
+  border-color: #3d6f56;
+  background: #34664e;
+  color: #fffdf5;
+}
+.attraction-advisor .aa-action:disabled {
+  opacity: 1;
+  border-color: #dddcd2;
+  background: #eeeee6;
+  color: #7a7e71;
+}
+.attraction-advisor .aa-action-reason {
+  margin-top: 6px;
+  color: #895236;
+  font-size: 11px;
+}
+.attraction-advisor .aa-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0 12px 12px;
+  padding: 10px 0;
+  border: 1px solid #e5e8dc;
+  border-radius: 10px;
+  background: #f6f7ef;
+}
+.attraction-advisor .aa-metrics > div {
+  display: flex;
+  flex-direction: column-reverse;
+  min-width: 0;
+  padding: 0 3px;
+  text-align: center;
+}
+.attraction-advisor .aa-metrics > div + div {
+  border-left: 1px solid #e0e6d8;
+}
+.attraction-advisor .aa-metrics dt {
+  margin-top: 2px;
+  color: #697862;
+  font-size: 9px;
+}
+.attraction-advisor .aa-metrics dd {
+  margin: 0;
+  color: #3b5947;
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.attraction-advisor .aa-more {
+  border-top: 1px solid var(--aa-line);
+  background: #fcfbf6;
+}
+.attraction-advisor .aa-more > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px;
+  color: var(--aa-accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.attraction-advisor .aa-more > summary::-webkit-details-marker {
+  display: none;
+}
+.attraction-advisor .aa-more > summary > svg {
+  width: 15px;
+  height: 15px;
+  margin-left: auto;
+  transition: transform 130ms ease;
+}
+.attraction-advisor .aa-more[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.attraction-advisor .aa-more-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 6px;
+  background: var(--aa-wash);
+  font-size: 10px;
+}
+.attraction-advisor .aa-issues {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0 9px 9px;
+  list-style: none;
+}
+.attraction-advisor .aa-issue {
+  padding: 11px;
+  border: 1px solid #e0e5d7;
+  border-radius: 11px;
+  background: #fffef9;
+}
+.attraction-advisor .aa-issue h4 {
+  font-size: 12px;
+}
+.attraction-advisor .aa-issue p {
+  font-size: 11px;
+}
+.attraction-advisor .aa-priority {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+  color: #7b6c88;
+  font-size: 9px;
+  font-weight: 600;
+}
+.attraction-advisor .aa-priority svg {
+  width: 11px;
+  height: 11px;
+}
+.attraction-advisor .aa-issue--blocker {
+  border-color: #ecd3be;
+}
+.attraction-advisor .aa-issue--blocker .aa-priority {
+  color: #925838;
+}
+.attraction-advisor .aa-issue--tip .aa-priority {
+  color: #67815b;
+}
+.attraction-advisor button:focus-visible,
+.attraction-advisor summary:focus-visible {
+  outline: 2px solid #a8792c;
+  outline-offset: -3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .attraction-advisor button,
+  .attraction-advisor .aa-more > summary > svg {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .attraction-advisor,
+  .attraction-advisor .aa-action,
+  .attraction-advisor .aa-focus,
+  .attraction-advisor .aa-issue,
+  .attraction-advisor .aa-metrics {
+    border-color: CanvasText;
+  }
+}

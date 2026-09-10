@@ -138,9 +138,12 @@ export function planPlacement(
               : "Hier steht bereits ein Gebäude",
         };
     }
-    if (!painting && !(tool === "coaster" && track
-      ? trackGroundCompatible(track, t.x, t.y, s.tiles[t.y][t.x])
-      : s.tiles[t.y][t.x] === "grass"))
+    if (
+      !painting &&
+      !(tool === "coaster" && track
+        ? trackGroundCompatible(track, t.x, t.y, s.tiles[t.y][t.x])
+        : s.tiles[t.y][t.x] === "grass")
+    )
       return { ...plan, error: "Gebäude brauchen freie Wiese" };
     if (painting && t.x === ENTRANCE.x && t.y === ENTRANCE.y && tool !== "path")
       return { ...plan, error: "Der Eingang braucht einen normalen Weg" };
@@ -307,7 +310,9 @@ export function planConnection(s: Park, b: Building, clear = true): Connection {
   const points = unique(route).filter((p) => s.tiles[p.y][p.x] === "grass"),
     clearIds = [
       ...new Set(
-        points.map((p) => groundOccupant(s, p.x, p.y)?.id).filter((id): id is number => id !== undefined),
+        points
+          .map((p) => groundOccupant(s, p.x, p.y)?.id)
+          .filter((id): id is number => id !== undefined),
       ),
     ];
   const cost =
@@ -654,6 +659,12 @@ export function adjustBuilding(
   return null;
 }
 export type EditRecord = {
+  settings?: {
+    id: number;
+    before: { price?: number; condition?: number };
+    keys: ("price" | "condition")[];
+  }[];
+  operatingExpenses?: number;
   viewpoints?: { id: number; before: Point | undefined }[];
   photos?: { id: number; before: number | undefined }[];
   label: string;
@@ -708,6 +719,11 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
         }
       : undefined,
   }));
+  const settings = buildings.map((b) => ({
+    id: b.id,
+    before: { price: b.price, condition: b.condition },
+  }));
+  const operatingExpenses = s.operatingExpensesToday ?? 0;
   const lines = structuredClone(s.transitLines ?? []);
   const cash = s.cash,
     income = s.income,
@@ -726,6 +742,14 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     .map((id) => ({ id, before: lines.find((l) => l.id === id) ?? null }));
   const changes: EditRecord = {
     label,
+    operatingExpenses: (s.operatingExpensesToday ?? 0) - operatingExpenses,
+    settings: settings.flatMap((old) => {
+      const b = s.buildings.find((b) => b.id === old.id);
+      const keys = (["price", "condition"] as const).filter(
+        (key) => b && b[key] !== old.before[key],
+      );
+      return keys.length ? [{ ...old, keys }] : [];
+    }),
     crewConfig:
       (!hadCrewPool && s.crewPool !== undefined) ||
       JSON.stringify(crewBefore) !== JSON.stringify(crewPoolOf(s))
@@ -783,7 +807,8 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     for (let x = 0; x < tiles[y].length; x++)
       if (tiles[y][x] !== s.tiles[y][x])
         changes.tiles.push({ x, y, before: tiles[y][x], after: s.tiles[y][x] });
-  return changes.photos?.length ||
+  return changes.settings?.length ||
+    changes.photos?.length ||
     changes.viewpoints?.length ||
     changes.pathStyles?.length ||
     changes.tiles.length ||
@@ -799,6 +824,17 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     : null;
 }
 export function undoEdits(s: Park, records: EditRecord[]) {
+  for (const record of records)
+    for (const old of record.settings ?? []) {
+      const b = s.buildings.find((b) => b.id === old.id);
+      if (
+        b &&
+        old.keys.includes("condition") &&
+        (old.before.condition ?? 100) < 25 &&
+        (b.riders.length || b.queue.length)
+      )
+        return "Warte bis alle Gäste ausgestiegen sind, bevor du diese Reparatur rückgängig machst.";
+    }
   const added = new Set(records.flatMap((record) => record.added));
   if (s.buildings.some((b) => added.has(b.id) && isHabitat(b.kind) && (b.habitat?.count ?? 0) > 0))
     return "Gib zuerst die Tiere an einen Partnerzoo ab. Das bewohnte Gehege bleibt erhalten.";
@@ -864,6 +900,19 @@ export function undoEdits(s: Park, records: EditRecord[]) {
           s.cleanliness.litter.push({ ...l });
           s.cleanliness.nextId = Math.max(s.cleanliness.nextId, l.id + 1);
         }
+    for (const old of record.settings ?? []) {
+      const b = s.buildings.find((b) => b.id === old.id);
+      if (!b) continue;
+      if (old.keys.includes("price")) b.price = old.before.price ?? CATALOG[b.kind].price;
+      if (old.keys.includes("condition")) {
+        b.condition = old.before.condition;
+        if (broken(b)) {
+          b.open = false;
+          b.autoOpen = false;
+          b.testing = undefined;
+        }
+      }
+    }
     for (const old of record.photos ?? []) {
       const b = s.buildings.find((b) => b.id === old.id);
       if (b) b.photoPoint = old.before;
@@ -960,6 +1009,9 @@ export function undoEdits(s: Park, records: EditRecord[]) {
     s.expenses -= record.expenses;
     s.dayIncome -= record.income;
     s.dayExpenses -= record.expenses;
+    // Refunds are credited in the current billing period, like existing build undo.
+    if (record.operatingExpenses)
+      s.operatingExpensesToday = (s.operatingExpensesToday ?? 0) - record.operatingExpenses;
   }
   if (s.cleanliness) initCleanliness(s);
   return null;

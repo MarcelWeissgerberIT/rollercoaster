@@ -19,14 +19,16 @@ export default function MarketingPanel({
   park,
   onStart,
   onCancel,
+  initialTarget,
 }: {
   park: Park;
+  initialTarget?: number;
   onStart: (kind: MarketingKind, days: number, target?: number) => void;
   onCancel: (id: number) => void;
 }) {
-  const [kind, setKind] = useState<MarketingKind>("flyers"),
+  const [kind, setKind] = useState<MarketingKind>(initialTarget ? "ride" : "flyers"),
     [days, setDays] = useState(1),
-    [target, setTarget] = useState<number | undefined>();
+    [target, setTarget] = useState<number | undefined>(initialTarget);
   const rides = park.buildings.filter(
     (b) =>
       isAttraction(b.kind) &&

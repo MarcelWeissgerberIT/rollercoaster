@@ -1,3 +1,4 @@
+import { cameraTurn, rotateMapPoint, viewDepth } from "./isometric-view";
 import { birdCanvasLayers } from "./bird-canvas";
 import { groundPathAt } from "./track-support";
 import { trackCanvasLayers, drawTrackSegment } from "./track-canvas";
@@ -73,6 +74,7 @@ import {
 } from "./motion";
 const photoPaths = new WeakMap<Point[], ReturnType<typeof makeRidePath>>();
 export type View = {
+  cameraTurn?: number;
   cleanerAreas?: CleanerAreaOverlay[];
   staffFocus?: { ref: StaffRef; until: number };
   stationDirection?: Building;
@@ -282,21 +284,29 @@ export function projection(w: number, h: number, v: View) {
     th = 12 * scale;
   const ox = w * 0.53 + v.panX,
     oy = h * 0.43 - 30 * th + v.panY;
+  const turn = cameraTurn(v.cameraTurn);
+  const project = Object.assign(
+    (x: number, y: number, z = 0) => {
+      const q = rotateMapPoint(x, y, turn);
+      return { x: ox + (q.x - q.y) * tw, y: oy + (q.x + q.y) * th - z * 24 * scale };
+    },
+    { turn },
+  );
+  const worldAt = (x: number, y: number) =>
+    rotateMapPoint(((x - ox) / tw + (y - oy) / th) / 2, ((y - oy) / th - (x - ox) / tw) / 2, -turn);
   return {
     scale,
     tw,
     th,
-    project: (x: number, y: number, z = 0) => ({
-      x: ox + (x - y) * tw,
-      y: oy + (x + y) * th - z * 24 * scale,
-    }),
-    unproject: (x: number, y: number) => ({
-      x: Math.round(((x - ox) / tw + (y - oy) / th) / 2),
-      y: Math.round(((y - oy) / th - (x - ox) / tw) / 2),
-    }),
+    project,
+    worldAt,
+    unproject: (x: number, y: number) => {
+      const p = worldAt(x, y);
+      return { x: Math.round(p.x) || 0, y: Math.round(p.y) || 0 };
+    },
   };
 }
-function heading(dx: number, dy: number): Direction {
+function worldHeading(dx: number, dy: number): Direction {
   return Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? "se" : "nw") : dy >= 0 ? "sw" : "ne";
 }
 const guestMotion = new WeakMap<
@@ -319,6 +329,11 @@ function drawPark(
   const net = connected(s),
     exits = exitNetwork(s, net);
   const { scale, tw, th, project } = projection(w, h, v);
+  const depthAt = (x: number, y: number) => viewDepth(project, x, y);
+  const heading = (dx: number, dy: number) => {
+    const q = rotateMapPoint(dx, dy, project.turn);
+    return worldHeading(q.x, q.y);
+  };
   ctx.clearRect(0, 0, w, h);
   ctx.imageSmoothingEnabled = false;
   const bg = ctx.createLinearGradient(0, 0, 0, h);
@@ -374,9 +389,10 @@ function drawPark(
   ctx.shadowOffsetY = 18 * scale;
   poly(corners, "#4e8233");
   ctx.restore();
+  const frontCorner = corners.reduce((best, p, i) => (p.y > corners[best].y ? i : best), 0);
   for (const [a, b] of [
-    [corners[1], corners[2]],
-    [corners[2], corners[3]],
+    [corners[(frontCorner + 3) % 4], corners[frontCorner]],
+    [corners[frontCorner], corners[(frontCorner + 1) % 4]],
   ])
     poly(
       [a, b, { x: b.x, y: b.y + 14 * scale }, { x: a.x, y: a.y + 14 * scale }],
@@ -552,7 +568,7 @@ function drawPark(
     if (ghost) {
       const layers = [
         {
-          depth: q.x + q.y + 0.15,
+          depth: depthAt(q.x, q.y) + 0.15,
           draw: () =>
             drawAccessPod(
               ctx,
@@ -567,11 +583,11 @@ function drawPark(
       ];
       if (needsOperator(b.kind)) {
         layers.push({
-          depth: layout.cabin.x + layout.cabin.y - 0.1,
+          depth: depthAt(layout.cabin.x, layout.cabin.y) - 0.1,
           draw: () => drawAccessCabin(ctx, layout, project, scale, "back", b.open),
         });
         layers.push({
-          depth: layout.cabin.x + layout.cabin.y + 0.4,
+          depth: depthAt(layout.cabin.x, layout.cabin.y) + 0.4,
           draw: () => drawAccessCabin(ctx, layout, project, scale, "front", b.open),
         });
       }
@@ -730,7 +746,7 @@ function drawPark(
     if (b.habitat?.viewpoint) {
       const q = b.habitat.viewpoint;
       layers.push({
-        depth: q.x + q.y + 0.15,
+        depth: depthAt(q.x, q.y) + 0.15,
         draw: () => {
           const p = project(q.x, q.y);
           ctx.save();
@@ -773,7 +789,7 @@ function drawPark(
             ? `elephant-walk-${dir}-${animal.walk ? ((Math.floor((animal.gait / (Math.PI * 2)) * 4) % 4) + 4) % 4 : 1}`
             : animalSprite(b.kind, i, dir);
       layers.push({
-        depth: animal.x + animal.y + 0.1,
+        depth: depthAt(animal.x, animal.y) + 0.1,
         draw: () => {
           const p = project(animal.x, animal.y);
           ctx.fillStyle = "#32462c30";
@@ -812,7 +828,7 @@ function drawPark(
       const cars = Array.from({ length: 4 }, (_, i) => ({
         i,
         ...(kind === "bumper" ? bumperPose(i, phase) : balloonPose(i, phase)),
-      })).sort((a, b) => a.x + a.z - b.x - b.z);
+      })).sort((a, b) => depthAt(a.x, a.z) - depthAt(b.x, b.z));
       for (const car of cars) {
         const q = project(b.x + (n - 1) / 2 + car.x / 5, b.y + (n - 1) / 2 + car.z / 5, car.y / 5);
         const name =
@@ -1088,7 +1104,7 @@ function drawPark(
     if (b.id === s.trackEdit?.buildingId) {
       const e = s.trackEdit;
       objects.push({
-        depth: b.x + b.y,
+        depth: depthAt(b.x, b.y),
         draw: () => {
           for (const track of [e.prefix, e.suffix])
             for (let i = 1; i < track.length; i++) rail(track[i - 1], track[i]);
@@ -1143,11 +1159,12 @@ function drawPark(
         for (let car = 0; car < Math.ceil(rideCapacity(b) / 2); car++) {
           const q = routePosition(route, head - car * 0.74);
           objects.push({
-            depth: q.x + q.y + (q.z ?? 0) * 0.035 + 0.15,
+            depth: depthAt(q.x, q.y) + (q.z ?? 0) * 0.035 + 0.15,
             draw: () => {
               const direction = heading(q.dx * (q.up.z < 0 ? -1 : 1), q.dy * (q.up.z < 0 ? -1 : 1)),
                 p = project(q.x, q.y, q.z),
-                rotation = Math.atan2((q.up.x - q.up.y) * 24, q.up.z * 24 - (q.up.x + q.up.y) * 12);
+                up = rotateMapPoint(q.up.x, q.up.y, project.turn),
+                rotation = Math.atan2((up.x - up.y) * 24, q.up.z * 24 - (up.x + up.y) * 12);
               frame(
                 `car-${VEHICLES[vehicleFor(b).model].sprite}-${direction}`,
                 p,
@@ -1199,7 +1216,7 @@ function drawPark(
         }
       }
       objects.push({
-        depth: b.x + b.y - 0.15,
+        depth: depthAt(b.x, b.y) - 0.15,
         draw: () =>
           frame(
             `station-${pts[0]?.style ?? "steel"}`,
@@ -1209,20 +1226,23 @@ function drawPark(
       });
     } else {
       const n = CATALOG[b.kind].size;
-      objects.push({ depth: b.x + b.y + 2 * (n - 1) + 0.05, draw: () => drawBuilding(b) });
+      objects.push({
+        depth: depthAt(b.x + (n - 1) / 2, b.y + (n - 1) / 2) + n - 1 + 0.05,
+        draw: () => drawBuilding(b),
+      });
     }
     if (usesPods(b.kind)) {
       const pods = effectivePods(s, b, net, exits);
       for (const role of ["entry", "exit"] as const) {
         const p = podPose(b, CATALOG[b.kind].size, pods[role]);
-        objects.push({ depth: p.x + p.y + 0.15, draw: () => drawPod(b, role, pods[role]) });
+        objects.push({ depth: depthAt(p.x, p.y) + 0.15, draw: () => drawPod(b, role, pods[role]) });
       }
     }
     if (needsOperator(b.kind)) {
       const layout = accessLayout(s, b),
         c = layout.cabin;
       objects.push({
-        depth: c.x + c.y - 0.1,
+        depth: depthAt(c.x, c.y) - 0.1,
         draw: () => {
           const hits: AccessHitPolygon[] = [];
           drawAccessCabin(ctx, layout, project, scale, "back", b.open, hits);
@@ -1230,7 +1250,7 @@ function drawPark(
         },
       });
       objects.push({
-        depth: c.x + c.y + 0.4,
+        depth: depthAt(c.x, c.y) + 0.4,
         draw: () => {
           const hits: AccessHitPolygon[] = [];
           drawAccessCabin(ctx, layout, project, scale, "front", b.open, hits);
@@ -1304,7 +1324,7 @@ function drawPark(
         const a = transit.route[i - 1],
           b = transit.route[i];
         objects.push({
-          depth: Math.min(a.x + a.y, b.x + b.y) - 0.05,
+          depth: Math.min(depthAt(a.x, a.y), depthAt(b.x, b.y)) - 0.05,
           draw: () => {
             const pa = project(a.x, a.y),
               pb = project(b.x, b.y);
@@ -1315,7 +1335,7 @@ function drawPark(
     for (let car = 0; car < (transit.kind === "train" ? 4 : 1); car++) {
       const q = transportCarPose(transit, car);
       objects.push({
-        depth: q.x + q.y + 0.2,
+        depth: depthAt(q.x, q.y) + 0.2,
         draw: () => {
           const p = project(q.x, q.y),
             d = heading(q.headingX, q.headingY),
@@ -1328,8 +1348,9 @@ function drawPark(
               const id = transit.passengers[(train ? (car - 1) * 4 : 0) + seat],
                 side = seat % 2 ? 1 : -1,
                 row = Math.floor(seat / 2) - (train ? 0.5 : 1.5);
-              const forward = { x: q.headingX - q.headingY, y: (q.headingX + q.headingY) * 0.5 },
-                cross = { x: -(q.headingX + q.headingY), y: (q.headingX - q.headingY) * 0.5 };
+              const dir = rotateMapPoint(q.headingX, q.headingY, project.turn),
+                forward = { x: dir.x - dir.y, y: (dir.x + dir.y) * 0.5 },
+                cross = { x: -(dir.x + dir.y), y: (dir.x - dir.y) * 0.5 };
               rider(
                 id,
                 {
@@ -1379,13 +1400,13 @@ function drawPark(
     const moved = Math.hypot(visual.x - old.x, visual.y - old.y),
       next = g.route.find((p) => Math.hypot(p.x - g.x, p.y - g.y) > 0.025);
     if ((isQueued || old.queued) && moved > 0.001)
-      old.heading = heading(visual.x - old.x, visual.y - old.y);
-    else if (next) old.heading = heading(next.x - g.x, next.y - g.y);
+      old.heading = worldHeading(visual.x - old.x, visual.y - old.y);
+    else if (next) old.heading = worldHeading(next.x - g.x, next.y - g.y);
     if (g.state === "observe") {
       const b = s.buildings.find((b) => b.id === g.target);
       if (b && isHabitat(b.kind)) {
         const center = (CATALOG[b.kind].size - 1) / 2;
-        old.heading = heading(b.x + center - g.x, b.y + center - g.y);
+        old.heading = worldHeading(b.x + center - g.x, b.y + center - g.y);
       }
     }
     old.phase += Math.min(0.3, moved) * 9;
@@ -1399,7 +1420,11 @@ function drawPark(
         ? moved > 0.001
         : (g.state === "walk" || g.state === "leave") && g.route.length > 0 && g.timer <= 0;
     const step = moving ? Math.floor(old.phase) % 4 : 1;
-    const name = `walk-red-${old.heading}-${step}`,
+    const [facingX, facingY] = ({ se: [1, 0], sw: [0, 1], nw: [-1, 0], ne: [0, -1] } as const)[
+      old.heading
+    ];
+    const displayHeading = heading(facingX, facingY);
+    const name = `walk-red-${displayHeading}-${step}`,
       look = guestAppearance(g);
     if (dogOwners.has(g.id)) {
       const dog = dogCompanionPose(s, g, {
@@ -1416,18 +1441,18 @@ function drawPark(
           ownerPoint.x,
           ownerPoint.y,
           scale,
-          old.heading,
+          displayHeading,
           handPhase,
           moving,
         );
         objects.push({
-          depth: dog.x + dog.y + 0.1,
+          depth: depthAt(dog.x, dog.y) + 0.1,
           draw: () => drawDogCompanion(ctx, dog, project, scale, grip),
         });
       }
     }
     objects.push({
-      depth: visual.x + visual.y + 0.12,
+      depth: depthAt(visual.x, visual.y) + 0.12,
       draw: () => {
         const p = project(visual.x, visual.y);
         ctx.fillStyle = "#29442830";
@@ -1522,7 +1547,7 @@ function drawPark(
             p.y,
             scale,
             s.time,
-            old.heading,
+            displayHeading,
             (old.phase * Math.PI) / 2,
             moving,
           );
@@ -1531,7 +1556,7 @@ function drawPark(
   }
   for (const litter of s.cleanliness?.litter ?? [])
     objects.push({
-      depth: litter.x + litter.y + 0.05,
+      depth: depthAt(litter.x, litter.y) + 0.05,
       draw: () => {
         const p = project(litter.x, litter.y);
         ctx.save();
@@ -1559,7 +1584,7 @@ function drawPark(
       return v;
     };
     objects.push({
-      depth: q.center.x / 5 + q.center.z / 5 + 0.3,
+      depth: depthAt(q.center.x / 5, q.center.z / 5) + 0.3,
       draw: () => {
         const line = (a: typeof q.center, b: typeof q.center, color: string, width: number) => {
           const pa = proj(a),
@@ -1598,10 +1623,10 @@ function drawPark(
       motion = staffMotion(s, ref);
     if (!location || !motion) continue;
     objects.push({
-      depth: location.x + location.y + 0.13,
+      depth: depthAt(location.x, location.y) + 0.13,
       draw: () => {
         const p = project(location.x, location.y);
-        drawStaff(ctx, motion, p.x, p.y, scale);
+        drawStaff(ctx, motion, p.x, p.y, scale, project.turn);
       },
     });
   }
@@ -1613,7 +1638,7 @@ function drawPark(
     if (transfer.collection && !collectionPoints.has(`${transfer.target.x},${transfer.target.y}`)) {
       collectionPoints.add(`${transfer.target.x},${transfer.target.y}`);
       objects.push({
-        depth: transfer.target.x + transfer.target.y,
+        depth: depthAt(transfer.target.x, transfer.target.y),
         draw: () => {
           poly(
             [
@@ -1647,9 +1672,10 @@ function drawPark(
     if (!location || !motion) continue;
     const base = project(location.x, location.y),
       local = staffLocalWorld(staffBagLocal(motion), motion),
+      turned = rotateMapPoint(local[0], local[2], project.turn),
       hand = {
-        x: base.x + (local[0] - local[2]) * 9 * scale,
-        y: base.y + ((local[0] + local[2]) * 4.5 - local[1] * 15) * scale,
+        x: base.x + (turned.x - turned.y) * 9 * scale,
+        y: base.y + ((turned.x + turned.y) * 4.5 - local[1] * 15) * scale,
       },
       bin = { x: target.x, y: target.y - (transfer.collection ? 13 : 18) * scale },
       a = transfer.empty ? bin : hand,
@@ -1659,7 +1685,9 @@ function drawPark(
         y: a.y + (b.y - a.y) * transfer.t - Math.sin(transfer.t * Math.PI) * 5 * scale,
       };
     objects.push({
-      depth: Math.max(location.x + location.y, transfer.target.x + transfer.target.y) + 0.25,
+      depth:
+        Math.max(depthAt(location.x, location.y), depthAt(transfer.target.x, transfer.target.y)) +
+        0.25,
       draw: () => {
         ctx.fillStyle = "#4c5c49";
         ctx.strokeStyle = "#2b4034";
@@ -1705,7 +1733,10 @@ function drawPark(
       });
   }
   const gate = GATES[gateStyle(s)].sprite;
-  objects.push({ depth: 43.9, draw: () => frame(gate, project(15, 29), specs[gate]) });
+  objects.push({
+    depth: depthAt(15, 29) - 0.1,
+    draw: () => frame(gate, project(15, 29), specs[gate]),
+  });
   objects.push(...birdCanvasLayers(ctx, s, project, scale));
   objects
     .sort((a, b) => a.depth - b.depth)
@@ -1730,7 +1761,7 @@ function drawPark(
       ctx.stroke();
       // Redraw only the selected person above scenery so they can be found behind a tree.
       const motion = staffMotion(s, v.staffFocus.ref);
-      if (motion) drawStaff(ctx, motion, p.x, p.y, scale);
+      if (motion) drawStaff(ctx, motion, p.x, p.y, scale, project.turn);
       const label = `${person.name} · ${person.label}`;
       ctx.font = "600 13px sans-serif";
       ctx.textAlign = "center";

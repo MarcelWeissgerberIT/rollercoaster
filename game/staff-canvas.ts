@@ -8,8 +8,9 @@ export function drawStaff(
   x: number,
   y: number,
   scale: number,
+  turn = 0,
 ) {
-  const yaw = staffYaw(m.heading),
+  const yaw = staffYaw(m.heading) - (turn * Math.PI) / 2,
     c = Math.cos(yaw),
     s = Math.sin(yaw);
   const project = (p: V3) => {
@@ -39,8 +40,15 @@ export function drawStaff(
   for (const { part, a, b } of parts) {
     if (part.head) {
       if (part.id === "head")
-        drawPersonHead(ctx, staffHeadLook(m), yaw, a.x, a.y + 0.018 * 15 * scale,
-          9 / 48 * scale, 15 / 60 * scale);
+        drawPersonHead(
+          ctx,
+          staffHeadLook(m),
+          yaw,
+          a.x,
+          a.y + 0.018 * 15 * scale,
+          (9 / 48) * scale,
+          (15 / 60) * scale,
+        );
       continue;
     }
     ctx.fillStyle = part.color;

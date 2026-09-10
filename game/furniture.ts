@@ -1,5 +1,6 @@
 import type { Building, Point } from "./simulation";
 import { buildingOrientation, furniturePoint, isRotatableFurniture } from "./building-orientation";
+import { viewDepth, viewFacing, type IsoProject } from "./isometric-view";
 
 /** Metres in the furniture's local frame, shared by the park canvas and the 3D scene. */
 export type FurniturePart = {
@@ -76,13 +77,17 @@ export const FURNITURE_HEIGHT_PIXELS = 12;
 export function drawFurniture(
   ctx: CanvasRenderingContext2D,
   b: Building,
-  project: (x: number, y: number) => Point,
+  project: IsoProject,
   scale: number,
   alpha = 1,
 ): Point[][] {
   if (!isRotatableFurniture(b.kind)) return [];
   const faces: { points: Point[]; color: string; depth: number }[] = [];
   const rotated = buildingOrientation(b) % 2 !== 0;
+  const xDirection = viewFacing(project, 1, 0),
+    yDirection = viewFacing(project, 0, 1),
+    positiveX = xDirection.x + xDirection.y > 0,
+    positiveY = yDirection.x + yDirection.y > 0;
   const p = (x: number, y: number, z: number) => {
     const out = project(x, y);
     return { x: out.x, y: out.y - z * FURNITURE_HEIGHT_PIXELS * scale };
@@ -97,16 +102,19 @@ export function drawFurniture(
       y1 = center.y + d,
       z0 = part.z - part.height / 2,
       z1 = part.z + part.height / 2;
-    const depth = center.x + center.y + part.z * 0.08;
+    const depth = viewDepth(project, center.x, center.y) + part.z * 0.08,
+      frontX = positiveX ? x1 : x0,
+      frontY = positiveY ? y1 : y0,
+      xOnRight = (xDirection.x - xDirection.y) * (positiveX ? 1 : -1) > 0;
     faces.push(
       {
-        points: [p(x1, y0, z0), p(x1, y1, z0), p(x1, y1, z1), p(x1, y0, z1)],
-        color: part.shade,
+        points: [p(frontX, y0, z0), p(frontX, y1, z0), p(frontX, y1, z1), p(frontX, y0, z1)],
+        color: xOnRight ? part.shade : part.color,
         depth,
       },
       {
-        points: [p(x0, y1, z0), p(x1, y1, z0), p(x1, y1, z1), p(x0, y1, z1)],
-        color: part.color,
+        points: [p(x0, frontY, z0), p(x1, frontY, z0), p(x1, frontY, z1), p(x0, frontY, z1)],
+        color: xOnRight ? part.color : part.shade,
         depth,
       },
       {

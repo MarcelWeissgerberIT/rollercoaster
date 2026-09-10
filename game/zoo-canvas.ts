@@ -1,9 +1,10 @@
 import type { Building, Point } from "./simulation";
 import { habitatLayout, fixtureWorld, type HabitatFixture } from "./zoo-layout";
+import { cameraTurn, viewDepth, type IsoProject } from "./isometric-view";
 export type HabitatLayer = { depth: number; draw: () => void };
 type Options = {
   ctx: CanvasRenderingContext2D;
-  project: (x: number, y: number, z?: number) => Point;
+  project: IsoProject;
   scale: number;
   alpha?: number;
   registerLine?: (a: Point, b: Point) => void;
@@ -68,9 +69,12 @@ export function habitatSceneryLayers(
       { x: x - w / 2, y: y + d / 2 },
     ];
     const low = footprint.map((q) => p(q.x, q.y, base)),
-      high = footprint.map((q) => p(q.x, q.y, base + h));
-    polygon([low[1], low[2], high[2], high[1]], right);
-    polygon([low[2], low[3], high[3], high[2]], left);
+      high = footprint.map((q) => p(q.x, q.y, base + h)),
+      front = (2 - cameraTurn(project.turn) + 4) % 4,
+      previous = (front + 3) % 4,
+      next = (front + 1) % 4;
+    polygon([low[previous], low[front], high[front], high[previous]], right);
+    polygon([low[front], low[next], high[next], high[front]], left);
     polygon(high, top);
   };
   const rock = (x: number, y: number, w: number, d: number, h: number, color = "#a99f83") => {
@@ -102,7 +106,7 @@ export function habitatSceneryLayers(
     }
   };
   layers.push({
-    depth: -100,
+    depth: -10000,
     draw: guarded(() => {
       polygon(
         [
@@ -183,7 +187,7 @@ export function habitatSceneryLayers(
         v = { x: a.x + ((e.x - a.x) * i) / n, y: a.y + ((e.y - a.y) * i) / n },
         u = { x: a.x + ((e.x - a.x) * (i + 1)) / n, y: a.y + ((e.y - a.y) * (i + 1)) / n };
       layers.push({
-        depth: (v.x + v.y + u.x + u.y) / 2 + 0.18,
+        depth: (viewDepth(project, v.x, v.y) + viewDepth(project, u.x, u.y)) / 2 + 0.18,
         draw: guarded(() => {
           const dark = layout.barrier === "wood" ? "#76573a" : "#40564f",
             light = layout.barrier === "wood" ? "#ad8a59" : "#73897c";
@@ -450,7 +454,7 @@ export function habitatSceneryLayers(
   for (const f of layout.fixtures) {
     if (f.kind === "mud") continue;
     const q = fixtureWorld(b, f);
-    layers.push({ depth: q.x + q.y + 0.1, draw: guarded(() => drawFixture(f)) });
+    layers.push({ depth: viewDepth(project, q.x, q.y) + 0.1, draw: guarded(() => drawFixture(f)) });
   }
   return layers;
 }

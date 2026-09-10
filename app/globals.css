@@ -5218,8 +5218,72 @@ body:has(.manual[data-slot="dialog-content"] .free-play-card) [data-slot="dialog
   }
 }
 
-.build-status:has(.exit-build-help) { flex-wrap: wrap; max-width: 650px; }
-.build-status .exit-build-help { flex: 1 1 100%; border-top: 1px solid #c5d5bb; padding-top: 10px; display: grid; gap: 6px; }
-.exit-build-help .secondary { justify-self: start; font-size: 12px; padding: 8px 12px; }
+.build-status:has(.exit-build-help) {
+  flex-wrap: wrap;
+  max-width: 650px;
+}
+.build-status .exit-build-help {
+  flex: 1 1 100%;
+  border-top: 1px solid #c5d5bb;
+  padding-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+.exit-build-help .secondary {
+  justify-self: start;
+  font-size: 12px;
+  padding: 8px 12px;
+}
 
-.save-label { max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.save-label {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Camera controls stay separate from object rotation. */
+.camera-quarter-turns {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #b9d5c7;
+  background: #e2f0e6;
+  border-radius: 16px;
+}
+.camera-quarter-turns .iconbtn {
+  background: #f9fbef;
+  color: #315f50;
+}
+.camera-angle {
+  min-width: 35px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #315f50;
+}
+.viewporttools {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.pod-controls:focus-visible,
+.maintenance-card:focus-visible {
+  outline: 2px solid #41886c;
+  outline-offset: 4px;
+}
+[data-advisor-anchor] {
+  scroll-margin-top: 10px;
+}
+@media (max-width: 600px) {
+  .viewporttools {
+    max-width: 225px;
+    gap: 5px;
+  }
+  .camerahelp {
+    display: none;
+  }
+  .camera-quarter-turns {
+    margin-left: 50px;
+  }
+}

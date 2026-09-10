@@ -4,6 +4,12 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 
 **[Jetzt spielen](https://marcelweissgerberit.github.io/rollercoaster/)**
 
+## Besucher-Assistent und Parkkamera
+
+- Wähle eine Attraktion, ein Gehege, einen Stand oder eine Haltestelle: Der **Besucher-Assistent** erklärt, warum Gäste fehlen oder was den Betrieb bremst. Er prüft Anschlüsse, Personal, Zustand, Preise, Wartezeiten und die Bedürfnisse der aktuellen Gäste.
+- Passende Aktionen führen direkt zur richtigen Einstellung oder setzen eine geprüfte Lösung mit ausgewiesenen Kosten um. Freie Crews zuweisen, Reparaturen, Preisänderungen und Anschlüsse lassen sich rückgängig machen. Bei ungünstigen Pods sucht der Assistent eine freie andere Seite; automatisch versetzt wird erst ohne zugeordnete Gäste.
+- **Q / E** oder die beiden Drehtasten neben dem Zoom drehen die Parkkamera jeweils um **90°**. Der betrachtete Kartenpunkt bleibt in der Mitte, Auswahl und Bauwerkzeuge folgen der neuen Ansicht. Das **Auge** fokussiert eine Attraktion auch aus der gedrehten Blickrichtung.
+
 ## Kalender, Wetter und Spielstände
 
 - Das Jahr hat 28 Parktage und vier Jahreszeiten. Ein Tag dauert rund 43 Sekunden, ein Jahr bei 1× genau 20 Minuten; bei Pause stoppt die Zeit. Wochentag, Saison und Jahresfortschritt stehen unten links. Bestehende Parks behalten ihr Jahr und ihren Fortschritt. Betriebskosten werden weiterhin alle 90 Spielsekunden abgerechnet.
@@ -57,11 +63,11 @@ Seltene erwachsene Einzelbesucher oder Paare bringen einen Hund mit; höchstens 
 
 **Parkmenü → Kampagnen spielen** öffnet die Auswahl. **Kampagnenziele** im Parkmenü zeigt den Fortschritt auch auf kleinen Bildschirmen. Ein neuer Start ersetzt den bisherigen lokalen Park; die Auswahl weist darauf hin. Die drei bisherigen Szenarien und das freie Spiel bleiben vorhanden.
 
-| Neue Kampagne | Ausgangslage | Aufgabe |
-| --- | --- | --- |
-| Rosenhain erwacht | 8.000 €, geschlossener maroder Park, verschlissene Attraktionen und Müll | Reparieren, wieder öffnen, 150 Gäste begrüßen, drei Fahrgeschäfte betreiben; Zustand 80 %, Sauberkeit 85 %, Zufriedenheit 75 % |
-| Festival nach dem Sturm | 12.000 €, 42 × 42 Felder, 120 Gäste, acht Attraktionen und viel Müll | Reinigung organisieren, 350 Gäste begrüßen, Sauberkeit 90 %, Zufriedenheit 80 % und 400 € Betriebsgewinn pro Tag erreichen |
-| Wildhain Tierpark | 22.000 €, 36 × 36 Felder, Zebras, Flamingos und ein Tierpfleger | Giraffen und Pinguine erforschen; vier verschiedene gesunde Arten zugänglich machen, 200 Gäste begrüßen, Tierwohl/Zufriedenheit 80 % und Sauberkeit 85 % erreichen |
+| Neue Kampagne           | Ausgangslage                                                             | Aufgabe                                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Rosenhain erwacht       | 8.000 €, geschlossener maroder Park, verschlissene Attraktionen und Müll | Reparieren, wieder öffnen, 150 Gäste begrüßen, drei Fahrgeschäfte betreiben; Zustand 80 %, Sauberkeit 85 %, Zufriedenheit 75 %                                     |
+| Festival nach dem Sturm | 12.000 €, 42 × 42 Felder, 120 Gäste, acht Attraktionen und viel Müll     | Reinigung organisieren, 350 Gäste begrüßen, Sauberkeit 90 %, Zufriedenheit 80 % und 400 € Betriebsgewinn pro Tag erreichen                                         |
+| Wildhain Tierpark       | 22.000 €, 36 × 36 Felder, Zebras, Flamingos und ein Tierpfleger          | Giraffen und Pinguine erforschen; vier verschiedene gesunde Arten zugänglich machen, 200 Gäste begrüßen, Tierwohl/Zufriedenheit 80 % und Sauberkeit 85 % erreichen |
 
 Im Menü **Zoo & Tiere** stehen vier Gehegetypen und die **Tierpflegerstation**. Forschung schaltet zunächst Zebras, Flamingos und Pflegestationen, danach Savannentiere und die Pinguin-Küste frei. Gehege werden leer gebaut. Tiere einzeln aufnehmen, normale Parkwege an eine beliebige Zaunseite bauen und öffnen. Besucher verteilen sich entlang dieser Wege, schauen ins Gehege und bleiben unterschiedlich lange stehen. Es gibt keine Ein-/Ausgangspods, Warteschlangen oder zusätzlichen Gehegetickets; die Tierbeobachtung ist im Parkeintritt enthalten. Alte Spielstände werden automatisch umgestellt: Exklusive blaue/rote Zoo-Anschlüsse werden kostenlos zu Parkwegen, gemeinsam genutzte Anschlüsse anderer Betriebe bleiben erhalten. Leere Gehege zählen nicht als Attraktion oder Kampagnenfortschritt.
 

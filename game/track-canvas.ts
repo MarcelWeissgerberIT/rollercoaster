@@ -1,11 +1,12 @@
 import { COASTER_TYPES, type CoasterType, type Point } from "./simulation";
 import { prepareRoute, routePosition, type RouteMotion, type Vec } from "./motion";
 import { supportClearAt, type GroundPath } from "./track-support";
+import { cameraTurn, viewDepth, type IsoProject } from "./isometric-view";
 
 /** World geometry stays in the same tile coordinates and transported frame as the train. */
 export const TRACK_HALF_GAUGE = 0.15;
 export const TRACK_TIE_SPACING = 0.24;
-type Project = (x: number, y: number, z?: number) => { x: number; y: number };
+type Project = IsoProject;
 type Frame = { point: Point; right: Vec; up: Vec; tangent: Vec };
 export type TrackCanvasTie = Frame & { distance: number };
 export type TrackCanvasSpan = {
@@ -263,17 +264,9 @@ export function drawTrackSupport(
       [r, r],
       [-r, r],
     ].map(([x, y]) => ({ x: base.x + x, y: base.y + y, z: 0.055 }));
-    polygon(
-      [
-        corners[1],
-        corners[2],
-        corners[3],
-        { ...corners[3], z: 0 },
-        { ...corners[2], z: 0 },
-        { ...corners[1], z: 0 },
-      ],
-      "#8c9483",
-    );
+    const front = (2 - cameraTurn(project.turn) + 4) % 4,
+      visible = [(front + 3) % 4, front, (front + 1) % 4].map((i) => corners[i]);
+    polygon([...visible, ...visible.toReversed().map((p) => ({ ...p, z: 0 }))], "#8c9483");
     polygon(corners, "#d2cfb7");
     path([base, top], colors.dark, wood ? 4.4 : 4.7);
     path([base, top], colors.beam, wood ? 2.9 : 3.1);
@@ -318,13 +311,19 @@ export function trackCanvasLayers(
       : geometry.supports
           .filter((support) => supportClearAt(support.point.x, support.point.y, options.groundPath))
           .map((support) => ({
-            depth: support.depth,
+            depth: viewDepth(project, support.point.x, support.point.y) - 0.02,
             draw: () => drawTrackSupport(ctx, support, project, scale),
           }))),
-    ...geometry.spans.map((span) => ({
-      depth: span.depth,
-      draw: () => drawTrackSpan(ctx, span, project, scale, options),
-    })),
+    ...geometry.spans.map((span) => {
+      const a = span.frames[0].point,
+        b = span.frames[span.frames.length - 1].point;
+      return {
+        depth:
+          (viewDepth(project, a.x, a.y) + viewDepth(project, b.x, b.y)) / 2 +
+          Math.max(a.z ?? 0, b.z ?? 0) * 0.035,
+        draw: () => drawTrackSpan(ctx, span, project, scale, options),
+      };
+    }),
   ];
 }
 

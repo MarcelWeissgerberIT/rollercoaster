@@ -1,6 +1,7 @@
 import type { Guest, Point } from "./simulation";
 import { guestAppearance } from "./visitors";
 import { dogParts, dogWorldPoint, type DogPose, type DogVector } from "./guest-dogs";
+import { viewDepth, type IsoProject } from "./isometric-view";
 
 /** Right-hand counterpart of the held-souvenir anchor, following the same sprite step and lean. */
 export function dogLeashGrip(
@@ -26,7 +27,7 @@ export function dogLeashGrip(
 export function drawDogCompanion(
   ctx: CanvasRenderingContext2D,
   pose: DogPose,
-  project: (x: number, y: number) => Point,
+  project: IsoProject,
   scale: number,
   ownerGrip?: Point,
 ) {
@@ -68,7 +69,10 @@ export function drawDogCompanion(
     .map((part) => ({ part, world: dogWorldPoint(pose, part.p) }))
     .sort(
       (a, b) =>
-        a.world.x + a.world.y + a.world.z * 0.018 - b.world.x - b.world.y - b.world.z * 0.018,
+        viewDepth(project, a.world.x, a.world.y) +
+        a.world.z * 0.018 -
+        viewDepth(project, b.world.x, b.world.y) -
+        b.world.z * 0.018,
     );
   for (const { part, world } of parts) {
     const center = screen(world);

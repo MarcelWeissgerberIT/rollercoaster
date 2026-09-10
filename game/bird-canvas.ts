@@ -1,4 +1,5 @@
 import type { Park } from "./simulation";
+import { viewDepth, viewFacing, type IsoProject } from "./isometric-view";
 import {
   BIRD_COLORS,
   birdAnatomy,
@@ -9,7 +10,7 @@ import {
   type BirdPoint,
   type BirdPose,
 } from "./birds";
-type Project = (x: number, y: number, z?: number) => { x: number; y: number };
+type Project = IsoProject;
 
 export function drawBird(
   ctx: CanvasRenderingContext2D,
@@ -88,7 +89,8 @@ export function drawBird(
   ctx.save();
   ctx.globalAlpha *= pose.opacity;
   shape(anatomy.tail, colors.tip);
-  const near = Math.sin(pose.heading) - Math.cos(pose.heading) > 0 ? 1 : 0,
+  const side = viewFacing(project, Math.sin(pose.heading), -Math.cos(pose.heading)),
+    near = side.x + side.y > 0 ? 1 : 0,
     far = 1 - near;
   const wing = (index: number) => {
     shape(anatomy.wings[index], colors.wing);
@@ -143,7 +145,7 @@ export function birdCanvasLayers(
     .map((pose) => ({
       // Perching birds sit on the actual tree; flyers pass above the park's objects.
       depth:
-        pose.phase === "perched" ? pose.x + pose.y + 0.3 : pose.x + pose.y + pose.z * 0.035 + 0.3,
+        viewDepth(project, pose.x, pose.y) + (pose.phase === "perched" ? 0 : pose.z * 0.035) + 0.3,
       draw: () => drawBird(ctx, pose, project, scale, birdSpriteLift(park, pose)),
     }));
 }

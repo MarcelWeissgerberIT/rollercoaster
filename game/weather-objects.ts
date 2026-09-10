@@ -1,5 +1,6 @@
 import type { Building, Point } from "./simulation";
 import { furnitureParts, FURNITURE_HEIGHT_PIXELS } from "./furniture";
+import { viewDepth, type IsoProject } from "./isometric-view";
 
 export type WeatherObjectKind = "shelter" | "parasol" | "fountain";
 export const isWeatherObject = (kind: string): kind is WeatherObjectKind =>
@@ -120,7 +121,7 @@ export function weatherFaces(kind: WeatherObjectKind) {
 export function drawWeatherObject(
   ctx: CanvasRenderingContext2D,
   b: Building,
-  project: (x: number, y: number) => Point,
+  project: IsoProject,
   scale: number,
   alpha = 1,
 ): Point[][] {
@@ -128,7 +129,9 @@ export function drawWeatherObject(
   const faces = weatherFaces(b.kind)
     .map((face) => ({
       ...face,
-      depth: face.points.reduce((sum, p) => sum + p[0] + p[1] + p[2] * 1.6, 0) / face.points.length,
+      depth:
+        face.points.reduce((sum, p) => sum + viewDepth(project, p[0], p[1]) + p[2] * 1.6, 0) /
+        face.points.length,
       screen: face.points.map(([x, y, z]) => {
         const p = project(b.x + x / 5, b.y + y / 5);
         return { x: p.x, y: p.y - z * FURNITURE_HEIGHT_PIXELS * scale };

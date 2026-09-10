@@ -1,3 +1,4 @@
+import { cameraTurn, rotateMapPoint } from "./isometric-view";
 import { RESTROOM_SPRITE } from "./restroom";
 import type { View } from "./render";
 import { CATALOG, type Building, type Park, type Point } from "./simulation";
@@ -16,7 +17,7 @@ import zooWalkSpecs from "./zoo-walk-sprites.json";
 
 export const MIN_ZOOM = 0.55;
 export const MAX_ZOOM = 5;
-export type CameraTarget = Pick<View, "zoom" | "panX" | "panY">;
+export type CameraTarget = Pick<View, "zoom" | "panX" | "panY" | "cameraTurn">;
 export type CameraRect = { left: number; top: number; right: number; bottom: number };
 type SpriteSpec = { width: number; height: number; anchorX: number; anchorY: number };
 
@@ -53,13 +54,14 @@ function viewport(width: number, height: number) {
 }
 /** Isometric coordinates before viewport scale/pan, including the renderer's
  * fixed 30-row vertical origin. Keep this in step with render.projection. */
-function logicalPoint(p: Point) {
-  return { x: (p.x - p.y) * 24, y: (p.x + p.y - 30) * 12 - (p.z ?? 0) * 24 };
+function logicalPoint(p: Point, turn = 0) {
+  const q = rotateMapPoint(p.x, p.y, turn);
+  return { x: (q.x - q.y) * 24, y: (q.x + q.y - 30) * 12 - (p.z ?? 0) * 24 };
 }
 
 /** Visible envelope across a complete ride cycle, in logical screen pixels.
  * Ground footprints alone miss wheel tops, swinging boats and coaster loops. */
-export function buildingVisualBounds(park: Park, b: Building): CameraRect {
+export function buildingVisualBounds(park: Park, b: Building, turn = 0): CameraRect {
   const bounds: CameraRect = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
   const add = (x: number, y: number, radius = 0) => {
     if (!Number.isFinite(x + y + radius)) return;
@@ -69,12 +71,12 @@ export function buildingVisualBounds(park: Park, b: Building): CameraRect {
     bounds.bottom = Math.max(bounds.bottom, y + radius);
   };
   const point = (p: Point, radius = 0) => {
-    const q = logicalPoint(p);
+    const q = logicalPoint(p, turn);
     add(q.x, q.y, radius);
   };
   const sprite = (spec: SpriteSpec | undefined, at: Point, angle = 0) => {
     if (!spec) return;
-    const q = logicalPoint(at),
+    const q = logicalPoint(at, turn),
       c = Math.cos(angle),
       s = Math.sin(angle);
     for (const x of [-spec.anchorX, spec.width - spec.anchorX])
@@ -118,7 +120,7 @@ export function buildingVisualBounds(park: Park, b: Building): CameraRect {
     }
   }
   if (b.design) {
-    const q = logicalPoint(center);
+    const q = logicalPoint(center, turn);
     add(q.x - 58, q.y - 38);
     add(q.x - 18, q.y + 12);
   }
@@ -161,7 +163,7 @@ export function focusBuildingCamera(
 ): CameraTarget {
   const { w, h, scale } = viewport(width, height),
     rect = usableRectangle(usable, w, h),
-    bounds = buildingVisualBounds(park, b),
+    bounds = buildingVisualBounds(park, b, _view.cameraTurn),
     roomWidth = rect.right - rect.left,
     roomHeight = rect.bottom - rect.top,
     padding = Math.min(28, roomWidth * 0.08, roomHeight * 0.08),
@@ -172,6 +174,7 @@ export function focusBuildingCamera(
       ),
     );
   return {
+    cameraTurn: cameraTurn(_view.cameraTurn),
     zoom,
     panX:
       (rect.left + rect.right) / 2 - w * 0.53 - ((bounds.left + bounds.right) / 2) * scale * zoom,
@@ -198,5 +201,37 @@ export function zoomCameraAt(
     zoom,
     panX: x - w * 0.53 - (x - w * 0.53 - finite(view.panX)) * ratio,
     panY: y - h * 0.43 - (y - h * 0.43 - finite(view.panY)) * ratio,
+  };
+}
+
+/** Rotate about the exact ground point under the anchor, retaining pan/zoom. */
+export function rotateCameraAt(
+  view: CameraTarget,
+  width: number,
+  height: number,
+  step: number,
+  anchor: Pick<Point, "x" | "y"> = { x: width / 2, y: height / 2 },
+): CameraTarget {
+  const { w, h, scale: baseScale } = viewport(width, height),
+    zoom = clampZoom(view.zoom),
+    scale = Math.max(1e-8, baseScale * zoom),
+    tw = 24 * scale,
+    th = 12 * scale,
+    x = finite(anchor.x, w / 2),
+    y = finite(anchor.y, h / 2),
+    ox = w * 0.53 + finite(view.panX),
+    oy = h * 0.43 - 30 * th + finite(view.panY),
+    world = rotateMapPoint(
+      ((x - ox) / tw + (y - oy) / th) / 2,
+      ((y - oy) / th - (x - ox) / tw) / 2,
+      -cameraTurn(view.cameraTurn),
+    ),
+    turn = cameraTurn(cameraTurn(view.cameraTurn) + step),
+    q = rotateMapPoint(world.x, world.y, turn);
+  return {
+    cameraTurn: turn,
+    zoom,
+    panX: x - w * 0.53 - (q.x - q.y) * tw,
+    panY: y - h * 0.43 + 30 * th - (q.x + q.y) * th,
   };
 }

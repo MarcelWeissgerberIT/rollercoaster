@@ -1,10 +1,12 @@
+import { AttractionAdvisor } from "../components/attraction-advisor";
+import { attractionAdvice, applyAttractionAdvice } from "../game/attraction-advisor";
 import { SaveSlots } from "../components/save-slots";
 import { ParkCalendar, ParkWeather } from "../components/park-weather";
 import { calendarOf, DAY_SECONDS, DAYS_PER_YEAR } from "../game/calendar";
 import { supportsBuildingRotation } from "@/game/building-orientation";
 import { assignCleanerArea, cleanerAreaInfo, type CleanerArea } from "@/game/cleanliness";
 import { AttractionDirectory } from "@/components/attraction-directory";
-import { clampZoom, focusBuildingCamera, zoomCameraAt } from "@/game/camera";
+import { clampZoom, focusBuildingCamera, zoomCameraAt, rotateCameraAt } from "@/game/camera";
 import { createFreePark } from "@/game/free-play";
 import { hasUnlimitedBudget, canAfford, spendCash } from "@/game/budget";
 import { saveParkSwitch, readPreviousPark, PARK_SAVE_KEY } from "@/game/park-storage";
@@ -132,6 +134,7 @@ import {
   Info,
   Move,
   RotateCw,
+  RotateCcw,
   MapPin,
   Zap,
   OctagonPause,
@@ -493,6 +496,20 @@ export default function Home() {
   const [saved, setSaved] = useState("");
   const [saveSlotsOpen, setSaveSlotsOpen] = useState(false);
   const [zoom, setZoom] = useState(100);
+  const [cameraAngle, setCameraAngle] = useState(0);
+  const [advisorSection, setAdvisorSection] = useState<{ selector: string; serial: number } | null>(
+    null,
+  );
+  const [marketingTarget, setMarketingTarget] = useState<number | undefined>();
+  useEffect(() => {
+    if (!advisorSection) return;
+    const frame = requestAnimationFrame(() => {
+      const element = panelRef.current?.querySelector<HTMLElement>(advisorSection.selector);
+      element?.scrollIntoView({ block: "start", behavior: "smooth" });
+      element?.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [advisorSection]);
   const [tab, setTab] = useState("park");
   const announced = useRef(false);
   const notify = useCallback((m: string) => setMessage(m), []);
@@ -942,6 +959,7 @@ export default function Home() {
     cameraTarget.current = null;
     const fitZoom = Math.min(1, 30 / next.tiles.length);
     view.current = { ...blankView, zoom: fitZoom };
+    setCameraAngle(0);
     setZoom(Math.round(fitZoom * 100));
     restoreDraft(next);
     announced.current = next.won;
@@ -1165,6 +1183,23 @@ export default function Home() {
     );
     setZoom(Math.round(view.current.zoom * 100));
   }, []);
+  const rotateCamera = useCallback(
+    (step: number) => {
+      const el = canvas.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      cameraTarget.current = null;
+      drag.current = null;
+      finishStroke();
+      Object.assign(view.current, rotateCameraAt(view.current, rect.width, rect.height, step));
+      view.current.hover = null;
+      view.current.hitTargets = [];
+      setHoverInfo(null);
+      setHoverTile(null);
+      setCameraAngle((view.current.cameraTurn ?? 0) * 90);
+    },
+    [finishStroke],
+  );
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -1211,6 +1246,16 @@ export default function Home() {
         setRotation((r) => (r + 1) % 4);
       }
       if (e.key.toLowerCase() === "f" && tool === "coaster" && !buildWorld) focus2D(draft);
+      if (
+        !buildWorld &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        ["q", "e"].includes(e.key.toLowerCase())
+      ) {
+        e.preventDefault();
+        rotateCamera(e.key.toLowerCase() === "q" ? -1 : 1);
+      }
       if (e.key === "+" || e.key === "=") changeZoom(1.15);
       if (e.key === "-") changeZoom(1 / 1.15);
     };
@@ -1221,6 +1266,7 @@ export default function Home() {
     sync,
     pickTool,
     changeZoom,
+    rotateCamera,
     undo,
     tool,
     blueprintMode,
@@ -1578,6 +1624,10 @@ export default function Home() {
     });
   };
   const b = snapshot?.buildings.find((b) => b.id === selected);
+  const advice = useMemo(
+    () => (snapshot && b && category === "detail" ? attractionAdvice(snapshot, b.id) : null),
+    [snapshot, b?.id, category],
+  );
   const cutTrack = useMemo(() => (b?.kind === "coaster" ? editableTrack(b) : []), [b?.track]);
   const sections = useMemo(
     () => (sectionMode === "drive" ? driveSections(cutTrack) : trackSections(cutTrack)),
@@ -1838,6 +1888,80 @@ export default function Home() {
     if (b) {
       fn(b);
       sync();
+    }
+  };
+  const runAdvice = (issueId: string) => {
+    const live = park.current,
+      selectedBuilding = live?.buildings.find((item) => item.id === selected);
+    const issue = advice?.issues.find((item) => item.id === issueId),
+      action = issue?.action;
+    if (!live || !selectedBuilding || !action || action.disabledReason) return;
+    const scrollTo = (selector: string) =>
+      setAdvisorSection((current) => ({ selector, serial: (current?.serial ?? 0) + 1 }));
+    switch (action.kind) {
+      case "access":
+        if (usesPods(selectedBuilding.kind)) scrollTo(".pod-controls");
+        else if (isHabitat(selectedBuilding.kind)) scrollTo(".habitat-visitors");
+        else {
+          pickTool("path", "paths");
+          focusMapPoint(selectedBuilding);
+        }
+        break;
+      case "staff":
+        setTab("personal");
+        setSettings(true);
+        break;
+      case "maintenance":
+        scrollTo(".maintenance-card");
+        break;
+      case "zoo":
+        scrollTo("[data-advisor-anchor='zoo']");
+        break;
+      case "operations":
+        if (issueId === "park-closed") {
+          setTab("park");
+          setSettings(true);
+        } else if (
+          ["price", "demand-score", "ride-fit"].includes(issueId) ||
+          (!isAttraction(selectedBuilding.kind) && !isTransport(selectedBuilding.kind))
+        )
+          scrollTo("[data-advisor-anchor='price']");
+        else
+          scrollTo(
+            isTransport(selectedBuilding.kind)
+              ? "[data-advisor-anchor='transit']"
+              : ".ride-operations-panel",
+          );
+        break;
+      case "track":
+        if (live.trackEdit?.buildingId === selectedBuilding.id) resumeEdit();
+        else {
+          openSections(selectedBuilding);
+          setSectionMode("profile");
+          setCut({ id: selectedBuilding.id, from: 0, to: 0 });
+          notify(
+            "Markiere den Abschnitt, den du verbessern möchtest. Der Fahrprofil-Assistent zeigt passende Vorschläge.",
+          );
+        }
+        break;
+      case "marketing":
+        setMarketingTarget(selectedBuilding.id);
+        setTab("marketing");
+        setSettings(true);
+        break;
+      case "analysis":
+        setTrafficPoint(selectedBuilding);
+        setCategory("analysis");
+        setTrafficMode(issueId === "litter" ? "litter" : issueId === "needs" ? "mood" : "crowd");
+        setTool("select");
+        setMenuOpen(false);
+        focusMapPoint(selectedBuilding);
+        break;
+      default:
+        edit("Besucher-Assistent · " + action.label, () => {
+          const error = applyAttractionAdvice(live, selectedBuilding.id, issueId, action.id);
+          notify(error ?? `${action.label}: erledigt. Der Assistent prüft die Situation erneut.`);
+        });
     }
   };
   return (
@@ -3040,6 +3164,13 @@ export default function Home() {
                       </div>
                     ) : (
                       <>
+                        {advice && !cut && (
+                          <AttractionAdvisor
+                            report={advice}
+                            onAction={runAdvice}
+                            onFocus={() => focusAttraction(b.id)}
+                          />
+                        )}
                         {b.kind === "coaster" ? (
                           <CarPreview className="detailhero" vehicle={vehicleFor(b)} />
                         ) : (
@@ -3185,6 +3316,7 @@ export default function Home() {
                             </p>
                           </section>
                         )}
+                        {isHabitat(b.kind) && <div data-advisor-anchor="zoo" tabIndex={-1} />}
                         {isHabitat(b.kind) && (
                           <HabitatPanel
                             onManageStaff={() => {
@@ -3262,7 +3394,7 @@ export default function Home() {
                           />
                         )}
                         {isRide(b.kind) && (
-                          <div className="maintenance-card">
+                          <div className="maintenance-card" tabIndex={-1}>
                             <strong>Zustand · {Math.round(condition(b))}%</strong>
                             <progress max="100" value={condition(b)} />
                             {broken(b) && (
@@ -3294,6 +3426,7 @@ export default function Home() {
                             </button>
                           </div>
                         )}
+                        {isTransport(b.kind) && <div data-advisor-anchor="transit" tabIndex={-1} />}
                         {isTransport(b.kind) && (
                           <div className="transit-box">
                             <strong>
@@ -3982,7 +4115,7 @@ export default function Home() {
                               ? suggestExit(snapshot, b, autoClear)
                               : null;
                             return (
-                              <div className="pod-controls">
+                              <div className="pod-controls" tabIndex={-1}>
                                 <h3>Ein- & Ausgangspods</h3>
                                 <p className="small">
                                   Die Häuschen sitzen am Rand. Verbinde das Feld direkt vor dem
@@ -4253,7 +4386,11 @@ export default function Home() {
                                     <strong>{EUR(b.revenue)}</strong>
                                   </div>
                                 </div>
-                                <div className="controlrow">
+                                <div
+                                  className="controlrow"
+                                  data-advisor-anchor="price"
+                                  tabIndex={-1}
+                                >
                                   <span>
                                     {isTransport(b.kind) ? "Fahrpreis" : "Preis pro Besuch"}
                                   </span>
@@ -4940,7 +5077,9 @@ export default function Home() {
             { id: "help", label: "Spielanleitung", Icon: HelpCircle, run: () => setHelp(true) },
           ]}
         />
-        <div className="camerahelp">Rechts ziehen: verschieben · Mausrad: Zoom zum Zeiger</div>
+        <div className="camerahelp">
+          Q / E: 90° drehen · Rechts ziehen: verschieben · Mausrad: Zoom
+        </div>
         <button
           className="undo-build secondary"
           disabled={!undoCount && !draft.length}
@@ -4951,6 +5090,27 @@ export default function Home() {
           <Undo2 size={17} /> Rückgängig{undoCount > 0 ? ` (${undoCount})` : ""}
         </button>
         <div className="viewporttools">
+          <div className="camera-quarter-turns" role="group" aria-label="Parkkamera drehen">
+            <button
+              className="iconbtn"
+              aria-label="Kamera 90 Grad nach links drehen"
+              title="90° nach links · Q"
+              onClick={() => rotateCamera(-1)}
+            >
+              <RotateCcw size={17} />
+            </button>
+            <span className="camera-angle" aria-label={`Kamerawinkel ${cameraAngle} Grad`}>
+              {cameraAngle}°
+            </span>
+            <button
+              className="iconbtn"
+              aria-label="Kamera 90 Grad nach rechts drehen"
+              title="90° nach rechts · E"
+              onClick={() => rotateCamera(1)}
+            >
+              <RotateCw size={17} />
+            </button>
+          </div>
           <span>{zoom}%</span>
           <button className="iconbtn" aria-label="Herauszoomen" onClick={() => changeZoom(1 / 1.2)}>
             <Minus size={16} />
@@ -4962,7 +5122,9 @@ export default function Home() {
             className="iconbtn"
             aria-label="Ansicht zentrieren"
             onClick={() => {
-              view.current = { ...view.current, zoom: 1, panX: 0, panY: 40 };
+              view.current = { ...view.current, zoom: 1, panX: 0, panY: 40, cameraTurn: 0 };
+              cameraTarget.current = null;
+              setCameraAngle(0);
               setZoom(100);
             }}
           >
@@ -4988,6 +5150,10 @@ export default function Home() {
               angrenzender Parkweg bietet vier Warteplätze.
             </li>
             <li>
+              <b>Kamera drehen:</b> Mit Q / E oder den Pfeiltasten neben dem Zoom drehst du die
+              Parkansicht in 90°-Schritten. Bauauswahl und Wege bleiben dabei an ihren
+              Weltpositionen.
+              <br />
               <b>Besucher lenken:</b> Im Menü „Wege“ ist Blau die Warteschlange zum Eingang, Rot der
               Ausgang zurück zum beigen Parkweg. Beide an unterschiedliche Anschlüsse der Attraktion
               setzen; bei Achterbahnen neben die Station. Weiße Pfeile zeigen die Ausgangsrichtung.
@@ -5277,6 +5443,8 @@ export default function Home() {
             <TabsContent value="marketing">
               {snapshot && (
                 <MarketingPanel
+                  key={marketingTarget ?? "park"}
+                  initialTarget={marketingTarget}
                   park={snapshot}
                   onStart={(kind, days, id) => {
                     const error = startMarketing(
@@ -5333,6 +5501,8 @@ export default function Home() {
                               view.current.zoom = Math.max(0.55, 30 / max);
                               view.current.panX = 0;
                               view.current.panY = 40;
+                              view.current.cameraTurn = 0;
+                              setCameraAngle(0);
                               setZoom(Math.round(view.current.zoom * 100));
                             }
                             notify(
