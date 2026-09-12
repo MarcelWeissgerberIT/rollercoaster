@@ -131,7 +131,7 @@ export function birdSpriteLift(park: Park, pose: BirdPose): number {
     perch = building && birdPerch(building);
   if (!building || !perch) return 0;
   const crown = building.kind === "pine" ? 77 : 62;
-  return (crown - perch.z * 24) * pose.perchBlend;
+  return (crown - (perch.z - (building.z ?? 0)) * 24) * pose.perchBlend;
 }
 export function birdCanvasLayers(
   ctx: CanvasRenderingContext2D,

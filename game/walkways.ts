@@ -1,6 +1,6 @@
 import type { Park, Point } from "./simulation";
 import { insideMap, PARK_ENTRANCE as ENTRANCE } from "./grid";
-import { hasElevations, walkGraph, walkKey, pointFromKey } from "./terrain";
+import { hasWalkingElevations, walkGraph, walkKey, pointFromKey } from "./terrain";
 const key = (p: Point) => `${p.x},${p.y}`;
 const dirs = [
   [1, 0],
@@ -9,7 +9,7 @@ const dirs = [
   [0, -1],
 ];
 export function connected(s: Park) {
-  if (hasElevations(s)) {
+  if (hasWalkingElevations(s)) {
     const graph = walkGraph(s),
       seen = new Set<string>(),
       queue = [key(ENTRANCE)];
@@ -46,7 +46,7 @@ export function connected(s: Park) {
 }
 /** Each red tile points downstream to a connected public path. Red never extends the entrance network. */
 export function exitNetwork(s: Park, net = connected(s)): Map<string, Point> {
-  if (hasElevations(s)) {
+  if (hasWalkingElevations(s)) {
     const graph = walkGraph(s),
       next = new Map<string, Point>(),
       queue = [...net].filter((id) => graph.nodes.get(id)?.type === "path");

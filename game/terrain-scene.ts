@@ -31,8 +31,24 @@ export function addTerrainScene(scene: THREE.Scene, s: Park) {
       ),
       new THREE.Vector3(sx, sy, sz),
     );
-    groups.set(color, [...(groups.get(color) ?? []), matrix]);
+    const matrices = groups.get(color) ?? [];
+    matrices.push(matrix);
+    groups.set(color, matrices);
   };
+  // Grass turf, warm topsoil and muted bedrock share the 2D cliff palette.
+  // Segment tunnel columns first, so strata never close their walkable void.
+  function groundColumn(x: number, y: number, bottom: number, top: number, surface: number) {
+    const strata: [number, number, string][] = [
+      [bottom, surface - 1.2, "#908b72"],
+      [surface - 1.2, surface - 0.3, "#a18a61"],
+      [surface - 0.3, surface, "#718f43"],
+    ];
+    for (const [lo, hi, color] of strata) {
+      const a = Math.max(bottom, lo),
+        b = Math.min(top, hi);
+      box(color, x * 5, (a + b) / 2, y * 5, 5, b - a, 5);
+    }
+  }
   for (let y = 0; y < s.tiles.length; y++)
     for (let x = 0; x < s.tiles[y].length; x++) {
       const top = terrainHeight(s, x, y) * 5 - 0.12,
@@ -45,10 +61,10 @@ export function addTerrainScene(scene: THREE.Scene, s: Park) {
       if (tunnels.length) {
         const bottom = Math.min(...tunnels.map((d) => d.z)) * 5 - 0.2,
           ceiling = Math.max(...tunnels.map((d) => d.z + (d.slope === undefined ? 0 : 1))) * 5 + 3;
-        box("#8b795b", x * 5, (-26 + bottom) / 2, y * 5, 5, bottom + 26, 5);
-        box("#8b795b", x * 5, (top + ceiling) / 2, y * 5, 5, top - ceiling, 5);
-      } else box("#8b795b", x * 5, (-26 + top) / 2, y * 5, 5, top + 26, 5);
-      box((x + y) % 2 ? "#82ad4e" : "#86b152", x * 5, top + 0.05, y * 5, 4.999, 0.1, 4.999);
+        groundColumn(x, y, -26, bottom, top);
+        groundColumn(x, y, ceiling, top, top);
+      } else groundColumn(x, y, -26, top, top);
+      box((x + y) % 2 ? "#82ad4e" : "#86b152", x * 5, top + 0.05, y * 5, 5, 0.1, 5);
     }
   for (const d of s.elevatedPaths ?? []) {
     const alongX = d.slope === undefined || d.slope === 0 || d.slope === 2,

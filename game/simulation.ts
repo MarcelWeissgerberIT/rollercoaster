@@ -115,7 +115,8 @@ import { connected, exitNetwork, followExit, exitFromCells } from "./walkways";
 import {
   setTerrainFootprints,
   terrainHeight,
-  hasElevations,
+  hasWalkingElevations,
+  withWalkingElevationScope,
   elevationRoute,
   heightAccess,
   walkKey,
@@ -1377,8 +1378,9 @@ export function access(s: Park, b: Building, net = connected(s)) {
     usesPods(b.kind) && b.pods
       ? [podPort(b, CATALOG[b.kind].size, b.pods.entry)]
       : accessNeighbors(b);
-  if (hasElevations(s))
-    return heightAccess(s, points, b.z ?? terrainHeight(s, b.x, b.y), net).sort(
+  const z = b.z ?? terrainHeight(s, b.x, b.y);
+  if (z !== 0 || hasWalkingElevations(s))
+    return heightAccess(s, points, z, net).sort(
       (a, c) => Number(walkTile(s, c) === "queue") - Number(walkTile(s, a) === "queue"),
     )[0];
   const reachable = points.filter((p) => inBounds(p.x, p.y, s) && net.has(key(p)));
@@ -1396,8 +1398,8 @@ export function exitPath(s: Park, b: Building, net = connected(s), exits = exitN
     usesPods(b.kind) && b.pods
       ? [podPort(b, CATALOG[b.kind].size, b.pods.exit)]
       : accessNeighbors(b);
-  if (hasElevations(s)) {
-    const z = b.z ?? terrainHeight(s, b.x, b.y);
+  const z = b.z ?? terrainHeight(s, b.x, b.y);
+  if (z !== 0 || hasWalkingElevations(s)) {
     const direct = heightAccess(s, points, z, net, ["path"])[0];
     if (direct) return [direct];
     const starts = heightAccess(s, points, z, new Set(exits.keys()), ["exit"]);
@@ -1459,7 +1461,7 @@ export function queueCapacity(s: Park, b: Building) {
   return Math.min(40, q.length * 4);
 }
 export function findRoute(s: Park, start: Point, end: Point): Point[] {
-  if (hasElevations(s)) return elevationRoute(s, start, end, true, exitNetwork(s)).slice(1);
+  if (hasWalkingElevations(s)) return elevationRoute(s, start, end, true, exitNetwork(s)).slice(1);
   const exits = exitNetwork(s);
   const a = { x: Math.round(start.x), y: Math.round(start.y) },
     target = key(end),
@@ -2166,6 +2168,9 @@ export function tick(s: Park, dt: number) {
   }
   dt *= s.speed;
   migratePark(s);
+  return withWalkingElevationScope(s, () => tickParkStep(s, dt));
+}
+function tickParkStep(s: Park, dt: number) {
   const research = s.research!;
   if (research.active) {
     research.remaining = Math.max(0, research.remaining - dt);

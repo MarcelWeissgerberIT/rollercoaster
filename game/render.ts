@@ -1,6 +1,13 @@
 import { drawHeldUmbrella } from "./umbrella-canvas";
 import type { TerrainSettings } from "../components/terrain-panel";
-import { terrainHeight, deckHeight, walkingHeight, terrainPlan, deckPlan } from "./terrain";
+import {
+  terrainHeight,
+  deckHeight,
+  walkingHeight,
+  terrainPlan,
+  deckPlan,
+  withWalkingElevationScope,
+} from "./terrain";
 import { drawDeck, drawTerrainFaces } from "./terrain-render";
 import { drawScenery } from "./modular-scenery-canvas";
 import { drawWaterRide } from "./water-ride-canvas";
@@ -437,8 +444,8 @@ function drawPark(
   const terrainCells = s.tiles.flatMap((row, y) =>
     row.map((_, x) => ({ x, y, z: terrainHeight(s, x, y) })),
   );
-  terrainCells.sort((a, b) => a.z - b.z || depthAt(a.x, a.y) - depthAt(b.x, b.y));
-  for (const { x, y } of terrainCells) {
+  terrainCells.sort((a, b) => depthAt(a.x, a.y) - depthAt(b.x, b.y));
+  const drawGroundCell = (x: number, y: number) => {
     drawTerrainFaces(ctx, s, x, y, camera.project);
     const type = s.tiles[y][x],
       n = (x * 79 + y * 53) % 13,
@@ -538,7 +545,8 @@ function drawPark(
         1,
       );
     }
-  }
+  };
+  for (const { x, y } of terrainCells) drawGroundCell(x, y);
   const frame = (
     name: string,
     p: Point,
@@ -572,6 +580,10 @@ function drawPark(
   const rail = (a: Point, b: Point, ghost = false, ties = true) =>
     drawTrackSegment(ctx, a, b, project, scale, { ghost, ties, onHit: trackHit });
   const objects: Array<{ depth: number; draw: () => void; owner?: number }> = [];
+  // Raised ground participates in painter depth: a foreground hillside can
+  // occlude the lower part of a tree, guest or ride standing behind it.
+  for (const { x, y, z } of terrainCells)
+    if (z !== 0) objects.push({ depth: depthAt(x, y) - 0.5, draw: () => drawGroundCell(x, y) });
   for (const d of s.elevatedPaths ?? [])
     objects.push({
       depth: depthAt(d.x, d.y) + 0.04,
@@ -1305,7 +1317,11 @@ function drawPark(
   for (const b of s.buildings) {
     const firstObject = objects.length;
     if (b.id === v.selected || b.id === v.hoveredId)
-      for (const p of footprint(b)) tile(p.x, p.y, "#ffef9166", "#fff0bb");
+      for (const p of footprint(b))
+        objects.push({
+          depth: depthAt(p.x, p.y) - 0.4,
+          draw: () => tile(p.x, p.y, "#ffef9166", "#fff0bb"),
+        });
     if (b.id === s.trackEdit?.buildingId) {
       const e = s.trackEdit;
       objects.push({
@@ -2254,6 +2270,8 @@ export function draw(
   realTime: number,
 ) {
   return withSharedAccessCache(s, () =>
-    withAccessLayoutCache(s, () => drawPark(ctx, w, h, s, v, realTime)),
+    withAccessLayoutCache(s, () =>
+      withWalkingElevationScope(s, () => drawPark(ctx, w, h, s, v, realTime)),
+    ),
   );
 }

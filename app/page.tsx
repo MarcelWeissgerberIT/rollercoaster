@@ -35,7 +35,7 @@ import { supportsBuildingRotation } from "@/game/building-orientation";
 import { assignCleanerArea, cleanerAreaInfo, type CleanerArea } from "@/game/cleanliness";
 import { AttractionDirectory } from "@/components/attraction-directory";
 import { clampZoom, focusBuildingCamera, zoomCameraAt, rotateCameraAt } from "@/game/camera";
-import { createFreePark } from "@/game/free-play";
+import { createLandscapePark } from "@/game/new-game";
 import { hasUnlimitedBudget, canAfford, spendCash } from "@/game/budget";
 import { saveParkSwitch, readPreviousPark, PARK_SAVE_KEY } from "@/game/park-storage";
 import type { HabitatFeatureId } from "../game/habitat-needs";
@@ -191,7 +191,6 @@ import {
   COASTER_TYPES,
   trackCost,
   type CoasterType,
-  newPark,
   tick,
   CATALOG,
   access,
@@ -1037,7 +1036,7 @@ export default function Home() {
     return true;
   }
   useEffect(() => {
-    let initial = newPark();
+    let initial: Park | undefined;
     try {
       const raw = localStorage.getItem(PARK_SAVE_KEY);
       if (raw) {
@@ -1048,6 +1047,7 @@ export default function Home() {
         }
       }
     } catch {}
+    initial ??= createLandscapePark();
     try {
       setPreviousPark(readPreviousPark(localStorage));
     } catch {}
@@ -5357,7 +5357,8 @@ export default function Home() {
               id: "freeplay",
               label: "Freies Spiel starten",
               Icon: InfinityIcon,
-              description: "Ein leerer Park, alle Freischaltungen und unbegrenztes Budget.",
+              description:
+                "Hügel, Täler und ein See – alle Freischaltungen und unbegrenztes Budget.",
               run: () => setNewDialog(true),
             },
             { id: "help", label: "Spielanleitung", Icon: HelpCircle, run: () => setHelp(true) },
@@ -6049,23 +6050,25 @@ export default function Home() {
           <button
             className="free-play-card"
             data-testid="start-free-play"
-            onClick={() => switchPark(createFreePark())}
+            onClick={() => switchPark(createLandscapePark("sandbox"))}
           >
             <span className="free-play-icon">
               <InfinityIcon size={36} />
             </span>
             <span>
               <strong>Freies Spiel starten</strong>
-              <small>Ein leerer Park für deine Ideen</small>
+              <small>Eine neue Landschaft für deine Ideen</small>
             </span>
             <span className="free-play-features">
               <span>∞ Budget</span>
               <span>Alles freigeschaltet</span>
               <span>Keine Ziele</span>
+              <span>Lebendiges Gelände</span>
             </span>
             <span className="free-play-description">
-              Baue Achterbahnen, einen Zoo oder deinen eigenen Mix. Gäste, Personal und Tiere
-              reagieren weiterhin auf deinen Park.
+              Hügel, Täler und ein See geben deinem Park Struktur. Am Eingang wartet eine ebene
+              Startfläche auf deine ersten Attraktionen. Baue Achterbahnen, einen Zoo oder deinen
+              eigenen Mix.
             </span>
             <span className="free-play-start">
               Jetzt frei bauen <Play size={17} />
@@ -6107,7 +6110,7 @@ export default function Home() {
                   <button
                     className="scenario-card secondary"
                     key={id}
-                    onClick={() => switchPark(newPark("scenario", id as ScenarioId))}
+                    onClick={() => switchPark(createLandscapePark("scenario", id as ScenarioId))}
                   >
                     <strong>
                       {scenario.name} · {EUR(scenario.cash)}

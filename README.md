@@ -6,6 +6,7 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 
 ## Gelände, Zugbetrieb und neue Inhalte
 
+- **Neue Parks starten mit Landschaft**: Hügel, Täler, Seen und bewaldete Höhen geben freien Parks und Kampagnen von Beginn an Struktur. Am Eingang bleibt eine ebene Baufläche; vorhandene Wege, Startanlagen und die vorgesehenen Ausbauflächen der Zoo-Kampagne bleiben zugänglich. Freie Parks erhalten bei jedem Neustart eine neue Landschaft. Bestehende Spielstände und importierte Szenariokarten behalten ihr Gelände. Im Szenarioeditor ist „Leere Karte gestalten“ weiterhin eine flache Arbeitsfläche.
 - **Bauen → Gelände & Höhenwege**: Freie Wiese anheben, absenken oder einebnen; Pinsel mit 1, 3 oder 5 Feldern. Brücken, Rampen und Tunnel verwenden eine eigene Bauhöhe in 5-m-Schritten. Gäste wechseln nur an passenden Anschlusskanten die Höhe. Die Schnittansicht zeigt unterirdische Wege; Baukosten, Rückgängig und Spielstände berücksichtigen das Gelände. Es sind terrassierte Höhenstufen, keine frei modellierbaren Hänge. Achterbahngleise bleiben oberirdisch.
 - **Achterbahn auswählen → Züge & Blockbetrieb**: 1–4 unabhängige Züge, Wagenzahl, Mindestbelegung sowie minimale und maximale Wartezeit einstellen. Sicherheitsblöcke bleiben bis zum letzten Wagen reserviert; zu kurze Abschnitte werden abgewiesen. In 3D lässt sich der beobachtete Zug wechseln. Alte Bahnen behalten ihr bisheriges Programm, bis ein Zugprogramm übernommen wird.
 - **Verwalten → Personal** beziehungsweise **Attraktion → Technik & Inspektionen**: Mechaniker einstellen, automatisch verteilen oder einer Anlage zuweisen. Sie laufen zur Station, warten auf leere Fahrzeuge und prüfen beziehungsweise reparieren mit sichtbarer Werkzeugbewegung. Reparaturen werden einmal bezahlt; ein noch nicht begonnener Auftrag aus dem Assistenten kann zurückgenommen werden. Begonnene Arbeiten werden nicht erstattet.
@@ -183,7 +184,7 @@ Pushes auf `main` starten `.github/workflows/pages.yml`: Installation, Simulatio
 
 Die Spielsprites stammen ausschließlich aus dem OpenArt-Projekt des Nutzers. Die aktive Grafik wurde über den **OpenArt MCP** als einheitlicher Pixel-Art-Satz neu erzeugt, mit festen Größen, Ankerpunkten, Richtungsansichten und beweglichen Fahrgeschäftsteilen. Quellen, Prompts und Verarbeitung stehen in [ASSETS.md](ASSETS.md). Es werden keine Originalgrafiken oder Spieldateien von RollerCoaster Tycoon verwendet.
 
-Dies ist eine kompakte Browser-Parksimulation. Fahrphysik und Wirtschaft sind vereinfachte Spielmodelle; sie enthalten beispielsweise keine Gelände-Höhenbearbeitung oder Mehrspielerfunktion.
+Dies ist eine kompakte Browser-Parksimulation. Fahrphysik und Wirtschaft sind vereinfachte Spielmodelle. Das Gelände verwendet bearbeitbare Höhenstufen; eine Mehrspielerfunktion gibt es nicht.
 
 ## Audio-Prüfung im Browser
 
@@ -193,7 +194,7 @@ Für die Zoo-Tierstimmen prüft `/rollercoaster/scripts/zoo-audio-check.html` im
 
 ## Freies Spiel
 
-Im geöffneten **Parkmenü** führt das **∞-Symbol „Freies Spiel“** direkt zum Start. **Jetzt frei bauen** erstellt einen leeren Park mit unbegrenztem Budget, allen freigeschalteten Attraktionen und Tieren und ohne Kampagnenziele. Der Park startet geschlossen; baue deine ersten Angebote und öffne ihn anschließend für Gäste. Personal, Wege, Tierwohl und Fahrgeschäftbetrieb bleiben spielbar.
+Im geöffneten **Parkmenü** führt das **∞-Symbol „Freies Spiel“** direkt zum Start. **Jetzt frei bauen** erstellt eine unbebaute Landschaft mit Hügeln, Tälern, einem See und einer ebenen Startfläche am Eingang. Jeder neue freie Park erhält eine andere Geländeform. Das Budget ist unbegrenzt, alle Attraktionen und Tiere sind freigeschaltet, Kampagnenziele gibt es keine. Der Park startet geschlossen; baue deine ersten Angebote und öffne ihn anschließend für Gäste. Personal, Wege, Tierwohl und Fahrgeschäftbetrieb bleiben spielbar.
 
 Vor jedem Parkwechsel wird der bisherige Park einschließlich Entwürfen im Browser gesichert. **Vorherigen Park fortsetzen** im selben Startfenster tauscht die beiden Parks; der andere bleibt als Sicherung erhalten. Es gibt einen Platz für den aktiven und einen für den vorherigen Park. Scheitert das Speichern, wird nicht gewechselt. Bestehende Spielstände und ältere freie Parks behalten ihren bisherigen Budgetmodus.
 

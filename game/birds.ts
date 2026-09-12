@@ -45,7 +45,12 @@ const hash = (n: number) => {
 export function birdPerch(b: Building): BirdPerch | null {
   if (b.kind !== "tree" && b.kind !== "pine") return null;
   const variation = 0.85 + (b.id % 7) * 0.04;
-  return { buildingId: b.id, x: b.x, y: b.y, z: ((b.kind === "pine" ? 9.5 : 9.3) * variation) / 5 };
+  return {
+    buildingId: b.id,
+    x: b.x,
+    y: b.y,
+    z: (b.z ?? 0) + ((b.kind === "pine" ? 9.5 : 9.3) * variation) / 5,
+  };
 }
 /** Curved approach with a flat flare at the crown; departure opens into a rising turn. */
 export function birdApproach(
@@ -76,13 +81,14 @@ function approachDirection(perch: BirdPerch, cruise: number, u: number, takeoff 
 const trackIds = new WeakMap<object, number>();
 let nextTrackId = 1;
 const layouts = new WeakMap<object, { signature: string; perches: BirdPerch[]; cruise: number }>();
-function birdLayout(park: Pick<Park, "buildings">) {
-  const signature = park.buildings
-    .map((b) => {
-      if (b.track && !trackIds.has(b.track)) trackIds.set(b.track, nextTrackId++);
-      return `${b.id}:${b.kind}:${b.x}:${b.y}:${b.track ? trackIds.get(b.track) : 0}`;
-    })
-    .join(";");
+function birdLayout(park: Pick<Park, "buildings" | "terrain">) {
+  const signature =
+    park.buildings
+      .map((b) => {
+        if (b.track && !trackIds.has(b.track)) trackIds.set(b.track, nextTrackId++);
+        return `${b.id}:${b.kind}:${b.x}:${b.y}:${b.z ?? 0}:${b.track ? trackIds.get(b.track) : 0}`;
+      })
+      .join(";") + JSON.stringify(park.terrain ?? {});
   const cached = layouts.get(park);
   if (cached?.signature === signature) return cached;
   const obstacles = new Map<string, Map<number, number>>();
@@ -93,6 +99,11 @@ function birdLayout(park: Pick<Park, "buildings">) {
     obstacles.set(key, cell);
   };
   let cruise = 13;
+  for (const [cell, z] of Object.entries(park.terrain ?? {})) {
+    const [x, y] = cell.split(",").map(Number);
+    block(x, y, -1, z);
+    cruise = Math.max(cruise, z + 3);
+  }
   for (const b of park.buildings)
     if (b.track) {
       for (const p of prepareRoute(b.track).points) {
@@ -104,15 +115,16 @@ function birdLayout(park: Pick<Park, "buildings">) {
     } else {
       const height =
         birdPerch(b)?.z ??
-        (b.kind === "drop"
-          ? 12
-          : b.kind === "wheel"
-            ? 10
-            : ["flowers", "bench", "bin", "picnic"].includes(b.kind)
-              ? 0.4
-              : (CATALOG[b.kind]?.size ?? 1) > 2
-                ? 7
-                : 2);
+        (b.z ?? 0) +
+          (b.kind === "drop"
+            ? 12
+            : b.kind === "wheel"
+              ? 10
+              : ["flowers", "bench", "bin", "picnic"].includes(b.kind)
+                ? 0.4
+                : (CATALOG[b.kind]?.size ?? 1) > 2
+                  ? 7
+                  : 2);
       cruise = Math.max(cruise, height + 2);
       for (const p of footprint(b)) block(p.x, p.y, b.id, height);
     }
@@ -137,7 +149,8 @@ function birdLayout(park: Pick<Park, "buildings">) {
   layouts.set(park, result);
   return result;
 }
-export const birdPerches = (park: Pick<Park, "buildings">): BirdPerch[] => birdLayout(park).perches;
+export const birdPerches = (park: Pick<Park, "buildings" | "terrain">): BirdPerch[] =>
+  birdLayout(park).perches;
 const mixPoint = (a: BirdPoint, b: BirdPoint, u: number): BirdPoint => ({
   x: mix(a.x, b.x, u),
   y: mix(a.y, b.y, u),

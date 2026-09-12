@@ -28,6 +28,34 @@ export const terrainHeight = (s: Park, x: number, y: number) =>
   s.terrain?.[`${Math.round(x)},${Math.round(y)}`] ?? 0;
 export const hasElevations = (s: Park) =>
   Boolean(Object.keys(s.terrain ?? {}).length || s.elevatedPaths?.length);
+const walkingScopes = new WeakMap<Park, boolean>();
+/** A synchronous simulation step does not edit terrain or paths. Share its one
+ * network check, then discard it before any subsequent construction action. */
+export function withWalkingElevationScope<T>(s: Park, read: () => T): T {
+  const previous = walkingScopes.get(s);
+  walkingScopes.set(s, hasWalkingElevations(s));
+  try {
+    return read();
+  } finally {
+    if (previous === undefined) walkingScopes.delete(s);
+    else walkingScopes.set(s, previous);
+  }
+}
+/** Scenery on hills does not make a flat path network multi-level. Read live tiles
+ * so painting/removing a path or changing terrain in place takes effect at once. */
+export function hasWalkingElevations(s: Park) {
+  const scoped = walkingScopes.get(s);
+  if (scoped !== undefined) return scoped;
+  if (s.elevatedPaths?.length) return true;
+  if (!s.terrain) return false;
+  for (let y = 0; y < s.tiles.length; y++)
+    for (let x = 0; x < s.tiles[y].length; x++) {
+      const tile = s.tiles[y][x];
+      if ((tile === "path" || tile === "queue" || tile === "exit") && s.terrain[`${x},${y}`])
+        return true;
+    }
+  return false;
+}
 export const deckHeight = (p: ElevatedPath, x = p.x, y = p.y) =>
   p.z +
   (p.slope === undefined

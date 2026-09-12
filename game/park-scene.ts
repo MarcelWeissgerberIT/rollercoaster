@@ -91,7 +91,11 @@ export function populatePark(
       items.forEach((b, i) => {
         const variation = 0.85 + (b.id % 7) * 0.04;
         matrix.compose(
-          new THREE.Vector3(b.x * 5, offset * variation, b.y * 5),
+          new THREE.Vector3(
+            b.x * 5,
+            terrainHeight(park, b.x, b.y) * 5 + offset * variation,
+            b.y * 5,
+          ),
           new THREE.Quaternion(),
           new THREE.Vector3(radius * variation, height * variation, radius * variation),
         );

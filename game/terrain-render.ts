@@ -76,8 +76,16 @@ export function drawTerrainFaces(
   y: number,
   project: Project,
 ) {
-  const z = terrainHeight(s, x, y);
-  if (!z) return;
+  const z = terrainHeight(s, x, y),
+    center = project(x, y, z),
+    screenScale = Math.abs(project(x, y, z - 1).y - center.y) / 24;
+  const fillFace = (points: Point[], color: string) => {
+    ctx.beginPath();
+    points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+  };
   for (const [dx, dy, ax, ay, bx, by] of [
     [1, 0, 0.5, -0.5, 0.5, 0.5],
     [0, 1, -0.5, 0.5, 0.5, 0.5],
@@ -85,18 +93,41 @@ export function drawTerrainFaces(
     [0, -1, -0.5, -0.5, 0.5, -0.5],
   ]) {
     const base = terrainHeight(s, x + dx, y + dy);
-    if (base >= z) continue;
-    const p = [
-      project(x + ax, y + ay, z),
-      project(x + bx, y + by, z),
-      project(x + bx, y + by, base),
-      project(x + ax, y + ay, base),
-    ];
-    ctx.beginPath();
-    p.forEach((q, i) => (i ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y)));
-    ctx.closePath();
-    ctx.fillStyle = dx === 1 ? "#987b51" : "#796745";
-    ctx.fill();
+    // The two faces turned towards the camera are opaque. Back faces must not
+    // spill across lower cells when the player rotates the map by 90 degrees.
+    if (base >= z || project(x + dx, y + dy, z).y <= center.y) continue;
+    const at = (f: number, height: number) =>
+      project(x + ax + (bx - ax) * f, y + ay + (by - ay) * f, height);
+    const light = dx !== 0,
+      rock = light ? "#9a9175" : "#7b8067",
+      soil = light ? "#a78858" : "#867247",
+      turf = light ? "#7fa148" : "#668a3d";
+    fillFace([at(0, z), at(1, z), at(1, base), at(0, base)], rock);
+    const soilBase = Math.max(base, z - 0.24);
+    fillFace([at(0, z), at(1, z), at(1, soilBase), at(0, soilBase)], soil);
+    // A narrow grass lip makes each ledge read as a grassy terrace rather than
+    // a stack of brown boxes. Small uneven roots break up its straight edge.
+    fillFace(
+      [
+        at(0, z),
+        at(1, z),
+        at(1, z - 0.06),
+        at(0.78, z - 0.1),
+        at(0.54, z - 0.065),
+        at(0.3, z - 0.09),
+        at(0, z - 0.06),
+      ],
+      turf,
+    );
+    ctx.strokeStyle = light ? "#c0b28b66" : "#a4a18166";
+    ctx.lineWidth = Math.max(0.5, screenScale * 0.75);
+    for (let level = Math.floor(base * 2 + 1) / 2; level < z - 0.28; level += 0.5) {
+      const wobble = ((x * 13 + y * 7 + level * 2) % 5) * 0.008;
+      const points = [at(0, level), at(0.4, level + wobble), at(1, level - 0.025)];
+      ctx.beginPath();
+      points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.stroke();
+    }
   }
 }
 export function pickTerrain(
@@ -110,13 +141,15 @@ export function pickTerrain(
 ) {
   let result = fallback,
     best = -Infinity;
-  for (const [k, z] of Object.entries(s.terrain ?? {})) {
-    const [gx, gy] = k.split(",").map(Number),
-      p = project(gx, gy, z);
-    if (Math.abs(x - p.x) / tw + Math.abs(y - p.y) / th <= 1 && p.y + z * 1000 > best) {
-      result = { x: gx, y: gy };
-      best = p.y + z * 1000;
+  for (let gy = 0; gy < s.tiles.length; gy++)
+    for (let gx = 0; gx < s.tiles[gy].length; gx++) {
+      const z = terrainHeight(s, gx, gy),
+        p = project(gx, gy, z),
+        depth = project(gx, gy, 0).y;
+      if (Math.abs(x - p.x) / tw + Math.abs(y - p.y) / th <= 1 && depth > best) {
+        result = { x: gx, y: gy };
+        best = depth;
+      }
     }
-  }
   return result;
 }
