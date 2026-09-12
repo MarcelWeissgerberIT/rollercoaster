@@ -1,3 +1,4 @@
+import { hasElevations, walkTile } from "./terrain";
 import type { Guest, Park, Point } from "./simulation";
 import { getSharedAccessLanes, sharedAccessGuestPosition } from "./shared-access";
 import { POD_DIRECTIONS } from "./pods";
@@ -45,6 +46,8 @@ export function guestWalkPosition(
   position: Point = g,
   direction?: Point,
 ): Point {
+  const traversable = (state: Park, x: number, y: number) =>
+    ["path", "queue", "exit"].includes(walkTile(state, { x, y, z: position.z ?? g.z }) ?? "");
   const shared = sharedAccessGuestPosition(
     park,
     position === g ? g : { ...g, x: position.x, y: position.y },

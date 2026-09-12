@@ -1,5 +1,10 @@
 import type { Building, CoasterType } from "./simulation";
 export const VEHICLES = {
+  suspended: {
+    name: "Hängesitz",
+    detail: "Offener Sitz unter dem Gleis mit Schulterbügel und freien Beinen",
+    sprite: "steel",
+  },
   classic: { name: "Klassik", detail: "Offener Zweisitzer mit runder Nase", sprite: "steel" },
   mine: { name: "Grubenlore", detail: "Hohe Seitenwände und Holzlatten", sprite: "wood" },
   sport: {
@@ -26,8 +31,24 @@ export function vehicleFor(b: Pick<Building, "track" | "vehicle">): Vehicle {
   const style: CoasterType = b.track?.[0]?.style ?? "steel";
   return (
     b.vehicle ?? {
-      model: style === "wood" ? "mine" : style === "launch" ? "sport" : "classic",
-      body: style === "wood" ? "#b78637" : style === "launch" ? "#23a8bd" : "#df543e",
+      model:
+        style === "inverted"
+          ? "suspended"
+          : style === "wood"
+            ? "mine"
+            : style === "launch"
+              ? "sport"
+              : "classic",
+      body:
+        style === "giga"
+          ? "#7559aa"
+          : style === "inverted"
+            ? "#369b99"
+            : style === "wood"
+              ? "#b78637"
+              : style === "launch"
+                ? "#23a8bd"
+                : "#df543e",
       accent: style === "wood" ? "#705032" : "#197f8d",
       seats: "#f0ddb3",
       alternating: false,
@@ -49,3 +70,5 @@ export function wagonPaint(v: Vehicle, i = 0) {
 
 export const carSeat = (v: Vehicle, seat: number) =>
   v.model === "sport" ? { x: 0, z: seat ? 0.55 : -0.38 } : { x: seat ? 0.4 : -0.4, z: 0.15 };
+/** Move the whole vehicle and its occupants down; top bogies stay at rail level. */
+export const vehicleHeightOffset = (v: Vehicle) => (v.model === "suspended" ? -2.1 : 0);

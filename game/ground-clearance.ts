@@ -36,7 +36,8 @@ function heights(track: Point[]) {
   if (cached !== undefined) return cached;
   let points: Point[];
   try {
-    if (track.some(p => Math.abs(p.x) > 1e6 || Math.abs(p.y) > 1e6)) throw Error("Invalid extent");
+    if (track.some((p) => Math.abs(p.x) > 1e6 || Math.abs(p.y) > 1e6))
+      throw Error("Invalid extent");
     points = prepareRoute(track).points;
   } catch {
     // Corrupt or unfinished previews must never break camera/pod inspection or
@@ -70,16 +71,30 @@ function heights(track: Point[]) {
   cache.set(track, result);
   return result;
 }
-export function trackClearsGround(track: Point[], x: number, y: number, station = track[0]) {
+export function trackClearsGround(
+  track: Point[],
+  x: number,
+  y: number,
+  station = track[0],
+  ground = 0,
+) {
   if (station && Math.round(station.x) === x && Math.round(station.y) === y) return false;
   const profile = heights(track);
-  return !!profile && (profile.get(cellKey(x, y)) ?? Infinity) >= PATH_CLEARANCE;
+  return !!profile && (profile.get(cellKey(x, y)) ?? Infinity) >= ground + PATH_CLEARANCE;
 }
 export const pedestrianTile = (tile: Tile) =>
   tile === "path" || tile === "queue" || tile === "exit";
 /** The same rule is used while laying paths and while editing a track above them. */
-export function trackGroundCompatible(track: Point[], x: number, y: number, tile: Tile) {
-  return tile === "grass" || (pedestrianTile(tile) && trackClearsGround(track, x, y));
+export function trackGroundCompatible(
+  track: Point[],
+  x: number,
+  y: number,
+  tile: Tile,
+  ground = 0,
+) {
+  return (
+    tile === "grass" || (pedestrianTile(tile) && trackClearsGround(track, x, y, track[0], ground))
+  );
 }
 /** Keep selection/demolition's full footprint intact; only ground construction uses this one. */
 export function groundFootprint(

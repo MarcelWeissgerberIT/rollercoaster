@@ -1,3 +1,29 @@
+import { customScenarioExpired, customScenarioTimeLeft } from "../game/custom-scenario";
+import { MaintenancePanel, RideRetailPanel } from "../components/maintenance-panel";
+import { CoasterTrainPanel } from "../components/coaster-train-panel";
+import { setCoasterTrainProgram } from "../game/coaster-trains";
+import TerrainPanel, {
+  defaultTerrainSettings,
+  type TerrainSettings,
+} from "../components/terrain-panel";
+import {
+  terrainHeight,
+  editTerrain,
+  terrainPlan,
+  deckPlan,
+  placeDeck,
+  removeDeck,
+  type ElevatedPath,
+} from "../game/terrain";
+import { pickTerrain } from "../game/terrain-render";
+import SceneryEditor from "../components/scenery-editor";
+import ScenarioEditor from "../components/scenario-editor";
+import {
+  placeScenery,
+  rotateScenery,
+  removeScenery,
+  type SceneryDraft,
+} from "../game/modular-scenery";
 import { AttractionAdvisor } from "../components/attraction-advisor";
 import { attractionAdvice, applyAttractionAdvice } from "../game/attraction-advisor";
 import { SharedAccessControl } from "../components/shared-access-control";
@@ -100,6 +126,7 @@ import { TrackPieceCatalog, TrackRangeMap } from "@/components/track-pieces";
 import { draftHistoryData, restoreDraftHistory } from "@/game/draft";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Layers,
   Eye,
   Infinity as InfinityIcon,
   Volume2,
@@ -858,6 +885,19 @@ export default function Home() {
     [tool, blueprintMode, hoverTile, rotation, draft, adjustmentPlan, coasterType],
   );
   const [pathStyle, setPathStyle] = useState<PathStyle>("garden");
+  const [terrainSettings, setTerrainSettings] = useState<TerrainSettings>(defaultTerrainSettings);
+  const [sceneryDraft, setSceneryDraft] = useState<SceneryDraft>({
+    part: "wall",
+    theme: "woodland",
+    x: 0,
+    y: 0,
+    z: 0,
+    orientation: 0,
+  });
+  useEffect(() => {
+    view.current.terrainSettings = terrainSettings;
+  }, [terrainSettings]);
+
   const placement = useMemo(
     () =>
       adjustmentPlan ??
@@ -866,6 +906,8 @@ export default function Home() {
       tool !== "move" &&
       tool !== "station" &&
       tool !== "viewpoint" &&
+      tool !== "terrain" &&
+      tool !== "scenery" &&
       !tool.startsWith("pod-") &&
       hoverTile &&
       (tool !== "coaster" || blueprintMode)
@@ -891,6 +933,25 @@ export default function Home() {
       pathStyle,
     ],
   );
+  const terrainFeedback =
+    tool === "terrain" && snapshot && hoverTile
+      ? terrainSettings.mode === "terrain"
+        ? terrainPlan(
+            snapshot,
+            hoverTile,
+            terrainSettings.action,
+            terrainSettings.size,
+            terrainSettings.level,
+          )
+        : deckPlan(snapshot, {
+            x: hoverTile.x,
+            y: hoverTile.y,
+            z: terrainSettings.level,
+            type: terrainSettings.type,
+            style: pathStyle,
+            ...(terrainSettings.ramp ? { slope: terrainSettings.direction } : {}),
+          })
+      : null;
   const [exitHelpPoint, setExitHelpPoint] = useState<Point | null>(null);
   useEffect(() => {
     if (tool !== "exit") setExitHelpPoint(null);
@@ -961,7 +1022,7 @@ export default function Home() {
     setPiece("straight");
     cameraTarget.current = null;
     const fitZoom = Math.min(1, 30 / next.tiles.length);
-    view.current = { ...blankView, zoom: fitZoom };
+    view.current = { ...blankView, zoom: fitZoom, terrainSettings };
     setCameraAngle(0);
     setZoom(Math.round(fitZoom * 100));
     restoreDraft(next);
@@ -1160,7 +1221,11 @@ export default function Home() {
                     ? "Klicke oder ziehe, um deinen Park mit Wegen zu verbinden."
                     : CATALOG[t as Kind]
                       ? `${CATALOG[t as Kind].name}: Wähle einen freien Platz im Park.`
-                      : "Wähle ein Bauwerk.",
+                      : t === "terrain"
+                        ? "Forme freie Wiese oder verbinde Wege mit Rampen und Brücken."
+                        : t === "scenery"
+                          ? "Wähle ein Themenbauteil und setze es auf die Karte."
+                          : "Wähle ein Bauwerk.",
       );
     },
     [notify],
@@ -1284,10 +1349,16 @@ export default function Home() {
   const tileAt = (e: { clientX: number; clientY: number }) => {
     const el = canvas.current!;
     const r = el.getBoundingClientRect();
-    return projection(r.width, r.height, view.current).unproject(
-      e.clientX - r.left,
-      e.clientY - r.top,
-    );
+    const camera = projection(r.width, r.height, view.current),
+      x = e.clientX - r.left,
+      y = e.clientY - r.top;
+    if (tool === "terrain" && terrainSettings.mode === "path")
+      return camera.unproject(x, y + terrainSettings.level * 24 * camera.scale);
+    if (tool === "scenery") return camera.unproject(x, y + sceneryDraft.z * 24 * camera.scale);
+    const fallback = camera.unproject(x, y);
+    return park.current
+      ? pickTerrain(park.current, x, y, camera.project, camera.tw, camera.th, fallback)
+      : fallback;
   };
   const completeBuild = (id: number, kind: Kind, repeat = false) => {
     const built = park.current!.buildings.find((b) => b.id === id)!;
@@ -1380,6 +1451,39 @@ export default function Home() {
   const act = (p: Point, repeat = false, hitId?: number | null, hitPod?: PodRole) => {
     const s = park.current;
     if (!s) return;
+    if (tool === "terrain") {
+      edit("Gelände und Höhenwege", () => {
+        if (terrainSettings.mode === "terrain") {
+          const error = editTerrain(
+            s,
+            p,
+            terrainSettings.action,
+            terrainSettings.size,
+            terrainSettings.level,
+          );
+          if (error) notify(error);
+        } else if (terrainSettings.erase) removeDeck(s, p, terrainSettings.level);
+        else {
+          const error = placeDeck(s, {
+            x: p.x,
+            y: p.y,
+            z: terrainSettings.level,
+            type: terrainSettings.type,
+            style: pathStyle,
+            ...(terrainSettings.ramp ? { slope: terrainSettings.direction } : {}),
+          });
+          if (error) notify(error);
+        }
+      });
+      return;
+    }
+    if (tool === "scenery") {
+      edit("Themenbauteil setzen", () => {
+        const error = placeScenery(s, { ...sceneryDraft, x: p.x, y: p.y });
+        if (error) notify(error);
+      });
+      return;
+    }
     if (tool === "viewpoint") {
       const habitat = s.buildings.find((item) => item.id === selected);
       if (!habitat) return;
@@ -2157,7 +2261,7 @@ export default function Home() {
             if (
               e.button === 0 &&
               !e.altKey &&
-              ["path", "queue", "exit", "water", "erase"].includes(tool)
+              ["path", "queue", "exit", "water", "erase", "scenery"].includes(tool)
             ) {
               stroke.current = [];
               const rect = e.currentTarget.getBoundingClientRect();
@@ -2236,7 +2340,10 @@ export default function Home() {
                   18,
                 );
                 if (start >= 0) selectRange(start, false, true);
-              } else if (d.moved && ["path", "queue", "exit", "water", "erase"].includes(tool)) {
+              } else if (
+                d.moved &&
+                ["path", "queue", "exit", "water", "erase", "scenery"].includes(tool)
+              ) {
                 const last = { ...d.tile };
                 while (last.x !== p.x || last.y !== p.y) {
                   if (Math.abs(p.x - last.x) >= Math.abs(p.y - last.y))
@@ -2273,7 +2380,7 @@ export default function Home() {
               !d.moved &&
               !e.altKey &&
               e.button === 0 &&
-              !["path", "queue", "exit", "water", "erase"].includes(tool)
+              !["path", "queue", "exit", "water", "erase", "scenery"].includes(tool)
             ) {
               if (trafficMode && traffic && tool === "select") {
                 const zone = trafficAt(traffic, tileAt(e));
@@ -2489,6 +2596,8 @@ export default function Home() {
           "detail",
           "guests",
           "analysis",
+          "terrain",
+          "scenery",
         ].includes(category) &&
           (category !== "detail" || (b && snapshot)) && (
             <aside
@@ -2508,6 +2617,8 @@ export default function Home() {
                       {
                         rides: "Einsteigen & staunen",
                         coaster: snapshot?.trackEdit ? "Strecke umbauen" : "Deine Achterbahn",
+                        terrain: "Gelände, Brücken & Tunnel",
+                        scenery: "Deine Themenwelt",
                         paths: "Neue Verbindungen",
                         shops: "Für kleine Pausen",
                         nature: "Ein bisschen Grün",
@@ -2640,6 +2751,7 @@ export default function Home() {
                           "carousel",
                           "bumper",
                           "balloonride",
+                          "rapids",
                           "swing",
                           "drop",
                           "pirate",
@@ -2742,8 +2854,48 @@ export default function Home() {
                     </div>
                   </>
                 )}
+                {category === "terrain" && (
+                  <TerrainPanel
+                    value={terrainSettings}
+                    onChange={setTerrainSettings}
+                    onBuild={() => pickTool("terrain", "terrain")}
+                  />
+                )}
+                {category === "scenery" && snapshot && (
+                  <SceneryEditor
+                    draft={sceneryDraft}
+                    onChange={(p) => {
+                      setSceneryDraft(p);
+                      setTool("scenery");
+                    }}
+                    pieces={snapshot.scenery ?? []}
+                    onRotate={(id) =>
+                      edit("Themenbauteil drehen", () => {
+                        const error = rotateScenery(park.current!, id);
+                        if (error) notify(error);
+                      })
+                    }
+                    onRemove={(id) =>
+                      edit("Themenbauteil entfernen", () => {
+                        removeScenery(park.current!, id);
+                      })
+                    }
+                    onFocus={(p) => {
+                      focusMapPoint(p);
+                    }}
+                  />
+                )}
                 {category === "paths" && (
                   <div className="stack">
+                    <button
+                      className="secondary"
+                      onClick={() => {
+                        setTerrainSettings({ ...terrainSettings, mode: "path" });
+                        pickTool("terrain", "terrain");
+                      }}
+                    >
+                      <Layers size={18} /> Brücken, Rampen & Tunnel
+                    </button>
                     <button
                       className={`path-tool public ${tool === "path" ? "active" : ""}`}
                       aria-pressed={tool === "path"}
@@ -2855,10 +3007,13 @@ export default function Home() {
                               }
                               onClick={() => {
                                 setCoasterType(type);
-                                if (type === "wood" && invertingPiece(piece)) setPiece("straight");
+                                if (!COASTER_TYPES[type].loop && invertingPiece(piece))
+                                  setPiece("straight");
                               }}
                             >
-                              <img src={assetUrl(`car-${type}-se`)} alt="" />
+                              <CarPreview
+                                vehicle={vehicleFor({ track: [{ x: 0, y: 0, style: type }] })}
+                              />
                               <strong>{COASTER_TYPES[type].name}</strong>
                             </button>
                           ))}
@@ -3418,37 +3573,40 @@ export default function Home() {
                           />
                         )}
                         {isRide(b.kind) && (
-                          <div className="maintenance-card" tabIndex={-1}>
-                            <strong>Zustand · {Math.round(condition(b))}%</strong>
-                            <progress max="100" value={condition(b)} />
-                            {broken(b) && (
-                              <p>
-                                Außer Betrieb. Repariere die Attraktion, bevor sie wieder öffnen
-                                kann.
-                              </p>
-                            )}
-                            <button
-                              className="secondary"
-                              disabled={
-                                condition(b) >= 99.99 ||
-                                !canAfford(snapshot, repairCost(b, CATALOG[b.kind].cost))
-                              }
-                              onClick={() => {
-                                const live = park.current!.buildings.find((x) => x.id === b.id)!;
-                                const error = repairAttraction(
-                                  park.current!,
-                                  live,
-                                  CATALOG[b.kind].cost,
-                                );
-                                notify(
-                                  error ?? "Attraktion repariert. Du kannst sie wieder eröffnen.",
-                                );
-                                sync();
-                              }}
-                            >
-                              Reparieren · {EUR(repairCost(b, CATALOG[b.kind].cost))}
-                            </button>
-                          </div>
+                          <MaintenancePanel
+                            park={snapshot}
+                            building={b}
+                            onLocateStaff={locateStaff}
+                            onCommand={(action) => {
+                              const error = action(park.current!);
+                              sync();
+                              if (error) notify(error);
+                            }}
+                          />
+                        )}
+                        <RideRetailPanel
+                          park={snapshot}
+                          building={b}
+                          onCommand={(action) => {
+                            const error = action(park.current!);
+                            sync();
+                            if (error) notify(error);
+                          }}
+                        />
+                        {b.kind === "coaster" && (
+                          <CoasterTrainPanel
+                            key={b.id}
+                            building={b}
+                            onApply={(program) => {
+                              const live = park.current!.buildings.find((q) => q.id === b.id)!;
+                              const error = setCoasterTrainProgram(live, program);
+                              sync();
+                              notify(
+                                error ??
+                                  "Zugprogramm eingerichtet. Jeder Zug beachtet die Blocksignale.",
+                              );
+                            }}
+                          />
                         )}
                         {isTransport(b.kind) && <div data-advisor-anchor="transit" tabIndex={-1} />}
                         {isTransport(b.kind) && (
@@ -4746,6 +4904,15 @@ export default function Home() {
                   Park für Gäste öffnen
                 </button>
               )}
+              {snapshot?.customScenario && !snapshot.won && (
+                <div className={customScenarioExpired(snapshot) ? "warning" : "info"} role="status">
+                  {customScenarioExpired(snapshot)
+                    ? "Zeitlimit erreicht. Du kannst weiterbauen oder das Szenario erneut starten."
+                    : customScenarioTimeLeft(snapshot) === null
+                      ? "Eigene Herausforderung · ohne Zeitlimit"
+                      : `Zeit bis zum Ziel: ${Math.ceil(customScenarioTimeLeft(snapshot)! / 60)} Spielminuten`}
+                </div>
+              )}
               <div className="goalrow">
                 <span>Besucher begrüßen</span>
                 <b>
@@ -4850,16 +5017,19 @@ export default function Home() {
           <div className={`build-status ${placement?.error ? "invalid" : ""}`} aria-live="polite">
             <div>
               <strong>
-                {tool === "viewpoint"
-                  ? "Beobachtungspunkt am Zaun platzieren"
-                  : podEdit
-                    ? `${podEdit.role === "entry" ? "Eingangs" : "Ausgangs"}pod versetzen`
-                    : (placement?.error ??
-                      (adjust
-                        ? `${adjust.rotateOnly ? "Ausrichtung ändern" : adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
-                        : placement
-                          ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? COASTER_TYPES[coasterType].name : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Eingangsweg (blau)" : tool === "exit" ? "Ausgangsweg (rot)" : "Wasser"))} · ${EUR(placement.cost)}`
-                          : "Bewege den Zeiger auf den Bauplatz"))}
+                {tool === "terrain" && terrainFeedback
+                  ? (terrainFeedback.error ??
+                    `${terrainSettings.mode === "terrain" ? "Gelände ändern" : terrainSettings.erase ? "Höhenweg entfernen" : "Höhenweg bauen"} · ${EUR(terrainSettings.erase ? 0 : terrainFeedback.cost)}`)
+                  : tool === "viewpoint"
+                    ? "Beobachtungspunkt am Zaun platzieren"
+                    : podEdit
+                      ? `${podEdit.role === "entry" ? "Eingangs" : "Ausgangs"}pod versetzen`
+                      : (placement?.error ??
+                        (adjust
+                          ? `${adjust.rotateOnly ? "Ausrichtung ändern" : adjust.mode === "station" ? "Station versetzen" : "Position anpassen"} · ${EUR(placement?.cost ?? 0)}`
+                          : placement
+                            ? `${tool === "erase" ? "Abreißen" : tool === "coaster" ? COASTER_TYPES[coasterType].name : (CATALOG[tool as Kind]?.name ?? (tool === "path" ? "Parkweg" : tool === "queue" ? "Eingangsweg (blau)" : tool === "exit" ? "Ausgangsweg (rot)" : "Wasser"))} · ${EUR(placement.cost)}`
+                            : "Bewege den Zeiger auf den Bauplatz"))}
               </strong>
               <span>
                 {podEdit
@@ -4871,7 +5041,7 @@ export default function Home() {
                         : "Klick übernimmt · R dreht · Esc beendet"
                       : tool === "coaster" && blueprintMode
                         ? "Klick baut · R dreht · Esc beendet"
-                        : ["path", "queue", "exit", "water", "erase"].includes(tool)
+                        : ["path", "queue", "exit", "water", "erase", "scenery"].includes(tool)
                           ? "Ziehen baut mehrere Felder · Strg/⌘ Z nimmt den Bauzug zurück"
                           : tool === "coaster"
                             ? "Bauteil im Baufenster wählen · Klick ergänzt · Esc beendet"
@@ -5025,6 +5195,33 @@ export default function Home() {
                   }
                 },
               })),
+            {
+              id: "terrain",
+              label: "Gelände & Höhenwege",
+              Icon: Layers,
+              group: "build",
+              description: "Terrassen, Brücken, Rampen und Tunnel bauen.",
+              run: () => pickTool("terrain", "terrain"),
+            },
+            {
+              id: "scenery",
+              label: "Themenbaukasten",
+              Icon: Sparkles,
+              group: "build",
+              description: "Eigene Gebäude aus Wänden, Dächern und Details gestalten.",
+              run: () => pickTool("scenery", "scenery"),
+            },
+            {
+              id: "scenario-editor",
+              label: "Szenarioeditor",
+              Icon: Flag,
+              group: "manage",
+              description: "Eigene Karten, Startbedingungen und Ziele erstellen.",
+              run: () => {
+                setTab("scenario-editor");
+                setSettings(true);
+              },
+            },
             {
               id: "land",
               label: "Park erweitern",
@@ -5399,6 +5596,7 @@ export default function Home() {
             <TabsList className="tabsrow">
               <TabsTrigger value="park">Parkbetrieb</TabsTrigger>
               <TabsTrigger value="finance">Finanzen & Kredit</TabsTrigger>
+              <TabsTrigger value="scenario-editor">Szenarioeditor</TabsTrigger>
               <TabsTrigger value="personal">Personal</TabsTrigger>
               <TabsTrigger value="entrance">Eingangstor</TabsTrigger>
               <TabsTrigger value="marketing">Werbung</TabsTrigger>
@@ -5491,7 +5689,23 @@ export default function Home() {
                 />
               )}
             </TabsContent>
+            <TabsContent value="scenario-editor">
+              {snapshot && (
+                <ScenarioEditor park={snapshot} onStart={switchPark} onEditMap={switchPark} />
+              )}
+            </TabsContent>
             <TabsContent value="personal">
+              {snapshot && (
+                <MaintenancePanel
+                  park={snapshot}
+                  onLocateStaff={locateStaff}
+                  onCommand={(action) => {
+                    const error = action(park.current!);
+                    sync();
+                    if (error) notify(error);
+                  }}
+                />
+              )}
               {snapshot && (
                 <StaffPanel
                   onLocateStaff={locateStaff}

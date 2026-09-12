@@ -6,6 +6,8 @@ import experienceSprites from "./experience-sprites.json";
 import parkSprites from "./park-sprites.json";
 import expansionSprites from "./expansion-sprites.json";
 export const assetUrl = (name: string) =>
-  name.startsWith("weather-")
-    ? `${import.meta.env?.BASE_URL ?? "/rollercoaster/"}assets/weather/${name}.svg`
-    : `${import.meta.env?.BASE_URL ?? "/rollercoaster/"}assets/${name in zooWalkSpecs ? "zoo-walk-v10" : name in zooV9Sprites ? "zoo-v9" : name in lifeSprites ? "park-v8" : name in zooSprites ? "zoo-v7" : name in experienceSprites ? "experience-v6" : name in parkSprites ? "park-v5" : name in expansionSprites ? "expansion-v4" : name.startsWith("walk-") ? "walk-v3" : "pixel-v2"}/${name}.png`;
+  name === "ride-rapids"
+    ? `${import.meta.env?.BASE_URL ?? "/rollercoaster/"}assets/creative/ride-rapids.svg`
+    : name.startsWith("weather-")
+      ? `${import.meta.env?.BASE_URL ?? "/rollercoaster/"}assets/weather/${name}.svg`
+      : `${import.meta.env?.BASE_URL ?? "/rollercoaster/"}assets/${name in zooWalkSpecs ? "zoo-walk-v10" : name in zooV9Sprites ? "zoo-v9" : name in lifeSprites ? "park-v8" : name in zooSprites ? "zoo-v7" : name in experienceSprites ? "experience-v6" : name in parkSprites ? "park-v5" : name in expansionSprites ? "expansion-v4" : name.startsWith("walk-") ? "walk-v3" : "pixel-v2"}/${name}.png`;

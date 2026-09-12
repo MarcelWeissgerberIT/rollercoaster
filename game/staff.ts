@@ -7,7 +7,7 @@ import { SPECIALIST_ROLES, type Keeper } from "./zoo";
 import { cleanerServicePose } from "./cleanliness";
 
 export type StaffRef = {
-  kind: "cleaner" | "keeper" | "operator";
+  kind: "cleaner" | "keeper" | "operator" | "mechanic";
   id: number;
   post?: OperatorPost;
   crewId?: number;
@@ -20,6 +20,7 @@ export type StaffActivity =
   | "water"
   | "clean"
   | "repair"
+  | "inspect"
   | "sweep"
   | "empty"
   | "deposit"
@@ -132,6 +133,36 @@ function keeperLocation(s: Park, w: Keeper): StaffLocation {
 }
 
 export function staffLocation(s: Park, ref: StaffRef): StaffLocation | null {
+  if (ref.kind === "mechanic") {
+    const w = s.maintenance?.workers.find((worker) => worker.id === ref.id);
+    if (!w) return null;
+    const target = s.buildings.find((b) => b.id === w.targetId);
+    return {
+      x: w.x,
+      y: w.y,
+      z: w.z,
+      name: w.name,
+      role: w.qualification,
+      activity: w.mode,
+      label:
+        w.mode === "walk"
+          ? `Unterwegs · ${target?.name ?? "Wartungsauftrag"}`
+          : w.mode === "repair"
+            ? `Repariert · ${target?.name}`
+            : w.mode === "inspect"
+              ? `Prüft Bügel, Bremsen und Antrieb · ${target?.name}`
+              : target
+                ? "Wartet auf sichere Entladung"
+                : "Bereit für erreichbare Wartungsaufträge",
+      progress: w.workTotal ? clamp(1 - w.workLeft / w.workTotal) : 0,
+      walking: w.mode === "walk" && w.route.length > 0,
+      ...direction(w, w.mode === "walk" ? w.route[0] : target),
+      targetId: w.targetId,
+      carrying: "tools",
+      distanceWalked: w.walked,
+      carried: 0,
+    };
+  }
   if (ref.kind === "keeper") {
     const w = s.zoo?.workers.find((w) => w.id === ref.id);
     return w ? keeperLocation(s, w) : null;

@@ -10,10 +10,11 @@ import { isHabitat } from "../game/zoo";
 import { forceAt, analyzeForces } from "../game/gforce";
 import { prepareRoute } from "../game/motion";
 import { createCoasterCar } from "../game/coaster-car";
-import { vehicleFor, carSeat } from "../game/vehicles";
+import { vehicleFor, carSeat, vehicleHeightOffset } from "../game/vehicles";
 import { addDriveHardware } from "@/game/track-hardware";
 import { createGuestModel } from "@/game/guest-model";
 import FlatRideView from "./flat-ride-view";
+import CoasterFleetView from "./coaster-fleet-view";
 import { mapWidth, mapHeight } from "../game/grid";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
@@ -35,7 +36,11 @@ export default function RideView(props: Props) {
   return isHabitat(props.building.kind) ? (
     <ZooView {...props} />
   ) : props.building.kind === "coaster" ? (
-    <CoasterRideView {...props} />
+    props.building.trainFleet ? (
+      <CoasterFleetView {...props} />
+    ) : (
+      <CoasterRideView {...props} />
+    )
   ) : (
     <FlatRideView {...props} />
   );
@@ -274,12 +279,14 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
       updatePark(parkTime);
       train.forEach((wagon, i) => {
         const frame = path.at((((u - (i * 3.7) / path.length) % 1) + 1) % 1);
-        wagon.position.copy(frame.position);
+        wagon.position
+          .copy(frame.position)
+          .addScaledVector(frame.up, vehicleHeightOffset(vehicleFor(building)));
         wagon.quaternion.copy(frame.quaternion);
       });
       let cameraPosition = p.position
           .clone()
-          .addScaledVector(p.up, 1.55)
+          .addScaledVector(p.up, 1.55 + vehicleHeightOffset(vehicleFor(building)))
           .addScaledVector(p.tangent, 1.15),
         quaternion = p.quaternion;
       if (c.camera === "chase") {

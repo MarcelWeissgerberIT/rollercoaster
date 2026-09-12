@@ -4,6 +4,15 @@ Eine spielbare, eigenständige Freizeitpark-Simulation, inspiriert von RollerCoa
 
 **[Jetzt spielen](https://marcelweissgerberit.github.io/rollercoaster/)**
 
+## Gelände, Zugbetrieb und neue Inhalte
+
+- **Bauen → Gelände & Höhenwege**: Freie Wiese anheben, absenken oder einebnen; Pinsel mit 1, 3 oder 5 Feldern. Brücken, Rampen und Tunnel verwenden eine eigene Bauhöhe in 5-m-Schritten. Gäste wechseln nur an passenden Anschlusskanten die Höhe. Die Schnittansicht zeigt unterirdische Wege; Baukosten, Rückgängig und Spielstände berücksichtigen das Gelände. Es sind terrassierte Höhenstufen, keine frei modellierbaren Hänge. Achterbahngleise bleiben oberirdisch.
+- **Achterbahn auswählen → Züge & Blockbetrieb**: 1–4 unabhängige Züge, Wagenzahl, Mindestbelegung sowie minimale und maximale Wartezeit einstellen. Sicherheitsblöcke bleiben bis zum letzten Wagen reserviert; zu kurze Abschnitte werden abgewiesen. In 3D lässt sich der beobachtete Zug wechseln. Alte Bahnen behalten ihr bisheriges Programm, bis ein Zugprogramm übernommen wird.
+- **Verwalten → Personal** beziehungsweise **Attraktion → Technik & Inspektionen**: Mechaniker einstellen, automatisch verteilen oder einer Anlage zuweisen. Sie laufen zur Station, warten auf leere Fahrzeuge und prüfen beziehungsweise reparieren mit sichtbarer Werkzeugbewegung. Reparaturen werden einmal bezahlt; ein noch nicht begonnener Auftrag aus dem Assistenten kann zurückgenommen werden. Begonnene Arbeiten werden nicht erstattet.
+- **Finanzen** zeigt Einnahmen, Ausgaben und Betriebsergebnis über die letzten 160 Abrechnungsperioden, mit Kategorien für Fahrten, Personal, Material und Zusatzverkäufe. Fotoanlagen verkaufen auf Wunsch echte Fahrtfotos an zufriedene Gäste mit ausreichendem Budget. Ballon- und Kuscheltierstände verkaufen bei Regen zusätzlich Schirme, die Gäste beim Tragen öffnen.
+- **Bauen → Themenbaukasten**: Wände, Fenster, Tore, Dächer, Türme und Lampen in vier zusammenpassenden Themen kombinieren, auf mehreren Ebenen platzieren, drehen und entfernen. **Stromschnellen** hat drei bewegte Rundboote mit sichtbaren Fahrgästen und einer passenden 3D-Mitfahrt. **Wolkenjäger** ergänzt eine hohe Giga-Achterbahn, **Himmelssegler** eine Hängeachterbahn mit Sitzen unter dem Gleis.
+- **Verwalten → Szenarioeditor**: Eine leere Karte gestalten oder den aktuellen Park als Ausgangskarte verwenden. Name, Startbudget, Besucher-, Fahrgeschäft-, Finanz- und Zooziele sowie ein Zeitlimit einstellen. Szenarien lassen sich als JSON exportieren, importieren und neu starten; Besucher und alte Abrechnungen werden dabei zurückgesetzt.
+
 ## Gemeinsamer Ein- und Ausgang
 
 - Unter **Attraktion → Ein- & Ausgangspods → Platzsparender Zugang → Gemeinsam** teilen sich Einlass und Ausstieg einen Pod und einen Weg. Die Umstellung ist kostenlos und möglich, sobald die Anlage und ihr Zugang leer sind – auch wenn der Anschlussweg noch fehlt. Bei laufendem Betrieb kannst du sie dafür direkt schließen. Danach führt **Gemeinsamen Weg anschließen** direkt zum Bauwerkzeug; bis zur Verbindung steigen keine Gäste ein.

@@ -22,8 +22,15 @@ export function createCoasterCar(vehicle: Vehicle, index = 0) {
   }
   const dark = "#283a42",
     metal = "#c3d7d8";
-  box(dark, 0, 0.16, 0, 1.5, 0.18, 2.7);
-  if (v.model === "mine") {
+  if (v.model !== "suspended") box(dark, 0, 0.16, 0, 1.5, 0.18, 2.7);
+  if (v.model === "suspended") {
+    box(dark, 0, 2.1, 0, 1.5, 0.22, 1.7);
+    for (const side of [-1, 1]) {
+      box(v.accent, side * 0.69, 1.57, 0.62, 0.12, 1.2, 0.17);
+      box(v.body, side * 0.4, 1.12, 0.43, 0.72, 1.05, 0.23);
+      for (const grip of [-1, 1]) box(metal, side * 0.4 + grip * 0.22, 1.18, 0.01, 0.07, 0.55, 0.1);
+    }
+  } else if (v.model === "mine") {
     for (const side of [-1, 1]) {
       for (let j = 0; j < 3; j++) box(v.body, side * 0.79, 0.4 + j * 0.23, 0, 0.14, 0.19, 2.55);
       for (const z of [-1, 1]) box(v.accent, side * 0.87, 0.69, z, 0.08, 0.88, 0.14);
@@ -78,14 +85,14 @@ export function createCoasterCar(vehicle: Vehicle, index = 0) {
         material(dark),
       );
       wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(side * 0.8, 0.17, z);
+      wheel.position.set(side * 0.8, v.model === "suspended" ? 2.27 : 0.17, z);
       root.add(wheel);
       const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.19, 10), material(metal));
       hub.rotation.z = Math.PI / 2;
       hub.position.copy(wheel.position);
       root.add(hub);
     }
-  box(dark, 0, 0.2, 1.52, 0.14, 0.14, 0.4);
+  box(dark, 0, v.model === "suspended" ? 2.1 : 0.2, 1.52, 0.14, 0.14, 0.4);
   root.updateMatrixWorld(true);
   const groups = new Map<THREE.Material, THREE.BufferGeometry[]>();
   for (const child of [...root.children])

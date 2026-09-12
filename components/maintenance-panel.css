@@ -1,0 +1,133 @@
+.maint-panel {
+  padding: 16px;
+  border: 1px solid #d8cfc0;
+  background: #fbf5e9;
+  border-radius: 16px;
+  color: #3f584b;
+  margin: 14px 0;
+  display: grid;
+  gap: 12px;
+}
+.maint-panel h4 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  font-size: 16px;
+}
+.maint-panel p {
+  margin: 0;
+  line-height: 1.5;
+  font-size: 13px;
+}
+.maint-panel small {
+  font-size: 11px;
+  line-height: 1.5;
+  display: block;
+  color: #68776a;
+}
+.maint-panel fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.maint-panel legend {
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.maint-row,
+.maint-hire {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.maint-hire {
+  border-top: 1px solid #ddd7c9;
+  padding-top: 10px;
+  font-size: 12px;
+  justify-content: space-between;
+}
+.maint-panel button {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  background: #fffdf6;
+  color: #466354;
+  border: 1px solid #cbd8c6;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.maint-panel button[aria-pressed="true"] {
+  background: #dcecd8;
+  border-color: #62816d;
+  color: #264e3b;
+}
+.maint-panel button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.maint-condition {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.maint-panel progress {
+  height: 8px;
+  accent-color: #639374;
+  width: 100%;
+}
+.maint-warning {
+  background: #f9e9cb;
+  border-radius: 8px;
+  padding: 9px;
+  color: #805d30 !important;
+}
+.maint-worker {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid #dedbcf;
+  border-radius: 12px;
+  background: #fffdf7;
+}
+.maint-locate {
+  border: 0 !important;
+  background: transparent !important;
+  text-align: left;
+  justify-content: flex-start !important;
+  padding: 0 !important;
+}
+.maint-locate svg:first-child {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+}
+.maint-locate span {
+  flex: 1;
+}
+.maint-locate strong {
+  font-size: 14px;
+}
+.maint-assignments {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.maint-panel summary {
+  font-size: 12px;
+  cursor: pointer;
+}
+.maint-panel input[type="range"] {
+  display: block;
+  width: 100%;
+  accent-color: #62816d;
+  margin-top: 10px;
+}
+.maint-panel label {
+  font-size: 13px;
+}

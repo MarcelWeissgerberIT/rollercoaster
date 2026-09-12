@@ -1,4 +1,5 @@
 import { bumperPose, balloonPose } from "./family-rides";
+import { createWaterRideRig } from "./water-ride-rig";
 import { createCrowd, createGuestModel } from "./guest-model";
 import { wheelVisualState, WHEEL_GONDOLAS } from "./wheel-boarding";
 import { wheelGondolaPose, wheelPreviewProgress, wheelTransferMotion } from "./wheel-geometry";
@@ -10,6 +11,7 @@ import * as THREE from "three";
 import { CATALOG, rideCapacity, rideDuration, type Building, type Park } from "./simulation";
 /** Every seat is a real child of the animated mechanism. Both spectators and ride cameras use these anchors. */
 export function createAttractionRig(b: Building, park: Park, options: { preview?: boolean } = {}) {
+  if (b.kind === "rapids") return createWaterRideRig(b, park);
   const root = new THREE.Group(),
     n = CATALOG[b.kind].size;
   root.position.set((b.x + (n - 1) / 2) * 5, 0, (b.y + (n - 1) / 2) * 5);

@@ -81,7 +81,7 @@ for (const [id, cfg] of Object.entries(configs))
     };
   });
 test("Ruins expose real broken ride, repairable 20–65 condition and one working attraction", () => {
-  const s = parks.ruinenpark;
+  const s = structuredClone(parks.ruinenpark);
   assert(s);
   const rides = s.buildings.filter((b) => S.isRide(b.kind));
   assert.deepEqual(rides.map(M.condition), [20, 65, 35, 45]);
@@ -90,6 +90,18 @@ test("Ruins expose real broken ride, repairable 20–65 condition and one workin
   assert(s.guests.every((g) => g.happiness < 50));
   const original = s.cash;
   for (const b of rides) assert.equal(M.repairAttraction(s, b, S.buildingBaseCost(b)), null);
+  assert.equal(M.maintenanceScore(s), 41, "Repair orders do not repair remotely");
+  assert.equal(M.hireMechanic(s), null);
+  for (const b of rides) {
+    S.ensurePods(s, b);
+    b.riders = [];
+    b.queue = [];
+    b.open = false;
+  }
+  for (let i = 0; i < 12000 && M.maintenanceScore(s) < 100; i++) {
+    s.time += 0.05;
+    M.tickMaintenance(s, 0.05, S.CATALOG);
+  }
   assert.equal(M.maintenanceScore(s), 100);
   return { allRepairs: original - s.cash, remaining: s.cash };
 });

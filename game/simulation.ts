@@ -1,3 +1,4 @@
+import { coasterMaxHeight } from "./track-limits";
 import {
   sharedAccessRoute,
   sharedExitPending,
@@ -5,6 +6,7 @@ import {
   sharedQueueTileError,
 } from "./shared-access-routing";
 import { ensureWheelState, tickWheel, validWheelStates, type WheelState } from "./wheel-boarding";
+import { tickCoasterTrains, validCoasterFleets, type CoasterFleet } from "./coaster-trains";
 import { groundFootprint, pedestrianTile, trackGroundCompatible } from "./ground-clearance";
 import { parkWeather } from "./weather";
 import { guestWeatherComfort, seeksWeatherSeat, weatherSeatScore } from "./weather-comfort";
@@ -37,6 +39,7 @@ import {
   validCrewPool,
   type RideOperations,
   type RideCrewPool,
+  operationsOf,
 } from "./operations";
 import {
   FOOD,
@@ -53,7 +56,26 @@ import {
 } from "./park-life";
 import { habitatViewingSpots, viewingDestination, migrateHabitatAccess } from "./zoo-access";
 import { populateCampaign } from "./campaigns";
-import { broken, condition, maintenanceScore, tickMaintenance } from "./maintenance";
+import {
+  broken,
+  condition,
+  maintenanceScore,
+  tickMaintenance,
+  mechanicWages,
+  maintenanceUnavailable,
+  validMaintenance,
+  type MaintenanceState,
+  type RideMaintenance,
+} from "./maintenance";
+import { recordFinance, closeFinancePeriod, validFinance, type FinanceLedger } from "./finance";
+import {
+  buyRidePhoto,
+  buyUmbrella,
+  tickUmbrella,
+  validRetail,
+  type RetailState,
+  type GuestUmbrella,
+} from "./retail";
 import {
   isHabitat,
   SPECIES,
@@ -90,6 +112,19 @@ import { analyzeForces } from "./gforce";
 import { PIECES, type Piece } from "./track-parts";
 import { validVehicle, type Vehicle } from "./vehicles";
 import { connected, exitNetwork, followExit, exitFromCells } from "./walkways";
+import {
+  setTerrainFootprints,
+  terrainHeight,
+  hasElevations,
+  elevationRoute,
+  heightAccess,
+  walkKey,
+  pointFromKey,
+  walkingHeight,
+  walkTile,
+  validTerrain,
+  type ElevatedPath,
+} from "./terrain";
 import { podPort, podSlots, samePod, usesPods, validPods, type AccessPods } from "./pods";
 export { connected, exitNetwork } from "./walkways";
 import { PARK_ENTRANCE } from "./grid";
@@ -124,7 +159,10 @@ import {
   type GuestTransit,
 } from "./transit";
 import { prepareRoute } from "./motion";
-export type CoasterType = "steel" | "wood" | "launch";
+import { validCustomScenario, customScenarioExpired, type CustomScenario } from "./custom-scenario";
+import { validScenery, type SceneryPiece } from "./modular-scenery";
+setTerrainFootprints(footprint);
+export type CoasterType = "steel" | "wood" | "launch" | "giga" | "inverted";
 export type Point = {
   x: number;
   y: number;
@@ -136,6 +174,24 @@ export type Point = {
   drive?: TrackDrive;
 };
 export const COASTER_TYPES = {
+  giga: {
+    name: "Wolkenjäger",
+    description: "Giga-Coaster · Hohe Kuppen, lange Züge & Airtime",
+    color: "#7559aa",
+    cost: 6200,
+    capacity: 16,
+    duration: 34,
+    loop: false,
+  },
+  inverted: {
+    name: "Himmelssegler",
+    description: "Inverted-Coaster · Hängende Sitze & Inversionen",
+    color: "#369b99",
+    cost: 5400,
+    capacity: 12,
+    duration: 25,
+    loop: true,
+  },
   steel: {
     name: "Stahlfalke",
     description: "Stahlbahn · Kettenlift & Loopings",
@@ -165,6 +221,7 @@ export const COASTER_TYPES = {
   },
 };
 export type Kind =
+  | "rapids"
   | "shelter"
   | "parasol"
   | "fountain"
@@ -207,6 +264,10 @@ export type Kind =
   | "keeperhut";
 export type Tile = "grass" | "path" | "queue" | "exit" | "water";
 export type Building = {
+  z?: number;
+  maintenance?: RideMaintenance;
+  retail?: RetailState;
+  trainFleet?: CoasterFleet;
   wheel?: WheelState;
   sharedAccess?: boolean;
   orientation?: 0 | 1 | 2 | 3;
@@ -237,6 +298,9 @@ export type Building = {
   design?: AttractionDesign;
 };
 export type Guest = {
+  z?: number;
+  umbrella?: GuestUmbrella;
+  photoCount?: number;
   /** Ride whose shared corridor this guest is still leaving. */
   sharedExit?: number;
   ageGroup?: AgeGroup;
@@ -271,6 +335,12 @@ export type Guest = {
   souvenir?: "balloon" | "plush";
 };
 export type Park = {
+  terrain?: Record<string, number>;
+  elevatedPaths?: ElevatedPath[];
+  maintenance?: MaintenanceState;
+  financeLedger?: FinanceLedger;
+  scenery?: SceneryPiece[];
+  customScenario?: CustomScenario;
   calendar?: CalendarState;
   unlimitedBudget?: boolean;
   crewPool?: RideCrewPool;
@@ -501,7 +571,7 @@ export const RESEARCH = {
   },
 } as const;
 export type ResearchId = keyof typeof RESEARCH;
-export const scenarioOf = (s: Park) => SCENARIOS[s.scenario ?? "waldhain"];
+export const scenarioOf = (s: Park) => s.customScenario ?? SCENARIOS[s.scenario ?? "waldhain"];
 export function isUnlocked(s: Park, kind: Kind, style: CoasterType = "steel") {
   if (s.mode === "sandbox" || !s.research) return true;
   if (
@@ -517,7 +587,7 @@ export function isUnlocked(s: Park, kind: Kind, style: CoasterType = "steel") {
       : ["zebra", "flamingo", "keeperhut"].includes(kind)
         ? "zoo"
         : kind === "coaster"
-          ? style === "launch"
+          ? ["launch", "giga", "inverted"].includes(style)
             ? "launch"
             : style === "wood"
               ? "family"
@@ -532,7 +602,7 @@ export function isUnlocked(s: Park, kind: Kind, style: CoasterType = "steel") {
                   ? "festival"
                   : kind === "drop"
                     ? "thrill"
-                    : ["swing", "pirate", "bumper"].includes(kind)
+                    : ["swing", "pirate", "bumper", "rapids"].includes(kind)
                       ? "family"
                       : null;
   return !project || s.research.completed.includes(project as ResearchId);
@@ -675,6 +745,19 @@ export const CATALOG: Record<
     description: string;
   }
 > = {
+  rapids: {
+    name: "Wildwasser-Rafting",
+    cost: 4200,
+    size: 6,
+    price: 9,
+    duration: 32,
+    capacity: 12,
+    appeal: 7,
+    upkeep: 14,
+    sprite: "ride-rapids",
+    description:
+      "Drei runde Boote, Strömung, Wellen und ein spritziger Gefällekanal. Gemeinsame 2D- und 3D-Fahrt mit echten Fahrgästen.",
+  },
   shelter: {
     name: "Regenpavillon",
     cost: 180,
@@ -1160,6 +1243,7 @@ export const CATALOG: Record<
 };
 export const isRide = (k: Kind) =>
   [
+    "rapids",
     "bumper",
     "balloonride",
     "coaster",
@@ -1293,6 +1377,10 @@ export function access(s: Park, b: Building, net = connected(s)) {
     usesPods(b.kind) && b.pods
       ? [podPort(b, CATALOG[b.kind].size, b.pods.entry)]
       : accessNeighbors(b);
+  if (hasElevations(s))
+    return heightAccess(s, points, b.z ?? terrainHeight(s, b.x, b.y), net).sort(
+      (a, c) => Number(walkTile(s, c) === "queue") - Number(walkTile(s, a) === "queue"),
+    )[0];
   const reachable = points.filter((p) => inBounds(p.x, p.y, s) && net.has(key(p)));
   // Prefer a dedicated queue, but a station can also board directly from a park path.
   return (
@@ -1308,6 +1396,13 @@ export function exitPath(s: Park, b: Building, net = connected(s), exits = exitN
     usesPods(b.kind) && b.pods
       ? [podPort(b, CATALOG[b.kind].size, b.pods.exit)]
       : accessNeighbors(b);
+  if (hasElevations(s)) {
+    const z = b.z ?? terrainHeight(s, b.x, b.y);
+    const direct = heightAccess(s, points, z, net, ["path"])[0];
+    if (direct) return [direct];
+    const starts = heightAccess(s, points, z, new Set(exits.keys()), ["exit"]);
+    return starts.length ? followExit(starts[0], exits, s) : [];
+  }
   const direct = b.pods && points.find((p) => net.has(key(p)) && s.tiles[p.y]?.[p.x] === "path");
   return direct ? [direct] : exitFromCells(points, exits);
 }
@@ -1334,6 +1429,7 @@ export function leaveBuilding(
   const p = nearby ?? route[0] ?? access(s, b, net) ?? ENTRANCE;
   g.x = p.x;
   g.y = p.y;
+  g.z = walkingHeight(s, p);
   g.route = route.slice(1);
   if (b.sharedAccess && g.state === "ride" && route.length > 0 && s.buildings.includes(b))
     g.sharedExit = b.id;
@@ -1363,6 +1459,7 @@ export function queueCapacity(s: Park, b: Building) {
   return Math.min(40, q.length * 4);
 }
 export function findRoute(s: Park, start: Point, end: Point): Point[] {
+  if (hasElevations(s)) return elevationRoute(s, start, end, true, exitNetwork(s)).slice(1);
   const exits = exitNetwork(s);
   const a = { x: Math.round(start.x), y: Math.round(start.y) },
     target = key(end),
@@ -1437,11 +1534,13 @@ export const rideDuration = (b: Building) =>
         : COASTER_TYPES.steel.duration
       : CATALOG[b.kind].duration;
 export const rideCapacity = (b: Building) =>
-  b.design
-    ? b.design.seats
-    : b.kind === "coaster"
-      ? COASTER_TYPES[b.track?.[0]?.style ?? "steel"].capacity
-      : CATALOG[b.kind].capacity;
+  b.trainFleet
+    ? b.trainFleet.program.cars * 2
+    : b.design
+      ? b.design.seats
+      : b.kind === "coaster"
+        ? COASTER_TYPES[b.track?.[0]?.style ?? "steel"].capacity
+        : CATALOG[b.kind].capacity;
 export function trackCost(track: Point[]) {
   let units = 1;
   for (let i = 1; i < track.length; i++)
@@ -1488,14 +1587,18 @@ export function validateTrack(s: Park, track: Point[]): string | null {
         (p) =>
           p.style !== track[0].style ||
           p.smooth !== true ||
-          (style === "wood" && (p.inversion || (p.z ?? 0) > 4)),
+          (!COASTER_TYPES[style].loop && p.inversion) ||
+          (p.z ?? 0) > coasterMaxHeight(style),
       )
     )
       return "Dieser Bahntyp unterstützt diese Bauteile nicht.";
     if (
       track.length > 2048 ||
       track.some(
-        (p) => !Number.isFinite(p.x + p.y + (p.z ?? 0)) || (p.z ?? 0) < 0 || (p.z ?? 0) > 8,
+        (p) =>
+          !Number.isFinite(p.x + p.y + (p.z ?? 0)) ||
+          (p.z ?? 0) < 0 ||
+          (p.z ?? 0) > coasterMaxHeight(style),
       )
     )
       return "Ungültige Gleisgeometrie.";
@@ -1503,7 +1606,7 @@ export function validateTrack(s: Park, track: Point[]): string | null {
       trackFootprint(track).some(
         (p) =>
           !inBounds(p.x, p.y, s) ||
-          !trackGroundCompatible(track, p.x, p.y, s.tiles[p.y][p.x]) ||
+          !trackGroundCompatible(track, p.x, p.y, s.tiles[p.y][p.x], terrainHeight(s, p.x, p.y)) ||
           occupant(s, p.x, p.y),
       )
     )
@@ -1535,7 +1638,7 @@ export function validateTrack(s: Park, track: Point[]): string | null {
     const p = track[i];
     if (
       !inBounds(p.x, p.y, s) ||
-      !trackGroundCompatible(track, p.x, p.y, s.tiles[p.y][p.x]) ||
+      !trackGroundCompatible(track, p.x, p.y, s.tiles[p.y][p.x], terrainHeight(s, p.x, p.y)) ||
       occupant(s, p.x, p.y)
     )
       return "Die Strecke braucht freie Landfelder oder mindestens 5 m Abstand über einem Weg.";
@@ -1571,6 +1674,9 @@ export function build(
   if (kind === "custom" && !validDesign(design))
     return { error: "Wähle zuerst einen gültigen Werkstatt-Entwurf." };
   const proto = { kind, x, y, track, ...(design ? { design: structuredClone(design) } : {}) };
+  const ground = terrainHeight(s, x, y);
+  if (kind !== "coaster" && footprint(proto).some((p) => terrainHeight(s, p.x, p.y) !== ground))
+    return { error: "Ebne zuerst das Gelände unter dem Gebäude ein." };
   if (kind === "coaster") {
     const err = validateTrack(s, track ?? []);
     if (err) return { error: err };
@@ -1580,7 +1686,7 @@ export function build(
       (p) =>
         !inBounds(p.x, p.y, s) ||
         !(kind === "coaster" && track
-          ? trackGroundCompatible(track, p.x, p.y, s.tiles[p.y][p.x])
+          ? trackGroundCompatible(track, p.x, p.y, s.tiles[p.y][p.x], terrainHeight(s, p.x, p.y))
           : s.tiles[p.y][p.x] === "grass") ||
         occupant(s, p.x, p.y),
     )
@@ -1591,6 +1697,7 @@ export function build(
   if (!startingParks.has(s)) initOperations(s);
   const b: Building = {
     ...proto,
+    ...(ground ? { z: ground } : {}),
     id: s.nextId++,
     name: design
       ? design.name
@@ -1719,6 +1826,7 @@ function newGuest(s: Park) {
   creditCash(s, s.ticket);
   s.income += s.ticket;
   s.dayIncome += s.ticket;
+  recordFinance(s, "ticket", s.ticket);
   s.operatingIncomeToday = (s.operatingIncomeToday ?? 0) + s.ticket;
   return g;
 }
@@ -2071,7 +2179,7 @@ export function tick(s: Park, dt: number) {
   const net = connected(s),
     exits = exitNetwork(s, net);
   const weatherNow = parkWeather(s);
-  tickMaintenance(s, dt);
+  tickMaintenance(s, dt, CATALOG);
   const active = s.buildings.filter(
     (b) => b.open && hasOperator(b) && !decorative(b.kind) && access(s, b, net),
   );
@@ -2107,7 +2215,13 @@ export function tick(s: Park, dt: number) {
       b.autoOpen = false;
     }
     if (b.kind === "wheel") {
-      const ready = b.open && !!access(s, b, net) && hasOperator(b) && b.tested && !broken(b);
+      const ready =
+        b.open &&
+        !!access(s, b, net) &&
+        hasOperator(b) &&
+        b.tested &&
+        !broken(b) &&
+        !maintenanceUnavailable(b);
       if (!ready) {
         for (const id of b.queue) {
           const g = s.guests.find((guest) => guest.id === id);
@@ -2136,6 +2250,7 @@ export function tick(s: Park, dt: number) {
             b.served++;
             b.revenue += b.price;
             recordMarketingRevenue(s, g, b.price, "ride");
+            recordFinance(s, "rides", b.price);
             creditCash(s, b.price);
             s.income += b.price;
             s.dayIncome += b.price;
@@ -2169,6 +2284,74 @@ export function tick(s: Park, dt: number) {
       });
       continue;
     }
+    if (b.kind === "coaster" && b.trainFleet) {
+      const ready =
+        b.open &&
+        !!access(s, b, net) &&
+        hasOperator(b) &&
+        b.tested &&
+        !broken(b) &&
+        !maintenanceUnavailable(b);
+      if (!ready) {
+        for (const id of b.queue) {
+          const g = s.guests.find((guest) => guest.id === id);
+          if (g) leaveBuilding(s, b, g, net, exits);
+        }
+        b.queue = [];
+      }
+      tickCoasterTrains(b, dt, {
+        ready,
+        get exitClear() {
+          return !sharedExitPending(s, b);
+        },
+        rounds: operationsOf(b).rounds,
+        board: () => {
+          while (b.queue.length) {
+            const id = b.queue.shift()!,
+              g = s.guests.find((guest) => guest.id === id);
+            if (!g || g.state !== "queue" || g.target !== b.id) continue;
+            if ((g.wallet ?? 60) < b.price) {
+              leaveBuilding(s, b, g, net, exits);
+              g.thought = "Der neue Preis übersteigt mein Budget.";
+              continue;
+            }
+            g.state = "ride";
+            g.wallet = Math.max(0, (g.wallet ?? 60) - b.price);
+            b.served++;
+            b.revenue += b.price;
+            recordMarketingRevenue(s, g, b.price, "ride");
+            recordFinance(s, "rides", b.price);
+            creditCash(s, b.price);
+            s.income += b.price;
+            s.dayIncome += b.price;
+            s.operatingIncomeToday! += b.price;
+            return id;
+          }
+          return null;
+        },
+        release: (id, completed) => {
+          const g = s.guests.find((guest) => guest.id === id);
+          if (!g) return;
+          finishPartyVisit(g, b);
+          leaveBuilding(s, b, g, net, exits);
+          g.timer = g.sharedExit === b.id ? 0.4 : 2;
+          if (!completed) return;
+          g.rides++;
+          buyRidePhoto(s, b, g);
+          (g.visited ??= []).push(b.id);
+          g.visited = g.visited.slice(-8);
+          const change = (rideAppeal(b, g.profile) - 4) * 2 - b.price * 0.12;
+          g.happiness = Math.max(0, Math.min(100, g.happiness + change));
+          g.thought =
+            change > 2
+              ? "Genau mein Geschmack – diese Fahrt hat sich gelohnt!"
+              : change < 0
+                ? "Die Fahrt war für mich zu heftig, zu zahm oder zu teuer."
+                : "Eine nette Runde.";
+        },
+      });
+      continue;
+    }
     if (!b.open || !access(s, b, net) || !hasOperator(b)) {
       for (const id of [...b.queue, ...b.riders]) {
         const g = s.guests.find((g) => g.id === id);
@@ -2185,7 +2368,7 @@ export function tick(s: Park, dt: number) {
     const dispatchReady = tickOperations(
       b,
       dt,
-      b.open && !!access(s, b, net) && b.tested && !broken(b),
+      b.open && !!access(s, b, net) && b.tested && !broken(b) && !maintenanceUnavailable(b),
       !sharedExitPending(s, b),
     );
     b.cycle -= dt;
@@ -2200,6 +2383,7 @@ export function tick(s: Park, dt: number) {
             g.rides++;
             (g.visited ??= []).push(b.id);
             g.visited = g.visited.slice(-8);
+            buyRidePhoto(s, b, g);
             const appeal = rideAppeal(b, g.profile),
               change = (appeal - 4) * 2 - b.price * 0.12;
             g.happiness = Math.max(0, Math.min(100, g.happiness + change));
@@ -2224,6 +2408,7 @@ export function tick(s: Park, dt: number) {
             b.served++;
             b.revenue += price;
             recordMarketingRevenue(s, g, price, "shop");
+            recordFinance(s, "shops", price);
             creditCash(s, price);
             s.income += price;
             s.dayIncome += price;
@@ -2239,6 +2424,8 @@ export function tick(s: Park, dt: number) {
             s.expenses += supplies;
             s.dayExpenses += supplies;
             s.operatingExpensesToday! += supplies;
+            recordFinance(s, "supplies", supplies);
+            buyUmbrella(s, b, g);
             if (isFood(b.kind)) giveWaste(s, g, FOOD[b.kind].drink ? "cup" : "wrapper");
             g.happiness = Math.min(100, g.happiness + (b.kind === "toilet" ? 1 : 4));
             g.thought = isFood(b.kind)
@@ -2275,6 +2462,7 @@ export function tick(s: Park, dt: number) {
           b.served++;
           b.revenue += b.price;
           recordMarketingRevenue(s, g, b.price, "ride");
+          recordFinance(s, "rides", b.price);
           creditCash(s, b.price);
           s.income += b.price;
           s.dayIncome += b.price;
@@ -2287,6 +2475,7 @@ export function tick(s: Park, dt: number) {
   }
   for (const g of s.guests) {
     g.hunger = Math.min(100, g.hunger + dt * 0.14);
+    tickUmbrella(g, dt, weatherNow.rain);
     const comfort = guestWeatherComfort(s, g, weatherNow);
     g.thirst = Math.min(100, g.thirst + dt * (0.2 + comfort.extraThirst));
     g.happiness = Math.max(0, Math.min(100, g.happiness + dt * comfort.moodPerSecond));
@@ -2398,36 +2587,35 @@ export function tick(s: Park, dt: number) {
       g.timer -= dt;
       continue;
     }
-    const standing = { x: Math.round(g.x), y: Math.round(g.y) };
-    if (!g.route.length && s.tiles[standing.y]?.[standing.x] === "exit") {
+    const standing = { x: Math.round(g.x), y: Math.round(g.y), z: g.z };
+    if (!g.route.length && walkTile(s, standing) === "exit") {
       // Also resume saved or newly rerouted guests before choosing another destination.
-      const onward = followExit(standing, exits).slice(1);
+      const onward = followExit(standing, exits, s).slice(1);
       g.route = onward.length ? onward : [standing];
     }
     if (g.route.length) {
       const p = g.route[0];
-      const from = { x: Math.round(g.x), y: Math.round(g.y) };
-      const outgoing = exits.get(key(from));
-      const validExitStep = outgoing && (key(from) === key(p) || key(outgoing) === key(p));
+      const from = { x: Math.round(g.x), y: Math.round(g.y), z: g.z };
+      const outgoing = exits.get(walkKey(s, from));
+      const validExitStep =
+        outgoing && (walkKey(s, from) === walkKey(s, p) || walkKey(s, outgoing) === walkKey(s, p));
       if (
         !inBounds(p.x, p.y, s) ||
-        (s.tiles[from.y]?.[from.x] === "exit" ? !validExitStep : !net.has(key(p)))
+        (walkTile(s, from) === "exit" ? !validExitStep : !net.has(walkKey(s, p)))
       ) {
         // Construction can remove a tile under a walking guest. Rejoin nearby infrastructure.
         const candidates = [...net, ...exits.keys()]
-          .map((k) => {
-            const [x, y] = k.split(",").map(Number);
-            return { x, y };
-          })
+          .map(pointFromKey)
           .sort((a, b) => Math.hypot(a.x - g.x, a.y - g.y) - Math.hypot(b.x - g.x, b.y - g.y));
         const safe = candidates[0] ?? ENTRANCE;
         g.x = safe.x;
         g.y = safe.y;
+        g.z = walkingHeight(s, safe);
         g.route =
           g.state === "leave"
             ? findRoute(s, safe, ENTRANCE)
-            : exits.has(key(safe))
-              ? followExit(safe, exits).slice(1)
+            : exits.has(walkKey(s, safe))
+              ? followExit(safe, exits, s).slice(1)
               : [];
         g.target = null;
         continue;
@@ -2441,8 +2629,10 @@ export function tick(s: Park, dt: number) {
       if (d <= step) {
         g.x = p.x;
         g.y = p.y;
+        g.z = walkingHeight(s, p);
         g.route.shift();
       } else {
+        g.z = walkingHeight(s, g) + ((walkingHeight(s, p) - walkingHeight(s, g)) * step) / d;
         g.x += ((p.x - g.x) / d) * step;
         g.y += ((p.y - g.y) / d) * step;
       }
@@ -2579,7 +2769,7 @@ export function tick(s: Park, dt: number) {
   else if (dirtPenalty > 0) s.rating = Math.min(s.rating, Math.round(100 - dirtPenalty));
   let researchDailyProfit = 0;
   if (billingPeriodAt(s.time) !== oldBillingPeriod) {
-    const payroll = s.staff * 80 + zooWages(s) + operatorWages(s);
+    const payroll = s.staff * 80 + zooWages(s) + operatorWages(s) + mechanicWages(s);
     const upkeep = s.buildings
       .filter((b) => !decorative(b.kind))
       .reduce(
@@ -2592,8 +2782,13 @@ export function tick(s: Park, dt: number) {
               )),
         0,
       );
-    const cost =
-      difficultyCost(s, payroll, "wages") + difficultyCost(s, upkeep, "upkeep") + tickLoanDay(s);
+    const wages = difficultyCost(s, payroll, "wages"),
+      running = difficultyCost(s, upkeep, "upkeep"),
+      interest = tickLoanDay(s);
+    const cost = wages + running + interest;
+    recordFinance(s, "wages", wages);
+    recordFinance(s, "upkeep", running);
+    recordFinance(s, "interest", interest);
     spendCash(s, cost, true);
     s.expenses += cost;
     s.dayExpenses += cost;
@@ -2603,6 +2798,7 @@ export function tick(s: Park, dt: number) {
     s.operatingIncomeToday = 0;
     s.operatingExpensesToday = 0;
     s.lastProfit = s.dayIncome - s.dayExpenses;
+    closeFinancePeriod(s);
     s.dayIncome = 0;
     s.dayExpenses = 0;
     const staffing = Math.min(1, s.staff / Math.max(1, s.guests.length / 25));
@@ -2624,6 +2820,7 @@ export function tick(s: Park, dt: number) {
   if (
     s.mode === "scenario" &&
     !s.won &&
+    !customScenarioExpired(s) &&
     s.arrivals >= goal.arrivals &&
     s.rating >= goal.rating &&
     openRides.length >= goal.rides &&
@@ -2654,18 +2851,20 @@ export function validSave(v: unknown): v is Park {
       (p.smooth === undefined || typeof p.smooth === "boolean") &&
       (p.inversion === undefined || typeof p.inversion === "boolean") &&
       (p.heading === undefined || num(p.heading)) &&
-      (p.style === undefined || ["steel", "wood", "launch"].includes(p.style)) &&
+      (p.style === undefined || Object.hasOwn(COASTER_TYPES, p.style)) &&
       (p.smooth
         ? num(p.x) &&
           num(p.y) &&
           inBounds(p.x, p.y, s) &&
           num(p.z) &&
           p.z! >= 0 &&
-          p.z! <= (p.style === "wood" ? 4 : 8) &&
+          p.z! <= coasterMaxHeight(p.style) &&
           !(p.style === "wood" && p.inversion)
         : point(p));
     if (
       !validateLoan(s) ||
+      !validScenery(s) ||
+      !validCustomScenario(s.customScenario) ||
       !validCalendar(s) ||
       !validDifficulty(s) ||
       (s.unlimitedBudget !== undefined && typeof s.unlimitedBudget !== "boolean") ||
@@ -2734,7 +2933,7 @@ export function validSave(v: unknown): v is Park {
       )
     )
       return false;
-    if (!validResearchCoins(s) || !validEntrance(s)) return false;
+    if (!validResearchCoins(s) || !validEntrance(s) || !validTerrain(s)) return false;
     if (s.research !== undefined) {
       const r = s.research;
       if (
@@ -2784,11 +2983,15 @@ export function validSave(v: unknown): v is Park {
       return false;
     if (
       !validCleanliness(s) ||
+      !validMaintenance(s) ||
+      !validFinance(s) ||
+      !validRetail(s) ||
       !validMarketing(s) ||
       !validZoo(s) ||
       !validParkLife(s) ||
       !validOperations(s) ||
       !validWheelStates(s) ||
+      !validCoasterFleets(s) ||
       !validCrewPool(s)
     )
       return false;
@@ -2797,7 +3000,9 @@ export function validSave(v: unknown): v is Park {
       if (
         !b ||
         !Object.hasOwn(CATALOG, b.kind) ||
-        !point(b) ||
+        !Number.isInteger(b.x) ||
+        !Number.isInteger(b.y) ||
+        !inBounds(b.x, b.y, s) ||
         (b.orientation !== undefined &&
           (!Number.isInteger(b.orientation) || b.orientation < 0 || b.orientation > 3)) ||
         (b.pods !== undefined &&
@@ -2956,7 +3161,11 @@ export function validSave(v: unknown): v is Park {
         (g.state === "observe" &&
           (g.transit || !s.buildings.some((b) => b.id === g.target && isHabitat(b.kind)))) ||
         !Array.isArray(g.route) ||
-        !g.route.every(point) ||
+        !g.route.every(
+          (p) =>
+            point({ ...p, z: undefined }) &&
+            (p.z === undefined || (Number.isFinite(p.z) && p.z >= -4 && p.z <= 11)),
+        ) ||
         (g.target !== null && !buildingIds.has(g.target))
       )
         return false;

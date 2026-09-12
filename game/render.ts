@@ -1,3 +1,10 @@
+import { drawHeldUmbrella } from "./umbrella-canvas";
+import type { TerrainSettings } from "../components/terrain-panel";
+import { terrainHeight, deckHeight, walkingHeight, terrainPlan, deckPlan } from "./terrain";
+import { drawDeck, drawTerrainFaces } from "./terrain-render";
+import { drawScenery } from "./modular-scenery-canvas";
+import { drawWaterRide } from "./water-ride-canvas";
+import { coasterTrainVisuals, coasterBlockVisuals } from "./coaster-trains";
 import { cameraTurn, rotateMapPoint, viewDepth } from "./isometric-view";
 import { birdCanvasLayers } from "./bird-canvas";
 import { groundPathAt } from "./track-support";
@@ -87,6 +94,7 @@ import {
 } from "./motion";
 const photoPaths = new WeakMap<Point[], ReturnType<typeof makeRidePath>>();
 export type View = {
+  terrainSettings?: TerrainSettings;
   cameraTurn?: number;
   cleanerAreas?: CleanerAreaOverlay[];
   staffFocus?: { ref: StaffRef; until: number };
@@ -341,7 +349,12 @@ function drawPark(
   let hitOwner: number | undefined;
   const net = connected(s),
     exits = exitNetwork(s, net);
-  const { scale, tw, th, project } = projection(w, h, v);
+  const camera = projection(w, h, v),
+    { scale, tw, th } = camera;
+  const project = Object.assign(
+    (x: number, y: number, z?: number) => camera.project(x, y, z ?? terrainHeight(s, x, y)),
+    { turn: camera.project.turn },
+  );
   const depthAt = (x: number, y: number) => viewDepth(project, x, y);
   const heading = (dx: number, dy: number) => {
     const q = rotateMapPoint(dx, dy, project.turn);
@@ -421,107 +434,111 @@ function drawPark(
   const sharedTiles = new Map(
     sharedAccessTiles(s).map((tile) => [`${tile.cell.x},${tile.cell.y}`, tile]),
   );
-  for (let y = 0; y < mapHeight(s); y++)
-    for (let x = 0; x < mapWidth(s); x++) {
-      const type = s.tiles[y][x],
-        n = (x * 79 + y * 53) % 13,
-        p = project(x, y);
-      tile(
-        x,
-        y,
-        type === "water"
-          ? ["#4babc1", "#49a6bb", "#50b2c5"][n % 3]
-          : type === "path"
-            ? PATH_STYLES[pathStyleAt(s, x, y)].color
-            : type === "queue"
-              ? "#79aadd"
-              : type === "exit"
-                ? "#db8b81"
-                : ["#7eac47", "#80af49", "#84b24b", "#83ae48"][n % 4],
-        v.grid ? "#28522030" : undefined,
-      );
-      const sharedTile = sharedTiles.get(`${x},${y}`);
-      if (sharedTile) drawSharedAccessTile(ctx, sharedTile, project, scale);
-      if (type === "path" || type === "queue" || type === "exit") {
-        // One continuous path surface, with borders only at exposed edges.
-        const color = type === "queue" ? "#36699f" : type === "exit" ? "#a54540" : "#ad925f";
-        const edges = [
-          [0, -1, -1, 0, 0, -1],
-          [1, 0, 0, -1, 1, 0],
-          [0, 1, 1, 0, 0, 1],
-          [-1, 0, 0, 1, -1, 0],
-        ];
-        for (const [dx, dy, ax, ay, bx, by] of edges)
-          if (!neighbor(x + dx, y + dy, type))
+  const terrainCells = s.tiles.flatMap((row, y) =>
+    row.map((_, x) => ({ x, y, z: terrainHeight(s, x, y) })),
+  );
+  terrainCells.sort((a, b) => a.z - b.z || depthAt(a.x, a.y) - depthAt(b.x, b.y));
+  for (const { x, y } of terrainCells) {
+    drawTerrainFaces(ctx, s, x, y, camera.project);
+    const type = s.tiles[y][x],
+      n = (x * 79 + y * 53) % 13,
+      p = project(x, y);
+    tile(
+      x,
+      y,
+      type === "water"
+        ? ["#4babc1", "#49a6bb", "#50b2c5"][n % 3]
+        : type === "path"
+          ? PATH_STYLES[pathStyleAt(s, x, y)].color
+          : type === "queue"
+            ? "#79aadd"
+            : type === "exit"
+              ? "#db8b81"
+              : ["#7eac47", "#80af49", "#84b24b", "#83ae48"][n % 4],
+      v.grid ? "#28522030" : undefined,
+    );
+    const sharedTile = sharedTiles.get(`${x},${y}`);
+    if (sharedTile) drawSharedAccessTile(ctx, sharedTile, project, scale);
+    if (type === "path" || type === "queue" || type === "exit") {
+      // One continuous path surface, with borders only at exposed edges.
+      const color = type === "queue" ? "#36699f" : type === "exit" ? "#a54540" : "#ad925f";
+      const edges = [
+        [0, -1, -1, 0, 0, -1],
+        [1, 0, 0, -1, 1, 0],
+        [0, 1, 1, 0, 0, 1],
+        [-1, 0, 0, 1, -1, 0],
+      ];
+      for (const [dx, dy, ax, ay, bx, by] of edges)
+        if (!neighbor(x + dx, y + dy, type))
+          line(
+            { x: p.x + ax * tw, y: p.y + ay * th },
+            { x: p.x + bx * tw, y: p.y + by * th },
+            color,
+            1.2,
+          );
+      if (type === "path") {
+        const style = pathStyleAt(s, x, y),
+          edge = PATH_STYLES[style].edge;
+        if (style !== "garden")
+          for (const f of style === "boardwalk" ? [-0.3, -0.1, 0.1, 0.3] : [-0.16, 0.17])
             line(
-              { x: p.x + ax * tw, y: p.y + ay * th },
-              { x: p.x + bx * tw, y: p.y + by * th },
-              color,
-              1.2,
+              project(x - 0.48, y + f),
+              project(x + 0.48, y + f),
+              edge,
+              style === "boardwalk" ? 0.7 : 0.55,
             );
-        if (type === "path") {
-          const style = pathStyleAt(s, x, y),
-            edge = PATH_STYLES[style].edge;
-          if (style !== "garden")
-            for (const f of style === "boardwalk" ? [-0.3, -0.1, 0.1, 0.3] : [-0.16, 0.17])
-              line(
-                project(x - 0.48, y + f),
-                project(x + 0.48, y + f),
-                edge,
-                style === "boardwalk" ? 0.7 : 0.55,
-              );
-          if (style === "brick" || style === "stone")
-            for (const f of [-0.25, 0.25])
-              line(project(x + f, y - 0.48), project(x + f, y + 0.48), edge, 0.5);
-        }
-        if (type === "queue" || type === "exit")
-          for (const [dx, dy] of [
-            [1, 0],
-            [-1, 0],
-          ])
-            if (!neighbor(x + dx, y + dy, type) && s.tiles[y + dy]?.[x + dx] !== "path") {
-              const a = project(x + dx * 0.45, y - 0.45),
-                b = project(x + dx * 0.45, y + 0.45);
-              line(a, { x: a.x, y: a.y - 5 * scale }, "#e9eee6", 1.4);
-              line(b, { x: b.x, y: b.y - 5 * scale }, "#e9eee6", 1.4);
-              line({ x: a.x, y: a.y - 5 * scale }, { x: b.x, y: b.y - 5 * scale }, "#dde6de", 1.4);
-            }
-        if (type === "exit") {
-          const next = exits.get(`${x},${y}`);
-          if (next) {
-            const dx = next.x - x,
-              dy = next.y - y;
-            const a = project(x - dx * 0.24, y - dy * 0.24),
-              b = project(x + dx * 0.24, y + dy * 0.24);
-            line(a, b, "#fff5e4", 2);
-            for (const side of [-1, 1])
-              line(
-                b,
-                project(x + dx * 0.04 - dy * side * 0.18, y + dy * 0.04 + dx * side * 0.18),
-                "#fff5e4",
-                2,
-              );
-          } else {
-            for (const side of [-1, 1])
-              line(
-                project(x - 0.15, y - side * 0.15),
-                project(x + 0.15, y + side * 0.15),
-                "#973f3a",
-                1.5,
-              );
-          }
-        }
+        if (style === "brick" || style === "stone")
+          for (const f of [-0.25, 0.25])
+            line(project(x + f, y - 0.48), project(x + f, y + 0.48), edge, 0.5);
       }
-      if (type === "water" && n % 3 === 0) {
-        const off = Math.sin(s.time / 1.6 + x) * 2 * scale;
-        line(
-          { x: p.x - 6 * scale, y: p.y + off },
-          { x: p.x + 6 * scale, y: p.y + off },
-          "#bdebf18c",
-          1,
-        );
+      if (type === "queue" || type === "exit")
+        for (const [dx, dy] of [
+          [1, 0],
+          [-1, 0],
+        ])
+          if (!neighbor(x + dx, y + dy, type) && s.tiles[y + dy]?.[x + dx] !== "path") {
+            const a = project(x + dx * 0.45, y - 0.45),
+              b = project(x + dx * 0.45, y + 0.45);
+            line(a, { x: a.x, y: a.y - 5 * scale }, "#e9eee6", 1.4);
+            line(b, { x: b.x, y: b.y - 5 * scale }, "#e9eee6", 1.4);
+            line({ x: a.x, y: a.y - 5 * scale }, { x: b.x, y: b.y - 5 * scale }, "#dde6de", 1.4);
+          }
+      if (type === "exit") {
+        const next = exits.get(`${x},${y}`);
+        if (next) {
+          const dx = next.x - x,
+            dy = next.y - y;
+          const a = project(x - dx * 0.24, y - dy * 0.24),
+            b = project(x + dx * 0.24, y + dy * 0.24);
+          line(a, b, "#fff5e4", 2);
+          for (const side of [-1, 1])
+            line(
+              b,
+              project(x + dx * 0.04 - dy * side * 0.18, y + dy * 0.04 + dx * side * 0.18),
+              "#fff5e4",
+              2,
+            );
+        } else {
+          for (const side of [-1, 1])
+            line(
+              project(x - 0.15, y - side * 0.15),
+              project(x + 0.15, y + side * 0.15),
+              "#973f3a",
+              1.5,
+            );
+        }
       }
     }
+    if (type === "water" && n % 3 === 0) {
+      const off = Math.sin(s.time / 1.6 + x) * 2 * scale;
+      line(
+        { x: p.x - 6 * scale, y: p.y + off },
+        { x: p.x + 6 * scale, y: p.y + off },
+        "#bdebf18c",
+        1,
+      );
+    }
+  }
   const frame = (
     name: string,
     p: Point,
@@ -555,6 +572,51 @@ function drawPark(
   const rail = (a: Point, b: Point, ghost = false, ties = true) =>
     drawTrackSegment(ctx, a, b, project, scale, { ghost, ties, onHit: trackHit });
   const objects: Array<{ depth: number; draw: () => void; owner?: number }> = [];
+  for (const d of s.elevatedPaths ?? [])
+    objects.push({
+      depth: depthAt(d.x, d.y) + 0.04,
+      draw: () => drawDeck(ctx, s, d, camera.project, scale, v.terrainSettings?.cutaway ?? false),
+    });
+  for (const piece of s.scenery ?? [])
+    objects.push({
+      depth: depthAt(piece.x, piece.y) + 0.06,
+      draw: () => drawScenery(ctx, piece, camera.project),
+    });
+  if (v.tool === "terrain" && v.hover && v.terrainSettings) {
+    const t = v.terrainSettings,
+      p = v.hover;
+    if (t.mode === "path") {
+      const d = {
+        x: p.x,
+        y: p.y,
+        z: t.level,
+        type: t.type,
+        style: "garden" as const,
+        ...(t.ramp ? { slope: t.direction } : {}),
+      };
+      objects.push({
+        depth: 1e9,
+        draw: () => drawDeck(ctx, s, d, camera.project, scale, true, true),
+      });
+    } else
+      for (const q of terrainPlan(s, p, t.action, t.size, t.level).cells)
+        objects.push({
+          depth: 1e9,
+          draw: () => {
+            const a = project(q.x, q.y, q.z);
+            ctx.strokeStyle = "#fff4bd";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y - th);
+            ctx.lineTo(a.x + tw, a.y);
+            ctx.lineTo(a.x, a.y + th);
+            ctx.lineTo(a.x - tw, a.y);
+            ctx.closePath();
+            ctx.stroke();
+          },
+        });
+  }
+
   const registerAccessHits = (id: number, polygons: AccessHitPolygon[], pod?: PodRole) => {
     if (!polygons.length) return;
     const bounds = { left: Infinity, right: -Infinity, top: Infinity, bottom: -Infinity };
@@ -940,7 +1002,17 @@ function drawPark(
     const n = CATALOG[b.kind].size,
       p = project(b.x + (n - 1) / 2, b.y + (n - 1) / 2);
     const kind = b.design?.mechanism ?? b.kind;
-    if (isHabitat(b.kind))
+    if (b.kind === "rapids")
+      drawWaterRide(
+        ctx,
+        b,
+        project,
+        scale,
+        (id, p, yaw) =>
+          rider(id, project(p.x, p.y, p.z), heading(-Math.sin(yaw), -Math.cos(yaw)), alpha, 0, 0.6),
+        alpha,
+      );
+    else if (isHabitat(b.kind))
       habitatLayers(b, alpha)
         .sort((a, b) => a.depth - b.depth)
         .forEach((layer) => layer.draw());
@@ -1242,9 +1314,11 @@ function drawPark(
           for (const track of [e.prefix, e.suffix])
             for (let i = 1; i < track.length; i++) rail(track[i - 1], track[i]);
           frame(
-            `station-${b.track?.[0]?.style ?? "steel"}`,
+            `station-${b.track?.[0]?.style === "wood" ? "wood" : b.track?.[0]?.style === "launch" ? "launch" : "steel"}`,
             project(b.x, b.y),
-            specs[`station-${b.track?.[0]?.style ?? "steel"}`],
+            specs[
+              `station-${b.track?.[0]?.style === "wood" ? "wood" : b.track?.[0]?.style === "launch" ? "launch" : "steel"}`
+            ],
           );
           for (const p of [e.prefix.at(-1)!, e.suffix[0]]) {
             const a = project(p.x, p.y, p.z);
@@ -1289,72 +1363,99 @@ function drawPark(
             ? (previous.angle + velocity * dt) % route.length
             : 0;
         trains.set(b, { angle: head, velocity, time: s.time, target: desired, track });
-        for (let car = 0; car < Math.ceil(rideCapacity(b) / 2); car++) {
-          const q = routePosition(route, head - car * 0.74);
-          objects.push({
-            depth: depthAt(q.x, q.y) + (q.z ?? 0) * 0.035 + 0.15,
-            draw: () => {
-              const direction = heading(q.dx * (q.up.z < 0 ? -1 : 1), q.dy * (q.up.z < 0 ? -1 : 1)),
-                p = project(q.x, q.y, q.z),
-                up = rotateMapPoint(q.up.x, q.up.y, project.turn),
-                rotation = Math.atan2((up.x - up.y) * 24, q.up.z * 24 - (up.x + up.y) * 12);
-              frame(
-                `car-${VEHICLES[vehicleFor(b).model].sprite}-${direction}`,
-                p,
-                { width: 48, height: 40, anchorX: 24, anchorY: 30 },
-                1,
-                rotation,
-                false,
-                { vehicle: vehicleFor(b), index: car },
-              );
-              const sport = vehicleFor(b).model === "sport";
-              const seats = (
-                {
-                  se: [
-                    [26, 19],
-                    [20, 17],
-                  ],
-                  sw: [
-                    [22, 19],
-                    [28, 17],
-                  ],
-                  nw: [
-                    [22, 16],
-                    [27, 19],
-                  ],
-                  ne: [
-                    [26, 16],
-                    [21, 19],
-                  ],
-                } as const
-              )[direction];
-              for (const side of sport && (direction === "se" || direction === "sw")
-                ? [1, 0]
-                : [0, 1]) {
-                const x = sport ? seats[side][0] - 24 : side ? 4 : -4,
-                  y = sport ? seats[side][1] - 30 : -12 + (side ? 2 : -2);
-                rider(
-                  b.riders[car * 2 + side],
-                  {
-                    x: p.x + (x * Math.cos(rotation) - y * Math.sin(rotation)) * scale,
-                    y: p.y + (x * Math.sin(rotation) + y * Math.cos(rotation)) * scale,
-                  },
-                  direction,
+        const fleet = b.trainFleet
+          ? coasterTrainVisuals(b, rideCapacity(b))
+          : [{ distance: head, cars: Math.ceil(rideCapacity(b) / 2), riders: b.riders }];
+        for (const train of fleet)
+          for (let car = 0; car < train.cars; car++) {
+            const q = routePosition(route, train.distance - car * 0.74);
+            objects.push({
+              depth: depthAt(q.x, q.y) + (q.z ?? 0) * 0.035 + 0.15,
+              draw: () => {
+                const direction = heading(
+                    q.dx * (q.up.z < 0 ? -1 : 1),
+                    q.dy * (q.up.z < 0 ? -1 : 1),
+                  ),
+                  p = project(
+                    q.x,
+                    q.y,
+                    (q.z ?? 0) + (vehicleFor(b).model === "suspended" ? -0.42 : 0),
+                  ),
+                  up = rotateMapPoint(q.up.x, q.up.y, project.turn),
+                  rotation = Math.atan2((up.x - up.y) * 24, q.up.z * 24 - (up.x + up.y) * 12);
+                frame(
+                  `car-${VEHICLES[vehicleFor(b).model].sprite}-${direction}`,
+                  p,
+                  { width: 48, height: 40, anchorX: 24, anchorY: 30 },
                   1,
                   rotation,
+                  false,
+                  { vehicle: vehicleFor(b), index: car },
                 );
-              }
-            },
-          });
-        }
+                const sport = vehicleFor(b).model === "sport";
+                const seats = (
+                  {
+                    se: [
+                      [26, 19],
+                      [20, 17],
+                    ],
+                    sw: [
+                      [22, 19],
+                      [28, 17],
+                    ],
+                    nw: [
+                      [22, 16],
+                      [27, 19],
+                    ],
+                    ne: [
+                      [26, 16],
+                      [21, 19],
+                    ],
+                  } as const
+                )[direction];
+                for (const side of sport && (direction === "se" || direction === "sw")
+                  ? [1, 0]
+                  : [0, 1]) {
+                  const x = sport ? seats[side][0] - 24 : side ? 4 : -4,
+                    y = sport ? seats[side][1] - 30 : -12 + (side ? 2 : -2);
+                  rider(
+                    train.riders[car * 2 + side],
+                    {
+                      x: p.x + (x * Math.cos(rotation) - y * Math.sin(rotation)) * scale,
+                      y: p.y + (x * Math.sin(rotation) + y * Math.cos(rotation)) * scale,
+                    },
+                    direction,
+                    1,
+                    rotation,
+                  );
+                }
+              },
+            });
+          }
+      }
+      for (const signal of coasterBlockVisuals(b)) {
+        const q = routePosition(shared, signal.distance);
+        objects.push({
+          depth: depthAt(q.x, q.y) + 0.1,
+          draw: () => {
+            const p = project(q.x, q.y, q.z);
+            line(p, { x: p.x, y: p.y - 10 * scale }, "#415853", 1.5);
+            ctx.fillStyle = signal.owner == null ? "#84d595" : "#ed9b7b";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y - 10 * scale, 2.3 * scale, 0, Math.PI * 2);
+            ctx.fill();
+          },
+        });
       }
       objects.push({
         depth: depthAt(b.x, b.y) - 0.15,
         draw: () =>
           frame(
-            `station-${pts[0]?.style ?? "steel"}`,
+            `station-${pts[0]?.style === "wood" ? "wood" : pts[0]?.style === "launch" ? "launch" : "steel"}`,
             project(b.x, b.y),
-            specs[`station-${pts[0]?.style ?? "steel"}`],
+            specs[
+              `station-${pts[0]?.style === "wood" ? "wood" : pts[0]?.style === "launch" ? "launch" : "steel"}`
+            ],
           ),
       });
     } else {
@@ -1609,7 +1710,7 @@ function drawPark(
     objects.push({
       depth: depthAt(visual.x, visual.y) + 0.12,
       draw: () => {
-        const p = project(visual.x, visual.y);
+        const p = project(visual.x, visual.y, g.z);
         ctx.fillStyle = "#29442830";
         ctx.beginPath();
         ctx.ellipse(p.x, p.y, 4.3 * scale, 1.6 * scale, 0, 0, Math.PI * 2);
@@ -1630,6 +1731,8 @@ function drawPark(
             scale,
             moving ? Math.sin((old.phase * Math.PI) / 2) * 0.018 : 0,
           );
+        if (g.umbrella && !sitting?.seated)
+          drawHeldUmbrella(ctx, g, p.x, p.y, scale, s.time, old.heading, old.phase, moving);
         if (g.food) {
           const food = FOOD[g.food.kind],
             lift = Math.max(0, Math.sin(s.time * 2.8 + g.id)) * 3;
@@ -1764,6 +1867,7 @@ function drawPark(
     });
   }
   const staffRefs: StaffRef[] = [
+    ...(s.maintenance?.workers ?? []).map((w) => ({ kind: "mechanic" as const, id: w.id })),
     ...s.buildings.flatMap((b) =>
       OPERATOR_POSTS.map((post) => ({ kind: "operator" as const, id: b.id, post })),
     ),
@@ -1780,7 +1884,7 @@ function drawPark(
     objects.push({
       depth: depthAt(location.x, location.y) + 0.13,
       draw: () => {
-        const p = project(location.x, location.y);
+        const p = project(location.x, location.y, location.z);
         drawStaff(ctx, motion, p.x, p.y, scale, project.turn);
       },
     });
@@ -2126,9 +2230,11 @@ function drawPark(
         const pending = { ...v.adjustment.building, ...v.adjustment.geometry, id: -1, open: false };
         if (pending.kind === "coaster")
           frame(
-            `station-${pending.track?.[0]?.style ?? "steel"}`,
+            `station-${pending.track?.[0]?.style === "wood" ? "wood" : pending.track?.[0]?.style === "launch" ? "launch" : "steel"}`,
             project(pending.x, pending.y),
-            specs[`station-${pending.track?.[0]?.style ?? "steel"}`],
+            specs[
+              `station-${pending.track?.[0]?.style === "wood" ? "wood" : pending.track?.[0]?.style === "launch" ? "launch" : "steel"}`
+            ],
             0.85,
           );
         else drawBuilding(pending, 0.65);

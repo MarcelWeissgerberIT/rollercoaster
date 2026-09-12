@@ -178,7 +178,8 @@ test("Broken ride quotes an affordable repair and charges exactly once", () => {
   assert(cost > 0);
   assert.equal(advice.severity, "blocker");
   assert.equal(A.applyAttractionAdvice(f.s, 100, "repair", advice.action.id), null);
-  assert.equal(f.b.condition, 100);
+  assert.equal(f.b.condition, 20);
+  assert.equal(f.b.maintenance.request, "repair");
   assert.equal(f.s.cash, cash - cost);
   assert.equal(f.b.open, false);
   const after = JSON.stringify(f.s);
@@ -501,10 +502,11 @@ test("Repair undo restores condition and exact same-period financial ledgers", (
   const before = finance(f.s);
   const record = C.recordEdit(f.s, "Reparieren", () => assert.equal(apply(f, "repair"), null));
   assert(record);
-  assert.deepEqual(record.settings[0].keys, ["condition"]);
+  assert.deepEqual(record.settings[0].keys, ["maintenance"]);
   assert(record.operatingExpenses > 0);
   assert.equal(C.undoEdits(f.s, [record]), null);
   assert.equal(f.b.condition, 20);
+  assert.equal(f.b.maintenance?.request, undefined);
   assert.equal(f.b.open, false);
   assert.deepEqual(finance(f.s), before);
 });

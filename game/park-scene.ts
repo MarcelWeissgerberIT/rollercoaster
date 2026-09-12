@@ -1,3 +1,6 @@
+import { terrainHeight } from "./terrain";
+import { tickMaintenance } from "./maintenance";
+import { createCoasterFleetScene } from "./coaster-fleet-scene";
 import { isWeatherObject } from "./weather-objects";
 import { addCoasterStructure } from "./coaster-structure";
 import { createWeatherObjectModel } from "./weather-object-model";
@@ -19,7 +22,7 @@ import { access } from "./simulation";
 import { tickCleanliness, initCleanliness } from "./cleanliness";
 import { cleanerTransfer, staffBagLocal, staffLocalWorld } from "./staff-work";
 import { createCoasterCar } from "./coaster-car";
-import { vehicleFor, carSeat } from "./vehicles";
+import { vehicleFor, carSeat, vehicleHeightOffset } from "./vehicles";
 import { addDriveHardware } from "./track-hardware";
 import { addExitArrows } from "./path-markings";
 import { addSharedAccessMarkings } from "./shared-access-model";
@@ -113,7 +116,11 @@ export function populatePark(
       location = staffLocation(park, ref);
     if (!motion || !location) return null;
     const rig = createStaffModel(motion);
-    rig.root.position.set(location.x * 5, 0, location.y * 5);
+    rig.root.position.set(
+      location.x * 5,
+      (location.z ?? terrainHeight(park, location.x, location.y)) * 5,
+      location.y * 5,
+    );
     scene.add(rig.root);
     return { ref, rig };
   };
@@ -126,7 +133,11 @@ export function populatePark(
       motion = staffMotion(state, employee.ref, time);
     employee.rig.root.visible = !!location && !!motion;
     if (!location || !motion) return;
-    employee.rig.root.position.set(location.x * 5, 0, location.y * 5);
+    employee.rig.root.position.set(
+      location.x * 5,
+      (location.z ?? terrainHeight(park, location.x, location.y)) * 5,
+      location.y * 5,
+    );
     employee.rig.update(motion);
   };
   // Preview only the remainder of an existing access phase. Do not
@@ -155,19 +166,20 @@ export function populatePark(
   animations.push(() => updatePods(operatorPark));
   const groupAt = (x: number, y: number, z: number) => {
     const g = new THREE.Group();
-    g.position.set(x, y, z);
+    g.position.set(x, y + terrainHeight(park, x / 5, z / 5) * 5, z);
     scene.add(g);
     return g;
   };
   const cleaningPark: Park = {
     ...park,
     tiles: park.tiles,
-    buildings: park.buildings.map((b) => ({ ...b })),
+    buildings: park.buildings.map((b) => ({ ...b, maintenance: structuredClone(b.maintenance) })),
     guests: [],
     staff: park.staff,
     time: park.time,
     speed: 1,
     cleanliness: structuredClone(park.cleanliness),
+    maintenance: structuredClone(park.maintenance),
   };
   initCleanliness(cleaningPark);
   let cleaningTime = 0;
@@ -217,6 +229,10 @@ export function populatePark(
     transferBags.set(id, bag);
     return bag;
   };
+  const mechanicModels = (park.maintenance?.workers ?? []).flatMap((w) => {
+    const employee = addEmployee({ kind: "mechanic", id: w.id });
+    return employee ? [employee] : [];
+  });
   const staffModels = (park.cleanliness?.workers ?? []).flatMap((w) => {
     const employee = addEmployee({ kind: "cleaner", id: w.id });
     return employee ? [employee] : [];
@@ -226,6 +242,9 @@ export function populatePark(
     cleaningTime = t;
     cleaningPark.time = park.time + t;
     tickCleanliness(cleaningPark, dt);
+    tickMaintenance(cleaningPark, dt, CATALOG);
+    for (const employee of mechanicModels)
+      updateEmployee(cleaningPark, employee, cleaningPark.time);
     for (const [id, m] of litterModels)
       m.visible = !!cleaningPark.cleanliness?.litter.some((l) => l.id === id);
     for (const employee of staffModels) updateEmployee(cleaningPark, employee, cleaningPark.time);
@@ -278,6 +297,7 @@ export function populatePark(
         : 0;
     if (isHabitat(b.kind)) {
       const rig = createHabitatModel(b);
+      rig.root.position.y += terrainHeight(park, b.x, b.y) * 5;
       scene.add(rig.root);
       animations.push((t) => rig.update(park.time + t));
       continue;
@@ -315,6 +335,7 @@ export function populatePark(
     }
     if (isRide(b.kind) && b.kind !== "coaster") {
       const rig = createAttractionRig(b, park);
+      if (b.kind !== "rapids") rig.root.position.y += terrainHeight(park, b.x, b.y) * 5;
       scene.add(rig.root);
       animations.push((t) => rig.update(running ? Math.max(0, rideDuration(b) - b.cycle) + t : 0));
       continue;
@@ -324,6 +345,11 @@ export function populatePark(
       addCoasterStructure(scene, park, b, path);
       addDriveHardware(scene, path);
       if (isPhotoPoint(b.photoPoint)) addPhotoHardware(scene, path, b.photoPoint);
+      if (b.trainFleet) {
+        const fleet = createCoasterFleetScene(scene, park, b, path);
+        animations.push(() => fleet.update());
+        continue;
+      }
       const carts = Array.from({ length: Math.ceil(rideCapacity(b) / 2) }, (_, i) => {
         const g = createCoasterCar(vehicleFor(b), i);
         scene.add(g);
@@ -345,7 +371,7 @@ export function populatePark(
           : 0;
         carts.forEach((g, i) => {
           const p = path.at((((u - (i * 3.7) / path.length) % 1) + 1) % 1);
-          g.position.copy(p.position);
+          g.position.copy(p.position).addScaledVector(p.up, vehicleHeightOffset(vehicleFor(b)));
           g.quaternion.copy(p.quaternion);
         });
       });
@@ -615,6 +641,7 @@ export function populatePark(
       const route = routes[i];
       let x = g.x,
         z = g.y,
+        elevation = g.z ?? terrainHeight(park, g.x, g.y),
         walking = false,
         yaw = 0,
         direction: { x: number; y: number } | undefined;
@@ -634,6 +661,9 @@ export function populatePark(
           f = (d - route.dist[j - 1]) / Math.max(0.001, route.dist[j] - route.dist[j - 1]);
         x = a.x + (b.x - a.x) * f;
         z = a.y + (b.y - a.y) * f;
+        elevation =
+          (a.z ?? terrainHeight(park, a.x, a.y)) +
+          ((b.z ?? terrainHeight(park, b.x, b.y)) - (a.z ?? terrainHeight(park, a.x, a.y))) * f;
         walking = d < route.length;
         yaw = Math.atan2(-(b.x - a.x), -(b.y - a.y));
         direction = { x: x + b.x - a.x, y: z + b.y - a.y };
@@ -668,7 +698,7 @@ export function populatePark(
         time * 7 + g.id,
         walking,
         resting?.seated,
-        resting?.height,
+        elevation * 5 + (resting?.height ?? 0),
         park.time + time,
       );
       const dog = dogs.get(g.id);

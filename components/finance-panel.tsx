@@ -13,6 +13,7 @@ import {
   type LoanState,
 } from "../game/loans";
 import "./finance-panel.css";
+import { FINANCE_CATEGORIES, periodCategories, type FinanceCategory } from "../game/finance";
 
 const money = (n: number) =>
   new Intl.NumberFormat("de-DE", {
@@ -198,11 +199,134 @@ export function FinancePanel({
             : "Der Periodensaldo enthält die tatsächlich gebuchten Kosten einschließlich Kreditzinsen und Bauausgaben."}
         </small>
       </section>
+      <FinanceHistory park={park} />
       {feedback && (
         <p className={`fp-feedback${feedback.error ? " fp-feedback--error" : ""}`} role="status">
           {feedback.text}
         </p>
       )}
+    </section>
+  );
+}
+
+function FinanceHistory({ park }: { park: Park }) {
+  const [range, setRange] = useState(16);
+  const history = park.financeLedger?.history ?? [],
+    periods = history.slice(-range),
+    current = periodCategories(park);
+  const max = Math.max(1, ...periods.flatMap((p) => [p.income, p.expenses, Math.abs(p.profit)])),
+    width = 300,
+    height = 130,
+    baseline = 94;
+  const point = (value: number, i: number) =>
+    `${16 + i * Math.max(1, (width - 32) / Math.max(1, periods.length - 1))},${baseline - (value / max) * 74}`;
+  const categories = Object.entries(FINANCE_CATEGORIES) as [
+    FinanceCategory,
+    (typeof FINANCE_CATEGORIES)[FinanceCategory],
+  ][];
+  return (
+    <section className="fp-history" aria-label="Finanzverlauf und Kategorien">
+      <h4>Finanzverlauf</h4>
+      <p>
+        Gespeicherte Abrechnungen alle 90 Spielsekunden. Grün: Einnahmen · Rot: Ausgaben · Dunkel:
+        Saldo.
+      </p>
+      <div className="fp-history-ranges">
+        {[8, 16, 40, 160].map((n) => (
+          <button type="button" key={n} aria-pressed={range === n} onClick={() => setRange(n)}>
+            {n} Perioden
+          </button>
+        ))}
+      </div>
+      {periods.length ? (
+        <>
+          <svg
+            viewBox={`0 0 ${width} ${height}`}
+            role="img"
+            aria-label={`Einnahmen, Ausgaben und Saldo der letzten ${periods.length} Abrechnungen`}
+          >
+            <line x1="12" y1={baseline} x2="288" y2={baseline} stroke="#c8d2c4" />
+            {(["income", "expenses", "profit"] as const).map((key, i) => (
+              <polyline
+                key={key}
+                points={periods.map((p, n) => point(p[key], n)).join(" ")}
+                fill="none"
+                stroke={["#638d73", "#c18476", "#334d45"][i]}
+                strokeWidth={i === 2 ? 2.5 : 1.6}
+              />
+            ))}
+            <text x="12" y="12" fill="#637663" fontSize="9">
+              {money(max)}
+            </text>
+            <text x="12" y="125" fill="#637663" fontSize="9">
+              J{periods[0].year} / Tag {periods[0].day}
+            </text>
+            <text x="225" y="125" fill="#637663" fontSize="9">
+              J{periods.at(-1)!.year} / Tag {periods.at(-1)!.day}
+            </text>
+          </svg>
+          <details>
+            <summary>Abrechnungen als Tabelle</summary>
+            <div className="fp-history-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Jahr / Tag</th>
+                    <th>Einnahmen</th>
+                    <th>Ausgaben</th>
+                    <th>Saldo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...periods].reverse().map((p) => (
+                    <tr key={p.time}>
+                      <th>
+                        {p.year} / {p.day}
+                      </th>
+                      <td>{money(p.income)}</td>
+                      <td>{money(p.expenses)}</td>
+                      <td>{money(p.profit)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </>
+      ) : (
+        <p className="fp-history-empty">
+          Die erste vollständige Abrechnung erscheint nach 90 Spielsekunden. Alte Zeiträume werden
+          nicht nachträglich erfunden.
+        </p>
+      )}
+      <h4>Wohin fließt das Geld?</h4>
+      <p>
+        Aktuelle Periode. Bauausgaben und weitere Buchungen bleiben separat sichtbar; Kreditaufnahme
+        ist kein Gewinn.
+      </p>
+      {(["income", "expense"] as const).map((flow) => (
+        <div className="fp-category-group" key={flow}>
+          <h5>{flow === "income" ? "Einnahmen" : "Ausgaben"}</h5>
+          {categories
+            .filter(([, c]) => c.flow === flow)
+            .map(([key, c]) => (
+              <div className="fp-category" key={key}>
+                <div>
+                  <span>{c.label}</span>
+                  <strong>{money(current[key] ?? 0)}</strong>
+                </div>
+                <div className="fp-category-bar">
+                  <i
+                    style={{
+                      width: `${Math.min(100, ((current[key] ?? 0) / Math.max(1, flow === "income" ? park.dayIncome : park.dayExpenses)) * 100)}%`,
+                      background: c.color,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+        </div>
+      ))}
     </section>
   );
 }

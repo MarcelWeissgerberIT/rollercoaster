@@ -1,3 +1,4 @@
+import { createUmbrellaModel } from "./umbrella-model";
 import { FOOD } from "./park-life";
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
@@ -6,7 +7,7 @@ import { createSouvenirModel } from "./souvenir-model";
 import { personHeadParts } from "./person-head";
 import type { Guest } from "./simulation";
 type GuestSource = Pick<Guest, "id" | "skin"> &
-  Partial<Pick<Guest, "food" | "souvenir" | "ageGroup" | "appearance" | "party">>;
+  Partial<Pick<Guest, "food" | "souvenir" | "ageGroup" | "appearance" | "party" | "umbrella">>;
 type Part = {
   p: number[];
   s: number[];
@@ -15,6 +16,7 @@ type Part = {
   head?: boolean;
   grip?: boolean;
   leashGrip?: boolean;
+  umbrellaGrip?: boolean;
 };
 const sphere = new THREE.SphereGeometry(1, 12, 8);
 /** Human proportions in metres, looking along -Z. Seated origin is the cushion. */
@@ -51,17 +53,22 @@ export function personParts(
     const shoulder = [side * 0.215, neck - 0.06, 0.03],
       elbow = [side * 0.27, hip + 0.27, seated ? -0.14 : 0.03 + swing * 0.12],
       hand =
-        g?.souvenir && side < 0 && !seated
-          ? [side * 0.27, hip + 0.23 + swing * 0.025, -0.12 + swing * 0.055]
-          : g?.food && side > 0
-            ? [side * 0.2, hip + 0.36 + Math.max(0, Math.sin(phase * 1.1)) * 0.3, -0.29]
-            : [side * 0.27, hip + 0.12, seated ? -0.32 : swing * 0.21];
+        g?.umbrella && side > 0 && !seated
+          ? [side * 0.27, hip + 0.43, -0.18]
+          : g?.souvenir && side < 0 && !seated
+            ? [side * 0.27, hip + 0.23 + swing * 0.025, -0.12 + swing * 0.055]
+            : g?.food && side > 0
+              ? [side * 0.2, hip + 0.36 + Math.max(0, Math.sin(phase * 1.1)) * 0.3, -0.29]
+              : [side * 0.27, hip + 0.12, seated ? -0.32 : swing * 0.21];
     limb(c.shirt, shoulder, [side * 0.25, hip + 0.37, seated ? -0.08 : swing * 0.06], 0.07, 0.073);
     limb(c.skin, [side * 0.25, hip + 0.37, seated ? -0.08 : swing * 0.06], elbow, 0.046);
     limb(c.skin, elbow, hand, 0.039);
     add(c.skin, hand, [0.05, 0.07, 0.038]);
     if (side < 0 && g?.souvenir && !seated) parts[parts.length - 1].grip = true;
-    if (side > 0) parts[parts.length - 1].leashGrip = true;
+    if (side > 0) {
+      parts[parts.length - 1].leashGrip = true;
+      if (g?.umbrella && !seated) parts[parts.length - 1].umbrellaGrip = true;
+    }
     const knee = [side * 0.11, seated ? hip - 0.09 : 0.46, seated ? -0.36 : -swing * 0.18],
       ankle = [side * 0.11, seated ? -0.4 : 0.14, seated ? -0.41 : -swing * 0.3];
     limb(c.pants, [side * 0.105, hip, 0], knee, 0.083);
@@ -179,6 +186,10 @@ export function createCrowd(guests: Guest[]) {
     return { id: g.id, ageGroup: appearance.ageGroup, heightScale: appearance.heightScale };
   });
   mesh.frustumCulled = false;
+  const umbrellas = guests.map((g) => (g.umbrella ? createUmbrellaModel(g) : undefined));
+  umbrellas.forEach((u) => {
+    if (u) mesh.add(u.root);
+  });
   const souvenirs = guests.map((g) => (g.souvenir ? createSouvenirModel(g) : undefined));
   souvenirs.forEach((souvenir) => {
     if (souvenir) mesh.add(souvenir.root);
@@ -223,6 +234,16 @@ export function createCrowd(guests: Guest[]) {
         world.multiplyMatrices(base, local);
         mesh.setMatrixAt(i * count + j, world);
       });
+      const umbrella = umbrellas[i],
+        umbrellaGrip = parts.find((p) => p.umbrellaGrip);
+      if (umbrella) {
+        umbrella.root.visible = !!umbrellaGrip && !seated;
+        if (umbrellaGrip) {
+          umbrella.root.position.fromArray(umbrellaGrip.p).applyMatrix4(base);
+          umbrella.root.quaternion.copy(q);
+          umbrella.update(guests[i], time);
+        }
+      }
       const souvenir = souvenirs[i],
         grip = parts.find((part) => part.grip);
       if (souvenir) {

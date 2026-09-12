@@ -18,6 +18,7 @@ export function staffMotion(park: Park, ref: StaffRef, time = park.time): StaffM
     activity === "water"
   )
     action = activity;
+  else if (activity === "repair" && ref.kind === "mechanic") action = "repair";
   else if (activity === "repair" || activity === "inspect" || activity === "checking")
     action = "inspect";
   else if (activity === "greet" || activity === "boarding" || activity === "unloading")

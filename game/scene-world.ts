@@ -1,3 +1,6 @@
+import { terrainHeight, hasElevations } from "./terrain";
+import { addTerrainScene } from "./terrain-scene";
+import { createSceneryModel } from "./modular-scenery-model";
 import { createBirdScene } from "./bird-scene";
 import { PATH_STYLES, pathStyleAt } from "./park-life";
 import * as THREE from "three";
@@ -40,16 +43,18 @@ export function createWorld(park: Park, exclude = -1) {
     parent.add(m);
     return m;
   };
-  mesh(
-    cube,
-    "#80aa4c",
-    (mapWidth(park) - 1) * 2.5,
-    -0.65,
-    (mapHeight(park) - 1) * 2.5,
-    mapWidth(park) * 5,
-    1,
-    mapHeight(park) * 5,
-  );
+  if (hasElevations(park)) addTerrainScene(scene, park);
+  else
+    mesh(
+      cube,
+      "#80aa4c",
+      (mapWidth(park) - 1) * 2.5,
+      -0.65,
+      (mapHeight(park) - 1) * 2.5,
+      mapWidth(park) * 5,
+      1,
+      mapHeight(park) * 5,
+    );
   for (const type of ["path", "queue", "exit", "water"] as const) {
     const cells = park.tiles.flatMap((row, y) =>
         row.flatMap((t, x) => (t === type ? [{ x, y }] : [])),
@@ -70,14 +75,35 @@ export function createWorld(park: Park, exclude = -1) {
       matrix = new THREE.Matrix4();
     cells.forEach((p, i) => {
       matrix.makeScale(4.96, 0.12, 4.96);
-      matrix.setPosition(p.x * 5, 0, p.y * 5);
+      matrix.setPosition(p.x * 5, terrainHeight(park, p.x, p.y) * 5, p.y * 5);
       m.setMatrixAt(i, matrix);
       if (type === "path")
         m.setColorAt(i, new THREE.Color(PATH_STYLES[pathStyleAt(park, p.x, p.y)].color));
     });
     scene.add(m);
   }
-  const updatePark = populatePark(scene, park, exclude, mesh, mat, cube, cylinder, cone),
+  for (const piece of park.scenery ?? []) scene.add(createSceneryModel(piece));
+  const updatePark = populatePark(
+      scene,
+      park,
+      exclude,
+      (g, c, x, y, z, sx, sy, sz, parent = scene) =>
+        mesh(
+          g,
+          c,
+          x,
+          y + (parent === scene ? terrainHeight(park, x / 5, z / 5) * 5 : 0),
+          z,
+          sx,
+          sy,
+          sz,
+          parent,
+        ),
+      mat,
+      cube,
+      cylinder,
+      cone,
+    ),
     weather = createWeatherScene(scene, park, { ambient, sun }),
     birds = createBirdScene(scene, park),
     update = (time: number) => {

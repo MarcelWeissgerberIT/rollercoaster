@@ -1,3 +1,5 @@
+import { terrainHeight } from "./terrain";
+import { coasterMaxHeight } from "./track-limits";
 import { trackGroundCompatible } from "./ground-clearance";
 import { insideMap } from "./grid";
 import {
@@ -14,7 +16,15 @@ import { PIECES, type Piece } from "./track-parts";
 export { PIECES, type Piece } from "./track-parts";
 const snap = (v: number) => Math.round(v * 1e6) / 1e6;
 export function startTrack(p: Point, rotation = 0, style: CoasterType = "steel"): Point[] {
-  return [{ ...p, z: 0, smooth: true, heading: (rotation * Math.PI) / 2, style }];
+  return [
+    {
+      ...p,
+      z: p.z ?? (style === "inverted" ? 1 : 0),
+      smooth: true,
+      heading: (rotation * Math.PI) / 2,
+      style,
+    },
+  ];
 }
 export function appendPiece(track: Point[], piece: Piece, straightLength = 2): Point[] {
   if (!track.length) return track;
@@ -124,10 +134,10 @@ export function pieceError(
 ): string | null {
   if (isClosedTrack(old)) return "Der Rundkurs ist geschlossen. Du kannst ihn jetzt bauen.";
   if (next.length > 2048) return "Maximal 2.048 Streckenpunkte pro Bahn.";
-  if (next.some((p) => (p.z ?? 0) < 0 || (p.z ?? 0) > (next[0]?.style === "wood" ? 4 : 8)))
+  if (next.some((p) => (p.z ?? 0) < 0 || (p.z ?? 0) > coasterMaxHeight(next[0]?.style)))
     return "Diese Höhe ist für den Bahntyp nicht möglich.";
-  if (next[0]?.style === "wood" && next.some((p) => p.inversion))
-    return "Holzbahnen unterstützen keine Loopings.";
+  if (["wood", "giga"].includes(next[0]?.style ?? "steel") && next.some((p) => p.inversion))
+    return "Dieser Bahntyp unterstützt keine Loopings.";
   const start = next[0],
     last = next.at(-1)!;
   const distances = [0];
@@ -159,7 +169,7 @@ export function pieceError(
       field = `Feld (${p.x}, ${p.y})`;
     if (tile === "water")
       return `Wasser blockiert ${field}. Das Bauteil braucht auch seitlich freie Landfläche. Die Einpasshilfe sucht einen anderen Verlauf.`;
-    if (!trackGroundCompatible(next, p.x, p.y, tile))
+    if (!trackGroundCompatible(next, p.x, p.y, tile, terrainHeight(s, p.x, p.y)))
       return `${tile === "queue" ? "Ein blauer Eingangsweg" : tile === "exit" ? "Ein roter Ausgangsweg" : "Ein Parkweg"} blockiert ${field}. Die Einpasshilfe versucht, den Weg zu umgehen.`;
     if (b && (!clear || !(decorative(b.kind) && b.kind !== "keeperhut")))
       return `${b.name || CATALOG[b.kind].name} blockiert ${field}.${decorative(b.kind) && b.kind !== "keeperhut" ? " Aktiviere „Deko freiräumen“." : " Die Einpasshilfe sucht einen freien Verlauf."}`;
@@ -186,7 +196,9 @@ export function prefabBlueprint(p: Point, rotation: number, style: CoasterType):
         ]
       : [
           "straight",
-          ...(style === "launch" ? (["loop"] as Piece[]) : (["rise", "fall"] as Piece[])),
+          ...(["launch", "inverted"].includes(style)
+            ? (["loop"] as Piece[])
+            : (["rise", "fall"] as Piece[])),
           "straight",
           "right",
           "straight",
@@ -201,6 +213,7 @@ export function prefabBlueprint(p: Point, rotation: number, style: CoasterType):
         ];
   for (const part of pieces) t = appendPiece(t, part);
   t[t.length - 1] = { ...t[0] };
+  if (style === "giga") t = t.map((q) => ({ ...q, z: (p.z ?? 0) + ((q.z ?? 0) - (p.z ?? 0)) * 3 }));
   return t;
 }
 export function precisionJoin(prefix: Point[], goal: Point): Point[] | null {
@@ -303,7 +316,7 @@ export function closeTrack(
     visited.add(key);
     const options: Piece[] = ["straight", "left", "right"];
     if ((last.z ?? 0) > 0) options.push("fall");
-    if ((last.z ?? 0) < Math.min(track[0].style === "wood" ? 4 : 8, (first.z ?? 0) + 1))
+    if ((last.z ?? 0) < Math.min(coasterMaxHeight(track[0].style), (first.z ?? 0) + 1))
       options.push("rise");
     for (const choice of [
       ...options.map((piece) => ({ piece, length: 2 })),

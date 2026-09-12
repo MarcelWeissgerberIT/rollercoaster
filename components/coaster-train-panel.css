@@ -1,0 +1,88 @@
+.coaster-train-panel {
+  padding: 16px;
+  margin: 14px 0;
+  border: 1px solid #b9ccc2;
+  border-radius: 18px;
+  background: linear-gradient(130deg, #edf5ed, #eaf2f7);
+  color: #315c4e;
+}
+.coaster-train-panel h3,
+.train-blocks,
+.train-load > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.coaster-train-panel p,
+.coaster-train-panel small {
+  font-size: 12px;
+  line-height: 1.55;
+}
+.train-config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 14px 0;
+}
+.coaster-train-panel label {
+  font-size: 12px;
+  font-weight: 600;
+}
+.coaster-train-panel input[type="number"] {
+  display: block;
+  width: 100%;
+  padding: 9px;
+  border: 1px solid #bfd0c5;
+  border-radius: 10px;
+  background: #fffdf4;
+  color: #315c4e;
+  margin-top: 5px;
+}
+.train-load {
+  display: block;
+  margin: 12px 0;
+}
+.train-load b {
+  margin-left: auto;
+}
+.train-load input {
+  width: 100%;
+  accent-color: #37826e;
+}
+.train-blocks input[type="number"] {
+  width: 62px;
+  margin: 0 0 0 auto;
+}
+.coaster-train-panel > small {
+  display: block;
+  margin: 10px 0;
+}
+.coaster-train-panel > button {
+  width: 100%;
+}
+.train-program-error {
+  padding: 9px;
+  border-radius: 10px;
+  background: #fff0d0;
+  color: #845c29;
+}
+.train-status {
+  margin-top: 14px;
+  display: grid;
+  gap: 7px;
+}
+.train-status > div {
+  padding: 9px;
+  background: #fffdf5;
+  border-radius: 10px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px 10px;
+}
+.train-status span {
+  font-size: 12px;
+  text-align: right;
+}
+.train-status small {
+  grid-column: 1/-1;
+}

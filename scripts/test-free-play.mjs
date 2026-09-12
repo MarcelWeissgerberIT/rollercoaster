@@ -150,7 +150,9 @@ test("Land expansion, entrance styles and repairs honor free budgets while charg
   const cost = M.repairCost(ride, S.CATALOG.wheel.cost),
     before = s.expenses;
   assert.equal(M.repairAttraction(s, ride, S.CATALOG.wheel.cost), null);
-  assert.equal(ride.condition, 100);
+  assert.equal(ride.condition, 20);
+  assert.equal(ride.maintenance.request, "repair");
+  assert(M.maintenanceStatus(s, ride).includes("Mechaniker"));
   assert.equal(s.expenses - before, cost);
   assert.equal(s.cash, 0);
   finiteSave(s);

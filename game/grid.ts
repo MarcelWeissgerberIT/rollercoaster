@@ -1,5 +1,6 @@
 import type { Park, Point } from "./simulation";
 import { canAfford, spendCash } from "./budget";
+import { hasElevations, elevationRoute } from "./terrain";
 export const PARK_ENTRANCE = { x: 15, y: 29 };
 export const INITIAL_SIZE = 30,
   MAX_SIZE = 54,
@@ -9,6 +10,7 @@ export const mapHeight = (s: Pick<Park, "tiles">) => s.tiles.length;
 export const insideMap = (s: Pick<Park, "tiles">, x: number, y: number) =>
   x >= 0 && y >= 0 && x < mapWidth(s) && y < mapHeight(s);
 export function pathRoute(s: Park, start: Point, end: Point, queues = false): Point[] {
+  if (hasElevations(s)) return elevationRoute(s, start, end, queues);
   const q = [{ x: Math.round(start.x), y: Math.round(start.y) }],
     key = (p: Point) => `${p.x},${p.y}`,
     previous = new Map<string, Point | null>([[key(q[0]), null]]);

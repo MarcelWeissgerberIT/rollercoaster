@@ -181,7 +181,16 @@ export function prepareRoute(track: Point[]): RouteMotion {
     accelerationLimits: number[] = [],
     brakingLimits: number[] = [],
     style = track[0]?.style ?? "steel";
-  const cap = style === "wood" ? 19 : style === "launch" ? 26 : 23;
+  const cap =
+    style === "giga"
+      ? 38
+      : style === "inverted"
+        ? 28
+        : style === "wood"
+          ? 19
+          : style === "launch"
+            ? 26
+            : 23;
   for (let i = 0; i <= n; i++) {
     const meters = distance[i] * 5,
       remaining = (length - distance[i]) * 5,

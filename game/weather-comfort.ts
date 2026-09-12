@@ -27,7 +27,10 @@ export function guestWeatherComfort(park: Park, guest: Guest, weather: Condition
     guest.state === "rest" && guest.rest
       ? park.buildings.find((b) => b.id === guest.target && b.open)
       : undefined;
-  const roof = seat?.kind === "shelter" ? 1 : seat?.kind === "parasol" ? 0.6 : 0;
+  const roof = Math.max(
+    seat?.kind === "shelter" ? 1 : seat?.kind === "parasol" ? 0.6 : 0,
+    (guest.umbrella?.opened ?? 0) * 0.95,
+  );
   const treeShade = park.buildings.some(
     (b) => ["tree", "pine"].includes(b.kind) && Math.hypot(b.x - guest.x, b.y - guest.y) < 1.25,
   );

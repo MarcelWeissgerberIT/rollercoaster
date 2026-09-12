@@ -39,6 +39,7 @@ export type RideOperations = {
 };
 export type OperatedBuilding = Building & { operations?: RideOperations };
 const RIDE_KINDS = [
+  "rapids",
   "coaster",
   "wheel",
   "carousel",
@@ -205,6 +206,14 @@ export function finishRideProgram(b: Building): void {
 }
 /** Full next dispatch time for wait estimates, without changing ride physics. */
 export function programDuration(b: Building, baseDuration: number): number {
+  if (b.trainFleet)
+    return (
+      (baseDuration * operationsOf(b).rounds +
+        b.trainFleet.program.maxWait +
+        CHECKING_SECONDS +
+        UNLOADING_SECONDS) /
+      b.trainFleet.program.count
+    );
   if (b.kind === "wheel") return wheelProgramDuration(operationsOf(b).rounds, baseDuration);
   return needsOperator(b.kind)
     ? baseDuration * operationsOf(b).rounds +
@@ -214,6 +223,14 @@ export function programDuration(b: Building, baseDuration: number): number {
     : baseDuration;
 }
 export function programRemaining(b: Building, baseDuration: number): number {
+  if (b.trainFleet)
+    return Math.min(
+      ...b.trainFleet.trains.map((t) =>
+        ["waiting", "boarding", "checking"].includes(t.phase)
+          ? Math.max(0, b.trainFleet!.program.maxWait - t.wait) + CHECKING_SECONDS
+          : Math.max(0, b.cycle) + UNLOADING_SECONDS,
+      ),
+    );
   if (b.kind === "wheel" && b.wheel) return wheelProgramRemaining(b, baseDuration);
   if (!needsOperator(b.kind)) return Math.max(0, b.cycle);
   const o = operationsOf(b);

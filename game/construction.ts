@@ -1,3 +1,5 @@
+import { billingPeriodAt } from "./calendar";
+import type { FinanceEntries, FinanceCategory } from "./finance";
 import { sharedAccessBusy, sharedExitPending, sharedAccessQueueError } from "./shared-access";
 import { sharedQueueTileError } from "./shared-access-routing";
 import { groundFootprint, trackGroundCompatible } from "./ground-clearance";
@@ -703,10 +705,21 @@ export function adjustBuilding(
   return null;
 }
 export type EditRecord = {
+  finance?: { period: number; delta: FinanceEntries };
+  landscape?: {
+    terrain: Park["terrain"];
+    elevatedPaths: Park["elevatedPaths"];
+    scenery: Park["scenery"];
+  };
   settings?: {
     id: number;
-    before: { price?: number; condition?: number; sharedAccess?: boolean };
-    keys: ("price" | "condition" | "sharedAccess")[];
+    before: {
+      price?: number;
+      condition?: number;
+      sharedAccess?: boolean;
+      maintenance?: Building["maintenance"];
+    };
+    keys: ("price" | "condition" | "sharedAccess" | "maintenance")[];
   }[];
   operatingExpenses?: number;
   viewpoints?: { id: number; before: Point | undefined }[];
@@ -733,6 +746,12 @@ export type EditRecord = {
   expenses: number;
 };
 export function recordEdit(s: Park, label: string, fn: () => void): EditRecord | null {
+  const financeBefore = { ...s.financeLedger?.current };
+  const landscape = structuredClone({
+    terrain: s.terrain,
+    elevatedPaths: s.elevatedPaths,
+    scenery: s.scenery,
+  });
   const stylesBefore = { ...s.pathStyles };
   const crewBefore = structuredClone(crewPoolOf(s)),
     hadCrewPool = s.crewPool !== undefined;
@@ -765,7 +784,12 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
   }));
   const settings = buildings.map((b) => ({
     id: b.id,
-    before: { price: b.price, condition: b.condition, sharedAccess: b.sharedAccess },
+    before: {
+      price: b.price,
+      condition: b.condition,
+      sharedAccess: b.sharedAccess,
+      maintenance: b.maintenance ? structuredClone(b.maintenance) : undefined,
+    },
   }));
   const operatingExpenses = s.operatingExpensesToday ?? 0;
   const lines = structuredClone(s.transitLines ?? []);
@@ -786,11 +810,26 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     .map((id) => ({ id, before: lines.find((l) => l.id === id) ?? null }));
   const changes: EditRecord = {
     label,
+    finance: s.financeLedger
+      ? {
+          period: billingPeriodAt(s.time),
+          delta: Object.fromEntries(
+            Object.entries(s.financeLedger.current)
+              .map(([k, v]) => [k, (v ?? 0) - (financeBefore[k as FinanceCategory] ?? 0)])
+              .filter(([, v]) => v !== 0),
+          ),
+        }
+      : undefined,
+    landscape:
+      JSON.stringify(landscape) !==
+      JSON.stringify({ terrain: s.terrain, elevatedPaths: s.elevatedPaths, scenery: s.scenery })
+        ? landscape
+        : undefined,
     operatingExpenses: (s.operatingExpensesToday ?? 0) - operatingExpenses,
     settings: settings.flatMap((old) => {
       const b = s.buildings.find((b) => b.id === old.id);
-      const keys = (["price", "condition", "sharedAccess"] as const).filter(
-        (key) => b && b[key] !== old.before[key],
+      const keys = (["price", "condition", "sharedAccess", "maintenance"] as const).filter(
+        (key) => b && JSON.stringify(b[key]) !== JSON.stringify(old.before[key]),
       );
       return keys.length ? [{ ...old, keys }] : [];
     }),
@@ -851,7 +890,8 @@ export function recordEdit(s: Park, label: string, fn: () => void): EditRecord |
     for (let x = 0; x < tiles[y].length; x++)
       if (tiles[y][x] !== s.tiles[y][x])
         changes.tiles.push({ x, y, before: tiles[y][x], after: s.tiles[y][x] });
-  return changes.settings?.length ||
+  return changes.landscape ||
+    changes.settings?.length ||
     changes.photos?.length ||
     changes.viewpoints?.length ||
     changes.pathStyles?.length ||
@@ -877,11 +917,20 @@ export function undoEdits(s: Park, records: EditRecord[]) {
   for (const record of records)
     for (const old of record.settings ?? []) {
       const b = s.buildings.find((b) => b.id === old.id);
+      if (
+        b &&
+        old.keys.includes("maintenance") &&
+        ((b.maintenance?.completed ?? 0) !== (old.before.maintenance?.completed ?? 0) ||
+          s.maintenance?.workers.some(
+            (w) => w.targetId === b.id && (w.mode === "repair" || w.mode === "inspect"),
+          ))
+      )
+        return "Ein begonnener oder abgeschlossener Wartungseinsatz kann nicht rückgängig gemacht werden.";
       if (b && old.keys.includes("sharedAccess") && sharedAccessBusy(s, b))
         return "Warte, bis alle Gäste den gemeinsamen Zugang verlassen haben, bevor du den Zugangsmodus rückgängig machst.";
       if (
         b &&
-        old.keys.includes("condition") &&
+        (old.keys.includes("condition") || old.keys.includes("maintenance")) &&
         (old.before.condition ?? 100) < 25 &&
         (b.riders.length || b.queue.length)
       )
@@ -938,12 +987,20 @@ export function undoEdits(s: Park, records: EditRecord[]) {
         riders: [],
         cycle: 0,
         wheel: undefined,
+        trainFleet: undefined,
         testing: undefined,
         autoOpen: false,
         operations: b.operations
           ? { ...b.operations, phase: "idle", phaseLeft: 0, remainingRounds: 0 }
           : undefined,
       });
+    if (record.finance && s.financeLedger)
+      for (const [k, amount] of Object.entries(record.finance.delta)) {
+        const category = k as FinanceCategory;
+        s.financeLedger.current[category] =
+          (s.financeLedger.current[category] ?? 0) - (amount ?? 0);
+      }
+    if (record.landscape) Object.assign(s, structuredClone(record.landscape));
     for (const t of record.tiles) s.tiles[t.y][t.x] = t.before;
     for (const old of record.pathStyles ?? []) {
       if (old.before) (s.pathStyles ??= {})[old.key] = old.before;
@@ -958,6 +1015,20 @@ export function undoEdits(s: Park, records: EditRecord[]) {
     for (const old of record.settings ?? []) {
       const b = s.buildings.find((b) => b.id === old.id);
       if (!b) continue;
+      if (old.keys.includes("maintenance")) {
+        b.maintenance = old.before.maintenance
+          ? structuredClone(old.before.maintenance)
+          : undefined;
+        for (const worker of s.maintenance?.workers ?? [])
+          if (worker.targetId === b.id) {
+            worker.targetId = null;
+            worker.route = [];
+            worker.mode = "idle";
+            worker.workLeft = 0;
+            worker.workTotal = 0;
+            worker.retry = 0;
+          }
+      }
       if (old.keys.includes("price")) b.price = old.before.price ?? CATALOG[b.kind].price;
       if (old.keys.includes("sharedAccess")) b.sharedAccess = old.before.sharedAccess;
       if (old.keys.includes("condition")) {
@@ -990,6 +1061,7 @@ export function undoEdits(s: Park, records: EditRecord[]) {
             if (g.transit?.from === b.id && g.state !== "ride") cancelTransitDestination(s, g);
         } else releaseBuildingGuests(s, b);
         Object.assign(b, structuredClone(old.before));
+        delete b.trainFleet;
       }
     }
     for (const old of record.operationsConfig ?? []) {

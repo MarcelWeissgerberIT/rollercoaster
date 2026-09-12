@@ -20,7 +20,7 @@ import {
 } from "./simulation";
 import { connected } from "./walkways";
 import { canAfford } from "./budget";
-import { broken, condition, repairAttraction, repairCost } from "./maintenance";
+import { broken, condition, repairAttraction, repairCost, maintenanceStatus } from "./maintenance";
 import {
   assignRideCrew,
   availableRideCrews,
@@ -238,13 +238,21 @@ export function attractionAdvice(s: Park, buildingId: number): AttractionAdviceR
       "Während des Umbaus nimmt diese Bahn keine Fahrgäste auf. Verbinde die offenen Enden, übernimm den Umbau und führe anschließend eine Testfahrt durch.",
       nav("track", "Umbau fortsetzen"),
     );
-  if (broken(b))
+  if (b.maintenance?.request)
+    add(
+      "maintenance",
+      "blocker",
+      "Wartungsauftrag offen",
+      maintenanceStatus(s, b),
+      nav("staff", "Mechaniker verwalten"),
+    );
+  if (broken(b) && b.maintenance?.request !== "repair")
     add(
       "repair",
       "blocker",
       "Attraktion ist defekt",
       `Der technische Zustand liegt bei ${Math.round(condition(b))} %. Unter 25 % bleibt das Fahrgeschäft außer Betrieb. Eine Reparatur stellt den Zustand wieder her; danach kannst du es öffnen.`,
-      mutation(s, "repair", "Attraktion reparieren", repairCost(b, buildingBaseCost(b))),
+      mutation(s, "repair", "Reparatur beauftragen", repairCost(b, buildingBaseCost(b))),
     );
   if (needsOperator(b.kind) && !hasOperator(b)) {
     const crew = availableRideCrews(s).find((c) => !canAssignRideCrew(s, c.id, b.id));
@@ -483,13 +491,13 @@ export function attractionAdvice(s: Park, buildingId: number): AttractionAdviceR
         nav("access", "Aussichtsfläche erweitern"),
       );
   }
-  if (mechanical(b) && !broken(b) && condition(b) < 70)
+  if (mechanical(b) && !broken(b) && condition(b) < 70 && b.maintenance?.request !== "repair")
     add(
       "repair",
       "warning",
       "Verschleiß mindert den Fahrspaß",
       `Zustand ${Math.round(condition(b))} %. Im Auswahlmodell sinkt der Besuchsreiz mit dem Verschleiß; unter 25 % fällt das Fahrgeschäft aus.`,
-      mutation(s, "repair", "Attraktion reparieren", repairCost(b, buildingBaseCost(b))),
+      mutation(s, "repair", "Reparatur beauftragen", repairCost(b, buildingBaseCost(b))),
     );
   if (!habitat && !transport) {
     const capacity = ride ? queueCapacity(s, b) : 6,

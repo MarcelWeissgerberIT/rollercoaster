@@ -11,6 +11,7 @@ export type StaffAction =
   | "feed"
   | "water"
   | "inspect"
+  | "repair"
   | "greet"
   | "admit"
   | "guide"
@@ -19,7 +20,7 @@ export type StaffMotion = {
   id: number;
   appearanceId?: number;
   post?: "control" | "entry" | "exit";
-  role: "cleaner" | "keeper" | "operator";
+  role: "cleaner" | "keeper" | "operator" | "mechanic";
   action: StaffAction;
   time: number;
   heading: number;
@@ -42,13 +43,22 @@ const mix = (a: V3, b: V3, t: number): V3 => a.map((n, i) => n + (b[i] - n) * t)
 export const staffYaw = (heading: number) => Math.atan2(-Math.cos(heading), -Math.sin(heading));
 
 export function staffHeadLook(m: StaffMotion): HeadLook {
-  const id = Math.abs((m.appearanceId ?? m.id) + (m.post === "entry" ? 1 : m.post === "exit" ? 2 : 0));
+  const id = Math.abs(
+    (m.appearanceId ?? m.id) + (m.post === "entry" ? 1 : m.post === "exit" ? 2 : 0),
+  );
   return {
     skin: ["#e6b48e", "#b57d59", "#825339", "#f1cba8"][id % 4],
     hair: ["#4a3227", "#282b29", "#916942", "#684333"][id % 4],
     hairStyle: id % 4,
     accessory: "cap",
-    hat: m.role === "keeper" ? "#c7b277" : m.role === "cleaner" ? "#efe3b9" : "#304e71",
+    hat:
+      m.role === "keeper"
+        ? "#c7b277"
+        : m.role === "cleaner"
+          ? "#efe3b9"
+          : m.role === "mechanic"
+            ? "#e9ad58"
+            : "#304e71",
     wideBrim: m.role === "keeper",
   };
 }
@@ -61,14 +71,24 @@ export function staffPose(m: StaffMotion): StaffPart[] {
     parts.push({ id, color, a, b, size: [r, r, r], shape: "round" });
   const appearanceId =
     (m.appearanceId ?? m.id) + (m.post === "entry" ? 1 : m.post === "exit" ? 2 : 0);
-  const headLook = staffHeadLook(m), skin = headLook.skin,
-    shirt = m.role === "cleaner" ? "#268996" : m.role === "keeper" ? "#67834e" : "#3e6689",
+  const headLook = staffHeadLook(m),
+    skin = headLook.skin,
+    shirt =
+      m.role === "cleaner"
+        ? "#268996"
+        : m.role === "keeper"
+          ? "#67834e"
+          : m.role === "mechanic"
+            ? "#b57443"
+            : "#3e6689",
     pants = m.role === "keeper" ? "#685d42" : "#34485a",
     walk = m.action === "walk" || m.action === "carry",
     phase = (m.distance === undefined ? m.time * 8 : m.distance * 9) + appearanceId * 1.7,
     beat = Math.sin(m.time * 5),
     progress = Math.max(0, Math.min(1, m.progress ?? 0)),
-    working = ["sweep", "feed", "water", "empty", "deposit", "inspect"].includes(m.action),
+    working = ["sweep", "feed", "water", "empty", "deposit", "inspect", "repair"].includes(
+      m.action,
+    ),
     bend =
       m.action === "sweep"
         ? 0.23
@@ -92,9 +112,14 @@ export function staffPose(m: StaffMotion): StaffPart[] {
   put("buckle", "#e0c57c", [0, hip[1] + 0.085, -0.156], [0.032, 0.027, 0.01], "box");
   limb("neck", skin, [0, neck[1] - 0.04, neck[2]], head, 0.055);
   for (const part of personHeadParts(headLook).filter((part) => part.s.every((size) => size > 0)))
-    parts.push({ id: part.id, color: part.color,
+    parts.push({
+      id: part.id,
+      color: part.color,
       a: [head[0] + part.p[0], head[1] + part.p[1], head[2] + part.p[2]],
-      size: part.s, shape: "round", head: true });
+      size: part.s,
+      shape: "round",
+      head: true,
+    });
   put("badge", "#f6dd8c", [-0.098, neck[1] - 0.18, neck[2] - 0.175], [0.039, 0.046, 0.018], "box");
   const hands: V3[] = [];
   for (const side of [-1, 1]) {
@@ -142,6 +167,13 @@ export function staffPose(m: StaffMotion): StaffPart[] {
     } else if (m.action === "water") {
       elbow[2] = -0.25;
       Object.assign(hand, [side * 0.22, 0.94 + beat * 0.018, -0.41]);
+    } else if (m.action === "repair") {
+      elbow[2] = -0.25;
+      Object.assign(hand, [
+        side * 0.18,
+        side > 0 ? 0.94 + beat * 0.1 : 0.82,
+        side > 0 ? -0.42 - Math.cos(m.time * 5) * 0.06 : -0.28,
+      ]);
     } else if (m.action === "inspect") {
       elbow[2] = -0.18;
       Object.assign(hand, [side * 0.18, 1.12 + (side > 0 ? beat * 0.035 : 0), -0.35]);
@@ -179,6 +211,31 @@ export function staffPose(m: StaffMotion): StaffPart[] {
     hands.push(hand);
   }
   const [left, right] = hands;
+  if (m.role === "mechanic") {
+    if (m.action === "repair") {
+      limb("spanner-handle", "#bdc9c7", right, [right[0], right[1] + 0.21, right[2] - 0.05], 0.023);
+      put(
+        "spanner-jaw",
+        "#d7ded9",
+        [right[0], right[1] + 0.23, right[2] - 0.05],
+        [0.05, 0.04, 0.016],
+        "box",
+      );
+      put("tool-case", "#526c73", [0.4, 0.15, 0.2], [0.2, 0.13, 0.13], "box");
+    } else if (m.action === "inspect") {
+      put(
+        "inspection-checklist",
+        "#ebdfbf",
+        [left[0], left[1] - 0.04, left[2] - 0.03],
+        [0.11, 0.14, 0.018],
+        "box",
+      );
+      limb("test-probe", "#da9f48", right, [right[0], right[1] + 0.08, right[2] - 0.18], 0.015);
+    } else {
+      put("tool-case", "#526c73", [left[0], left[1] - 0.2, left[2]], [0.2, 0.13, 0.13], "box");
+      limb("case-handle", "#b4b9a9", [left[0], left[1] - 0.09, left[2]], left, 0.02);
+    }
+  }
   if (m.action === "admit") {
     put(
       "ticket-scanner",

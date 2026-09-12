@@ -1,3 +1,4 @@
+import { rebuildCoasterFleet } from "./coaster-trains";
 import { prepareRoute } from "./motion";
 import { driveCost, validDrive, type TrackDrive } from "./drive";
 import { canAfford, creditCash } from "./budget";
@@ -321,6 +322,7 @@ export function commitTrackEdit(s: Park, track: Point[], clear = true): string |
   if (!spend(s, plan.cost)) return "Das Parkbudget reicht nicht.";
   s.buildings = s.buildings.filter((b) => !plan.clearIds.includes(b.id));
   b.track = track.map((p) => ({ ...p }));
+  rebuildCoasterFleet(b);
   b.tested = false;
   b.open = false;
   b.autoOpen = false;
@@ -421,6 +423,7 @@ export function removeTrackSections(
   releaseBuildingGuests(s, b);
   s.buildings = s.buildings.filter((x) => !plan.clearIds.includes(x.id));
   b.track = plan.track;
+  rebuildCoasterFleet(b);
   b.tested = false;
   b.open = false;
   b.autoOpen = false;
@@ -496,6 +499,7 @@ export function installTrackDrive(
   }
   releaseBuildingGuests(s, b);
   b.track = plan.track;
+  rebuildCoasterFleet(b);
   b.open = false;
   b.tested = false;
   return null;
