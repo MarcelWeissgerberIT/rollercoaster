@@ -1,7 +1,56 @@
 import type { Park, Point } from "./simulation";
 import { deckHeight, terrainHeight, type ElevatedPath } from "./terrain";
 import { PATH_STYLES } from "./park-life";
+import { terrainCellSurface, withTerrainSurfaceScope } from "./terrain-surface";
 type Project = (x: number, y: number, z?: number) => Point;
+
+export function drawTerrainTop(
+  ctx: CanvasRenderingContext2D,
+  s: Park,
+  x: number,
+  y: number,
+  project: Project,
+  color: string,
+  grid = false,
+) {
+  const ring = terrainCellSurface(s, x, y),
+    center = { x, y, z: terrainHeight(s, x, y) },
+    point = (p: typeof center) => project(p.x, p.y, p.z),
+    polygon = (points: Point[], fill: string) => {
+      ctx.beginPath();
+      points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+    };
+  const flat = ring.every((p) => p.z === center.z);
+  if (flat) polygon(ring.map(point), color);
+  // A summit can rise above its projected rim; draw the actual center fan.
+  else
+    for (let i = 0; i < ring.length; i++) {
+      polygon([point(center), point(ring[i]), point(ring[(i + 1) % ring.length])], color);
+      if (s.tiles[y][x] === "grass") {
+        const a = ring[i],
+          b = ring[(i + 1) % ring.length],
+          dx = (a.z - center.z) * (b.y - y) - (b.z - center.z) * (a.y - y),
+          dy = (a.x - x) * (b.z - center.z) - (b.x - x) * (a.z - center.z),
+          shade = Math.max(-0.09, Math.min(0.1, (dx + dy) * 0.2));
+        if (Math.abs(shade) > 0.005)
+          polygon(
+            [point(center), point(a), point(b)],
+            shade > 0 ? `rgba(33,66,29,${shade})` : `rgba(235,241,177,${-shade})`,
+          );
+      }
+    }
+  if (grid) {
+    ctx.beginPath();
+    ring.map(point).forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+    ctx.closePath();
+    ctx.strokeStyle = "#28522030";
+    ctx.lineWidth = 0.7;
+    ctx.stroke();
+  }
+}
 export function drawDeck(
   ctx: CanvasRenderingContext2D,
   s: Park,
@@ -76,6 +125,39 @@ export function drawTerrainFaces(
   y: number,
   project: Project,
 ) {
+  if (s.naturalTerrain) {
+    const ring = terrainCellSurface(s, x, y),
+      center = project(x, y, terrainHeight(s, x, y));
+    for (const [i, dx, dy] of [
+      [0, 0, -1],
+      [1, 1, 0],
+      [2, 0, 1],
+      [3, -1, 0],
+    ]) {
+      if (project(x + dx, y + dy, terrainHeight(s, x, y)).y <= center.y) continue;
+      const a = ring[i],
+        b = ring[(i + 1) % 4],
+        neighbor =
+          s.tiles[y + dy]?.[x + dx] === undefined
+            ? undefined
+            : terrainCellSurface(s, x + dx, y + dy),
+        lowA = neighbor?.[(i + 3) % 4].z ?? Math.min(0, a.z),
+        lowB = neighbor?.[(i + 2) % 4].z ?? Math.min(0, b.z);
+      if (lowA >= a.z && lowB >= b.z) continue;
+      const points = [
+        project(a.x, a.y, a.z),
+        project(b.x, b.y, b.z),
+        project(b.x, b.y, Math.min(lowB, b.z)),
+        project(a.x, a.y, Math.min(lowA, a.z)),
+      ];
+      ctx.beginPath();
+      points.forEach((p, at) => (at ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+      ctx.closePath();
+      ctx.fillStyle = dx ? "#8e9270" : "#777f5a";
+      ctx.fill();
+    }
+    return;
+  }
   const z = terrainHeight(s, x, y),
     center = project(x, y, z),
     screenScale = Math.abs(project(x, y, z - 1).y - center.y) / 24;
@@ -139,6 +221,17 @@ export function pickTerrain(
   th: number,
   fallback: Point,
 ) {
+  return withTerrainSurfaceScope(s, () => pickSurface(s, x, y, project, tw, th, fallback));
+}
+function pickSurface(
+  s: Park,
+  x: number,
+  y: number,
+  project: Project,
+  tw: number,
+  th: number,
+  fallback: Point,
+) {
   let result = fallback,
     best = -Infinity;
   for (let gy = 0; gy < s.tiles.length; gy++)
@@ -146,7 +239,19 @@ export function pickTerrain(
       const z = terrainHeight(s, gx, gy),
         p = project(gx, gy, z),
         depth = project(gx, gy, 0).y;
-      if (Math.abs(x - p.x) / tw + Math.abs(y - p.y) / th <= 1 && depth > best) {
+      const inside = s.naturalTerrain
+        ? terrainCellSurface(s, gx, gy)
+            .map((q) => project(q.x, q.y, q.z))
+            .some((a, i, ring) =>
+              [p, a, ring[(i + 1) % ring.length]].reduce((hit, a, i, triangle) => {
+                const b = triangle[(i + 1) % triangle.length];
+                return a.y > y !== b.y > y && x < ((b.x - a.x) * (y - a.y)) / (b.y - a.y) + a.x
+                  ? !hit
+                  : hit;
+              }, false),
+            )
+        : Math.abs(x - p.x) / tw + Math.abs(y - p.y) / th <= 1;
+      if (inside && depth > best) {
         result = { x: gx, y: gy };
         best = depth;
       }

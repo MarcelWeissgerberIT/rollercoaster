@@ -21,6 +21,8 @@ export type TrackCanvasSupport = Frame & { style: CoasterType; distance: number;
 export type TrackCanvasGeometry = { spans: TrackCanvasSpan[]; supports: TrackCanvasSupport[] };
 export type TrackCanvasOptions = {
   groundPath?: GroundPath;
+  /** Built track hidden by a bore; drafts/cutaway omit this predicate. */
+  visibleAt?: (point: Point) => boolean;
   ghost?: boolean;
   ties?: boolean;
   /** Each sampled centreline remains selectable using the renderer's existing hit test. */
@@ -296,6 +298,49 @@ export function drawTrackSupport(
   ctx.restore();
 }
 
+/** Clip at the actual terrain crossing instead of dropping a whole rail span. */
+function visibleSpans(
+  span: TrackCanvasSpan,
+  visibleAt?: (point: Point) => boolean,
+): TrackCanvasSpan[] {
+  if (!visibleAt) return [span];
+  const result: TrackCanvasSpan[] = [];
+  let frames: Frame[] = [];
+  const finish = () => {
+    if (frames.length > 1)
+      result.push({ ...span, frames, ties: span.ties.filter((tie) => visibleAt(tie.point)) });
+    frames = [];
+  };
+  for (let i = 0; i < span.frames.length; i++) {
+    const f = span.frames[i],
+      visible = visibleAt(f.point),
+      previous = span.frames[i - 1];
+    if (previous && visibleAt(previous.point) !== visible) {
+      const mix = (t: number): Frame => ({
+        ...f,
+        point: {
+          ...f.point,
+          x: previous.point.x + (f.point.x - previous.point.x) * t,
+          y: previous.point.y + (f.point.y - previous.point.y) * t,
+          z: (previous.point.z ?? 0) + ((f.point.z ?? 0) - (previous.point.z ?? 0)) * t,
+        },
+      });
+      let lo = 0,
+        hi = 1;
+      for (let n = 0; n < 22; n++) {
+        const middle = (lo + hi) / 2;
+        if (visibleAt(mix(middle).point) === visible) hi = middle;
+        else lo = middle;
+      }
+      frames.push(mix((lo + hi) / 2));
+      if (!visible) finish();
+    }
+    if (visible) frames.push(f);
+  }
+  finish();
+  return result;
+}
+
 /** Keep depth objects separate so elevated rail, supports and moving trains can interleave. */
 export function trackCanvasLayers(
   ctx: CanvasRenderingContext2D,
@@ -309,21 +354,27 @@ export function trackCanvasLayers(
     ...(options.ghost
       ? []
       : geometry.supports
-          .filter((support) => supportClearAt(support.point.x, support.point.y, options.groundPath))
+          .filter(
+            (support) =>
+              (!options.visibleAt || options.visibleAt(support.point)) &&
+              supportClearAt(support.point.x, support.point.y, options.groundPath),
+          )
           .map((support) => ({
             depth: viewDepth(project, support.point.x, support.point.y) - 0.02,
             draw: () => drawTrackSupport(ctx, support, project, scale),
           }))),
-    ...geometry.spans.map((span) => {
-      const a = span.frames[0].point,
-        b = span.frames[span.frames.length - 1].point;
-      return {
-        depth:
-          (viewDepth(project, a.x, a.y) + viewDepth(project, b.x, b.y)) / 2 +
-          Math.max(a.z ?? 0, b.z ?? 0) * 0.035,
-        draw: () => drawTrackSpan(ctx, span, project, scale, options),
-      };
-    }),
+    ...geometry.spans
+      .flatMap((span) => visibleSpans(span, options.visibleAt))
+      .map((span) => {
+        const a = span.frames[0].point,
+          b = span.frames[span.frames.length - 1].point;
+        return {
+          depth:
+            (viewDepth(project, a.x, a.y) + viewDepth(project, b.x, b.y)) / 2 +
+            Math.max(a.z ?? 0, b.z ?? 0) * 0.035,
+          draw: () => drawTrackSpan(ctx, span, project, scale, options),
+        };
+      }),
   ];
 }
 

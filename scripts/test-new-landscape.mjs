@@ -3,6 +3,7 @@ import { moduleURL } from "./ts-loader.mjs";
 const S = await import(moduleURL("game/simulation.ts")),
   N = await import(moduleURL("game/new-game.ts")),
   T = await import(moduleURL("game/terrain.ts")),
+  Surface = await import(moduleURL("game/terrain-surface.ts")),
   Campaign = await import(moduleURL("game/campaigns.ts")),
   Birds = await import(moduleURL("game/birds.ts")),
   BirdCanvas = await import(moduleURL("game/bird-canvas.ts"));
@@ -19,7 +20,11 @@ test("Every new campaign has real relief and retains reachable starting attracti
     const flat = S.newPark("scenario", id),
       park = N.createLandscapePark("scenario", id, 1234);
     assert(Object.keys(park.terrain).length > 100, id + " contains meaningful terrain");
-    assert(Math.max(...Object.values(park.terrain)) >= 3, id + " has a hill at least 15m high");
+    assert(
+      Math.max(...Object.values(park.terrain)) >= 2,
+      id + " has a gentle ridge at least 10m high",
+    );
+    assert.equal(park.naturalTerrain, true);
     assert.deepEqual(
       [...S.connected(park)].sort(),
       [...S.connected(flat)].sort(),
@@ -42,7 +47,7 @@ test("Every new campaign has real relief and retains reachable starting attracti
   }
 });
 
-test("Free parks combine lake, forest and terraces with a generous empty entrance meadow", () => {
+test("Free parks combine lake, woodland groves and rolling land with an empty entrance meadow", () => {
   const park = N.createLandscapePark("sandbox", "waldhain", 42);
   assert(park.unlimitedBudget);
   assert.equal(park.cash, 0);
@@ -59,7 +64,7 @@ test("Free parks combine lake, forest and terraces with a generous empty entranc
     }
   assert(S.build(park, "wheel", 11, 23).id, "A first large attraction fits without terraforming");
   for (const b of park.buildings.filter((b) => ["tree", "pine"].includes(b.kind)))
-    assert.equal(b.z, T.terrainHeight(park, b.x, b.y), "Tree base follows real elevation");
+    assert.equal(b.z ?? 0, T.terrainHeight(park, b.x, b.y), "Tree base follows real elevation");
   assert(S.validSave(copy(park)));
 });
 
@@ -95,11 +100,99 @@ test("Zoo expansion pads stay buildable and landscape survives save migration un
       for (let x = r.x; x < r.x + r.size; x++) assert.equal(T.terrainHeight(park, x, y), 0);
   const restored = copy(park);
   S.migratePark(restored);
+  assert.equal(restored.naturalTerrain, true);
   assert.deepEqual(restored.terrain, park.terrain);
   assert(S.validSave(restored));
   const old = S.newPark();
   S.migratePark(old);
   assert.equal(Object.keys(old.terrain ?? {}).length, 0, "Existing flat saves stay flat");
+  assert.equal(old.naturalTerrain, undefined);
+});
+test("Natural terrain shares every corner, preserves construction heights and samples its actual slopes", () => {
+  const park = N.createLandscapePark("sandbox", "waldhain", 42);
+  let slopes = 0;
+  for (let y = 0; y < park.tiles.length; y++)
+    for (let x = 0; x < park.tiles[y].length; x++) {
+      const z = T.terrainHeight(park, x, y),
+        ring = Surface.terrainCellSurface(park, x, y);
+      assert(Number.isInteger(z), "Construction heights keep five-metre steps");
+      for (const corner of ring) {
+        assert.equal(T.terrainHeight(park, corner.x, corner.y), corner.z);
+        const midpoint = T.terrainHeight(park, (x + corner.x) / 2, (y + corner.y) / 2);
+        assert.equal(midpoint, (z + corner.z) / 2, "Ground queries follow the rendered triangles");
+        if (corner.z !== z) slopes++;
+      }
+      for (const [dx, dy, i] of [
+        [1, 0, 1],
+        [0, 1, 2],
+      ]) {
+        if (!park.tiles[y + dy]?.[x + dx]) continue;
+        const next = Surface.terrainCellSurface(park, x + dx, y + dy);
+        assert.equal(ring[i].z, next[(i + 3) % 4].z, "No vertical seams between natural cells");
+        assert.equal(ring[(i + 1) % 4].z, next[(i + 2) % 4].z);
+      }
+    }
+  assert(slopes > 400, "The land contains broad connected slopes instead of column walls");
+  const saved = copy(park);
+  delete saved.naturalTerrain;
+  assert.equal(
+    T.terrainHeight(saved, 25.2, 4.3),
+    T.terrainHeight(saved, 25, 4),
+    "Legacy parks remain columns",
+  );
+});
+
+test("Building and path pads stay level on natural land, while the lake has an open level shore", () => {
+  const park = N.createLandscapePark("sandbox", "waldhain", 42);
+  assert(S.build(park, "wheel", 11, 23).id);
+  const wheel = park.buildings.find((b) => b.kind === "wheel");
+  for (const p of S.footprint(wheel))
+    assert(Surface.terrainCellSurface(park, p.x, p.y).every((q) => q.z === 0));
+  for (let y = 0; y < park.tiles.length; y++)
+    for (let x = 0; x < park.tiles[y].length; x++) {
+      if (park.tiles[y][x] !== "water") continue;
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ])
+        if (park.tiles[y + dy]?.[x + dx])
+          assert.equal(
+            T.terrainHeight(park, x + dx, y + dy),
+            0,
+            "Lake shores are not excavated cliff rims",
+          );
+    }
+});
+test("Surface scopes reuse reads while subsequent terrain, path and building edits remain live", () => {
+  const park = S.newPark("sandbox");
+  park.tiles = park.tiles.map((row) => row.map(() => "grass"));
+  park.buildings = [];
+  park.terrain = { "5,5": 1 };
+  park.naturalTerrain = true;
+  const sample = () => Surface.withTerrainSurfaceScope(park, () => T.terrainHeight(park, 4.5, 4.5));
+  assert.equal(sample(), 0.25);
+  park.terrain["5,5"] = 0;
+  assert.equal(sample(), 0);
+  park.terrain["5,5"] = 1;
+  park.tiles[4][4] = "path";
+  assert.equal(sample(), 0, "An in-place path pins its real corners");
+  park.tiles[4][4] = "grass";
+  const result = S.build(park, "burger", 4, 4);
+  assert(result.id);
+  assert.equal(sample(), 0, "New buildings establish flat pads");
+  const building = park.buildings.find((b) => b.id === result.id);
+  building.x = 9;
+  building.y = 9;
+  assert.equal(sample(), 0.25, "Moving a building invalidates its old footprint");
+  assert.throws(() =>
+    Surface.withTerrainSurfaceScope(park, () => {
+      throw Error("scope cleanup");
+    }),
+  );
+  park.terrain["5,5"] = 0;
+  assert.equal(sample(), 0, "Thrown callbacks cannot retain stale active scopes");
 });
 test("Birds land on raised crowns and clear the actual terrain during their approach", () => {
   const park = N.createLandscapePark("sandbox", "waldhain", 42),

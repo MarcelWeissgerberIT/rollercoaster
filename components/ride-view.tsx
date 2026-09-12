@@ -1,10 +1,9 @@
-import { createBirdScene } from "../game/bird-scene";
-import { createWeatherScene } from "../game/weather-scene";
+import { createWorld } from "../game/scene-world";
+import { tunnelChaseBlend } from "../game/coaster-tunnels";
 import { addCoasterStructure } from "../game/coaster-structure";
 import { addPhotoHardware, isPhotoPoint, crossedPhotoPoint } from "../game/coaster-photo";
 import { createRidePhotoCapture, type RidePhoto } from "../game/coaster-photo-capture";
 import { operationsOf } from "../game/operations";
-import { PATH_STYLES, pathStyleAt } from "../game/park-life";
 import ZooView from "./zoo-view";
 import { isHabitat } from "../game/zoo";
 import { forceAt, analyzeForces } from "../game/gforce";
@@ -15,12 +14,10 @@ import { addDriveHardware } from "@/game/track-hardware";
 import { createGuestModel } from "@/game/guest-model";
 import FlatRideView from "./flat-ride-view";
 import CoasterFleetView from "./coaster-fleet-view";
-import { mapWidth, mapHeight } from "../game/grid";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Pause, Play, RotateCcw, X, Volume2, VolumeX } from "lucide-react";
 import { type Building, type Park, CATALOG, rideCapacity } from "../game/simulation";
-import { populatePark } from "../game/park-scene";
 import { PHASE_NAMES, type RidePhase } from "../game/motion";
 import { makeRidePath } from "../game/ride-path";
 import type { ParkAudio } from "../game/audio";
@@ -87,84 +84,15 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
       );
       return;
     }
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color("#acdbe4");
-    scene.fog = new THREE.Fog("#acdbe4", 145, 340);
+    // Legacy single-train rides use the same terrain, tunnel cutouts and park world
+    // as fleet rides. A second flat floor used to conceal mountains and seal tunnels.
+    const world = createWorld(park, building.id),
+      scene = world.scene,
+      updatePark = world.update;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     target.appendChild(renderer.domElement);
-    const camera = new THREE.PerspectiveCamera(72, 1, 0.08, 400);
-    const ambient = new THREE.HemisphereLight("#e6faff", "#597340", 2.7);
-    scene.add(ambient);
-    const sun = new THREE.DirectionalLight("#fff0d0", 2.5);
-    sun.position.set(40, 100, -40);
-    scene.add(sun);
-    const weatherScene = createWeatherScene(scene, park, { ambient, sun });
-    const birds = createBirdScene(scene, park);
-    const materials = new Map<string, THREE.MeshStandardMaterial>();
-    const mat = (color: string) => {
-      if (!materials.has(color))
-        materials.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.7 }));
-      return materials.get(color)!;
-    };
-    const cube = new THREE.BoxGeometry(1, 1, 1),
-      cylinder = new THREE.CylinderGeometry(1, 1, 1, 8),
-      cone = new THREE.ConeGeometry(1, 1, 7);
-    function mesh(
-      geometry: THREE.BufferGeometry,
-      color: string,
-      x: number,
-      y: number,
-      z: number,
-      sx: number,
-      sy: number,
-      sz: number,
-      parent: THREE.Object3D = scene,
-    ) {
-      const m = new THREE.Mesh(geometry, mat(color));
-      m.position.set(x, y, z);
-      m.scale.set(sx, sy, sz);
-      parent.add(m);
-      return m;
-    }
-    const ground = mesh(
-      cube,
-      "#7caa49",
-      (mapWidth(park) - 1) * 2.5,
-      -0.6,
-      (mapHeight(park) - 1) * 2.5,
-      mapWidth(park) * 5,
-      1,
-      mapHeight(park) * 5,
-    );
-    const tileGeometry = new THREE.BoxGeometry(4.96, 0.12, 4.96);
-    for (const type of ["path", "queue", "exit", "water"] as const) {
-      const tiles = park.tiles.flatMap((row, y) =>
-        row.flatMap((t, x) => (t === type ? [{ x, y }] : [])),
-      );
-      const instances = new THREE.InstancedMesh(
-        tileGeometry,
-        mat(
-          type === "water"
-            ? "#47a6bf"
-            : type === "queue"
-              ? "#79aadd"
-              : type === "exit"
-                ? "#db8b81"
-                : "#ffffff",
-        ),
-        tiles.length,
-      );
-      const matrix = new THREE.Matrix4();
-      tiles.forEach((t, i) => {
-        matrix.makeTranslation(t.x * 5, 0.01, t.y * 5);
-        instances.setMatrixAt(i, matrix);
-        if (type === "path")
-          instances.setColorAt(i, new THREE.Color(PATH_STYLES[pathStyleAt(park, t.x, t.y)].color));
-      });
-      scene.add(instances);
-    }
-    const updatePark = populatePark(scene, park, building.id, mesh, mat, cube, cylinder, cone);
+    const camera = new THREE.PerspectiveCamera(72, 1, 0.08, 600);
     const path = compiledPath;
     addCoasterStructure(scene, park, building, path);
     const train = Array.from({ length: Math.ceil(rideCapacity(building) / 2) }, (_, i) => {
@@ -289,14 +217,21 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
           .addScaledVector(p.up, 1.55 + vehicleHeightOffset(vehicleFor(building)))
           .addScaledVector(p.tangent, 1.15),
         quaternion = p.quaternion;
+      const chaseBlend = tunnelChaseBlend(
+        park,
+        building.id,
+        (u * path.length) / 5,
+        path.length / 5,
+        train.length * 3.7 + 4,
+      );
       if (c.camera === "chase") {
         cameraPosition
-          .addScaledVector(p.tangent, -(train.length * 3.7 + 4))
-          .addScaledVector(p.up, 4);
+          .addScaledVector(p.tangent, -(train.length * 3.7 + 4) * chaseBlend)
+          .addScaledVector(p.up, 4 * chaseBlend);
         desiredCamera.position.copy(cameraPosition);
         desiredCamera.up.copy(p.up);
         desiredCamera.lookAt(p.position.clone().addScaledVector(p.tangent, 4));
-        quaternion = desiredCamera.quaternion.clone();
+        quaternion = p.quaternion.clone().slerp(desiredCamera.quaternion, chaseBlend);
       }
       if (c.camera === "overview") {
         const o = c.orbit;
@@ -315,7 +250,8 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
         camera.fov = fov;
         camera.updateProjectionMatrix();
       }
-      if (!initialized || c.camera === "front") camera.position.copy(cameraPosition);
+      if (!initialized || c.camera === "front" || (c.camera === "chase" && chaseBlend < 0.01))
+        camera.position.copy(cameraPosition);
       else camera.position.lerp(cameraPosition, 1 - Math.exp(-dt / 0.08));
       if (!initialized) camera.quaternion.copy(quaternion);
       else camera.quaternion.slerp(quaternion, 1 - Math.exp(-dt / 0.055));
@@ -348,8 +284,6 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
         isPhotoPoint(building.photoPoint) &&
         crossedPhotoPoint(photoPrevious, photoProgress, building.photoPoint);
       photoRig?.setFlash(triggerPhoto ? 1 : 0);
-      weatherScene.update(park.time + parkTime, camera);
-      birds.update(park.time + parkTime);
       renderer.render(scene, camera);
       if (triggerPhoto) {
         photoCamera.aspect = camera.aspect;
@@ -388,8 +322,6 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
     });
     return () => {
       photos.dispose();
-      weatherScene.dispose();
-      birds.dispose();
       renderer.setAnimationLoop(null);
       observer.disconnect();
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
@@ -399,25 +331,7 @@ function CoasterRideView({ park, building, audio, muted, onMute, onClose }: Prop
       renderer.domElement.removeEventListener("wheel", wheel);
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       audio?.ride(0, false);
-      const geometries = new Set<THREE.BufferGeometry>();
-      const sceneMaterials = new Set<THREE.Material>();
-      const maps = new Set<THREE.Texture>();
-      scene.traverse((o) => {
-        if (o instanceof THREE.Mesh) {
-          geometries.add(o.geometry);
-          for (const material of Array.isArray(o.material) ? o.material : [o.material]) {
-            sceneMaterials.add(material);
-            for (const value of Object.values(material))
-              if (value instanceof THREE.Texture) maps.add(value);
-          }
-        }
-        if (o instanceof THREE.InstancedMesh) o.dispose();
-      });
-      geometries.forEach((g) => g.dispose());
-      materials.forEach((m) => sceneMaterials.add(m));
-      sceneMaterials.forEach((m) => m.dispose());
-      maps.forEach((t) => t.dispose());
-      ground.removeFromParent();
+      world.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();

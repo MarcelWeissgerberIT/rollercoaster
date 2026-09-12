@@ -1,3 +1,4 @@
+import { tunnelChaseBlend } from "../game/coaster-tunnels";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Pause, Play, X, Volume2, VolumeX } from "lucide-react";
@@ -140,11 +141,14 @@ export default function CoasterFleetView({
       previousSpeed = t.speed;
       peak = Math.max(peak, forces.total);
       const suspended = vehicleFor(b).model === ("suspended" as string),
-        chase = control.current.camera === "chase";
+        chase = control.current.camera === "chase",
+        blend = chase
+          ? tunnelChaseBlend(preview, b.id, t.distance, route.length, t.cars * 3.7 + 5)
+          : 0;
       camera.position
         .copy(p.position)
-        .addScaledVector(p.up, (suspended ? -2.1 : 0) + (chase ? 4 : 1.55))
-        .addScaledVector(p.tangent, chase ? -(t.cars * 3.7 + 5) : 1.15);
+        .addScaledVector(p.up, (suspended ? -2.1 : 0) + 1.55 + blend * 2.45)
+        .addScaledVector(p.tangent, 1.15 - blend * (t.cars * 3.7 + 6.15));
       camera.up.copy(p.up);
       camera.lookAt(
         p.position

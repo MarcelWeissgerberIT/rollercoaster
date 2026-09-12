@@ -1,3 +1,5 @@
+import { parkCoasterTunnels, coasterPointBuried } from "./coaster-tunnels";
+import { drawCoasterTunnelPortal } from "./coaster-tunnel-canvas";
 import { drawHeldUmbrella } from "./umbrella-canvas";
 import type { TerrainSettings } from "../components/terrain-panel";
 import {
@@ -8,7 +10,9 @@ import {
   deckPlan,
   withWalkingElevationScope,
 } from "./terrain";
-import { drawDeck, drawTerrainFaces } from "./terrain-render";
+import { drawDeck, drawTerrainFaces, drawTerrainTop } from "./terrain-render";
+import { terrainGrassColor } from "./terrain-surface";
+import { naturalWaterOutline } from "./natural-shore";
 import { drawScenery } from "./modular-scenery-canvas";
 import { drawWaterRide } from "./water-ride-canvas";
 import { coasterTrainVisuals, coasterBlockVisuals } from "./coaster-trains";
@@ -450,9 +454,7 @@ function drawPark(
     const type = s.tiles[y][x],
       n = (x * 79 + y * 53) % 13,
       p = project(x, y);
-    tile(
-      x,
-      y,
+    const color =
       type === "water"
         ? ["#4babc1", "#49a6bb", "#50b2c5"][n % 3]
         : type === "path"
@@ -461,9 +463,26 @@ function drawPark(
             ? "#79aadd"
             : type === "exit"
               ? "#db8b81"
-              : ["#7eac47", "#80af49", "#84b24b", "#83ae48"][n % 4],
-      v.grid ? "#28522030" : undefined,
-    );
+              : s.naturalTerrain
+                ? terrainGrassColor(x, y)
+                : ["#7eac47", "#80af49", "#84b24b", "#83ae48"][n % 4];
+    if (s.naturalTerrain) {
+      drawTerrainTop(
+        ctx,
+        s,
+        x,
+        y,
+        camera.project,
+        type === "water" ? terrainGrassColor(x, y) : color,
+        v.grid,
+      );
+      if (type === "water") {
+        const shoreline = (bank: boolean) =>
+          naturalWaterOutline(s, x, y, bank).map((q) => camera.project(q.x, q.y, q.z));
+        poly(shoreline(true), "#b7ae7f");
+        poly(shoreline(false), "#4aa6b5");
+      }
+    } else tile(x, y, color, v.grid ? "#28522030" : undefined);
     const sharedTile = sharedTiles.get(`${x},${y}`);
     if (sharedTile) drawSharedAccessTile(ctx, sharedTile, project, scale);
     if (type === "path" || type === "queue" || type === "exit") {
@@ -584,6 +603,12 @@ function drawPark(
   // occlude the lower part of a tree, guest or ride standing behind it.
   for (const { x, y, z } of terrainCells)
     if (z !== 0) objects.push({ depth: depthAt(x, y) - 0.5, draw: () => drawGroundCell(x, y) });
+  for (const portal of parkCoasterTunnels(s).portals)
+    objects.push({
+      depth: depthAt(portal.frame.x, portal.frame.y) + 0.82,
+      owner: portal.buildingId,
+      draw: () => drawCoasterTunnelPortal(ctx, portal, project, scale),
+    });
   for (const d of s.elevatedPaths ?? [])
     objects.push({
       depth: depthAt(d.x, d.y) + 0.04,
@@ -1357,6 +1382,7 @@ function drawPark(
         ...trackCanvasLayers(ctx, track, project, scale, {
           onHit: trackHit,
           groundPath: (x, y) => groundPathAt(s, x, y),
+          visibleAt: v.terrainSettings?.cutaway ? undefined : (p) => !coasterPointBuried(s, p),
         }),
       );
       if (pts.length > 1) {
@@ -1385,6 +1411,7 @@ function drawPark(
         for (const train of fleet)
           for (let car = 0; car < train.cars; car++) {
             const q = routePosition(route, train.distance - car * 0.74);
+            if (!v.terrainSettings?.cutaway && coasterPointBuried(s, q)) continue;
             objects.push({
               depth: depthAt(q.x, q.y) + (q.z ?? 0) * 0.035 + 0.15,
               draw: () => {

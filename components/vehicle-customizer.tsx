@@ -3,7 +3,15 @@ import { PAINTS, VEHICLES, vehicleFor, type Vehicle } from "../game/vehicles";
 import { paintedCar } from "../game/vehicle-sprite";
 import { assetUrl } from "../game/assets";
 import type { Building } from "../game/simulation";
-export function CarPreview({ vehicle, className }: { vehicle: Vehicle; className?: string }) {
+export function CarPreview({
+  vehicle,
+  className,
+  single = false,
+}: {
+  vehicle: Vehicle;
+  className?: string;
+  single?: boolean;
+}) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     let alive = true;
@@ -11,22 +19,31 @@ export function CarPreview({ vehicle, className }: { vehicle: Vehicle; className
     image.src = assetUrl(`car-${VEHICLES[vehicle.model].sprite}-se`);
     const draw = () => {
       const ctx = canvas.current?.getContext("2d");
-      if (!alive || !ctx) return;
+      if (!alive || !ctx || !image.naturalWidth) return;
       ctx.clearRect(0, 0, 384, 180);
       ctx.imageSmoothingEnabled = false;
-      for (let i = 0; i < 2; i++)
-        ctx.drawImage(paintedCar(image, vehicle, i), i * 170 + 10, 8, 192, 160);
+      const scale = Math.min(174 / image.naturalWidth, 152 / image.naturalHeight),
+        width = image.naturalWidth * scale,
+        height = image.naturalHeight * scale;
+      for (let i = 0; i < (single ? 1 : 2); i++)
+        ctx.drawImage(
+          paintedCar(image, vehicle, i),
+          i * 192 + (192 - width) / 2,
+          (180 - height) / 2,
+          width,
+          height,
+        );
     };
     image.onload = draw;
     if (image.complete) draw();
     return () => {
       alive = false;
     };
-  }, [vehicle]);
+  }, [vehicle.model, vehicle.body, vehicle.accent, vehicle.seats, vehicle.alternating, single]);
   return (
     <canvas
-      className={className}
-      width={384}
+      className={`car-preview ${className ?? ""}`}
+      width={single ? 192 : 384}
       height={180}
       ref={canvas}
       role="img"

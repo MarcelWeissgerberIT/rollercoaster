@@ -1,8 +1,14 @@
 import type { Park, Point, Tile } from "./simulation";
+import {
+  setSurfaceFootprints,
+  terrainSurfaceHeight,
+  withTerrainSurfaceScope,
+} from "./terrain-surface";
 // Injected by simulation to keep routing modules free of a runtime import cycle.
 let footprint: (b: Park["buildings"][number]) => Point[] = (b) => [{ x: b.x, y: b.y }];
 export function setTerrainFootprints(resolve: typeof footprint) {
   footprint = resolve;
+  setSurfaceFootprints(resolve);
 }
 import { canAfford, spendCash } from "./budget";
 import type { PathStyle } from "./park-life";
@@ -24,8 +30,7 @@ const directions = [
   [-1, 0],
   [0, -1],
 ] as const;
-export const terrainHeight = (s: Park, x: number, y: number) =>
-  s.terrain?.[`${Math.round(x)},${Math.round(y)}`] ?? 0;
+export const terrainHeight = terrainSurfaceHeight;
 export const hasElevations = (s: Park) =>
   Boolean(Object.keys(s.terrain ?? {}).length || s.elevatedPaths?.length);
 const walkingScopes = new WeakMap<Park, boolean>();
@@ -35,7 +40,7 @@ export function withWalkingElevationScope<T>(s: Park, read: () => T): T {
   const previous = walkingScopes.get(s);
   walkingScopes.set(s, hasWalkingElevations(s));
   try {
-    return read();
+    return withTerrainSurfaceScope(s, read);
   } finally {
     if (previous === undefined) walkingScopes.delete(s);
     else walkingScopes.set(s, previous);
@@ -279,6 +284,7 @@ export function removeDeck(s: Park, p: Point, z: number) {
   s.elevatedPaths = s.elevatedPaths?.filter((d) => d.x !== p.x || d.y !== p.y || d.z !== z);
 }
 export function validTerrain(s: Park) {
+  if (s.naturalTerrain !== undefined && typeof s.naturalTerrain !== "boolean") return false;
   const validHeight = (n: unknown) =>
     typeof n === "number" && Number.isInteger(n) && n >= -4 && n <= 10;
   if (

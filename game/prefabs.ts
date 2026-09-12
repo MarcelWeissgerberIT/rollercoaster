@@ -13,6 +13,7 @@ import {
   validateTrack,
 } from "./simulation";
 import { PIECES, type Piece } from "./track-parts";
+import type { CoasterBlueprintId } from "./coaster-blueprints";
 export { PIECES, type Piece } from "./track-parts";
 const snap = (v: number) => Math.round(v * 1e6) / 1e6;
 export function startTrack(p: Point, rotation = 0, style: CoasterType = "steel"): Point[] {
@@ -176,7 +177,13 @@ export function pieceError(
   }
   return retainedTrackError(old, next, suffix);
 }
-export function prefabBlueprint(p: Point, rotation: number, style: CoasterType): Point[] {
+export function prefabBlueprint(
+  p: Point,
+  rotation: number,
+  style: CoasterType,
+  blueprint: CoasterBlueprintId = "classic",
+): Point[] {
+  if (blueprint !== "classic") return extendedBlueprint(p, rotation, style, blueprint);
   let t = startTrack(p, rotation, style);
   const pieces: Piece[] =
     style === "wood"
@@ -215,6 +222,142 @@ export function prefabBlueprint(p: Point, rotation: number, style: CoasterType):
   t[t.length - 1] = { ...t[0] };
   if (style === "giga") t = t.map((q) => ({ ...q, z: (p.z ?? 0) + ((q.z ?? 0) - (p.z ?? 0)) * 3 }));
   return t;
+}
+
+/** Analytic, tangent-matched segments keep every catalog layout editable as normal track. */
+function extendedBlueprint(
+  origin: Point,
+  rotation: number,
+  style: CoasterType,
+  blueprint: Exclude<CoasterBlueprintId, "classic">,
+): Point[] {
+  const track = startTrack(origin, rotation, style),
+    availableHeight = Math.max(0, coasterMaxHeight(style) - (track[0].z ?? 0)),
+    height = (wanted: number) => Math.min(availableHeight, wanted),
+    sample = (
+      count: number,
+      curve: (t: number) => { x: number; y: number; z: number; heading: number },
+      inversion = false,
+    ) => {
+      const start = track.at(-1)!,
+        angle = start.heading ?? 0;
+      for (let i = 1; i <= count; i++) {
+        const point = curve(i / count);
+        track.push({
+          x: snap(start.x + point.x * Math.cos(angle) - point.y * Math.sin(angle)),
+          y: snap(start.y + point.x * Math.sin(angle) + point.y * Math.cos(angle)),
+          z: snap((start.z ?? 0) + point.z),
+          heading: angle + point.heading,
+          smooth: true,
+          inversion,
+          style,
+        });
+      }
+    },
+    straight = (length: number) =>
+      sample(Math.ceil(length * 12), (t) => ({ x: length * t, y: 0, z: 0, heading: 0 })),
+    powered = (segment: () => void, speed: number, fraction = 1) => {
+      const first = track.length - 1;
+      segment();
+      const end = first + Math.round((track.length - first - 1) * fraction);
+      for (let i = first; i < end; i++)
+        track[i] = { ...track[i], drive: { kind: "boost", speed, strength: 12 } };
+    },
+    turn = (direction: number, radius = 2) =>
+      sample(Math.ceil(radius * 20), (t) => {
+        const angle = (t * Math.PI) / 2;
+        return {
+          x: radius * Math.sin(angle),
+          y: direction * radius * (1 - Math.cos(angle)),
+          z: 0,
+          heading: direction * angle,
+        };
+      }),
+    hill = (length: number, peak: number, bumps = 1, crest = 0.5) =>
+      sample(Math.ceil(Math.max(40, length * 12, peak * bumps * 24) / 40) * 40, (t) => {
+        const phase = (t * bumps) % 1,
+          u = phase < crest ? phase / crest : (1 - phase) / (1 - crest);
+        return {
+          x: length * t,
+          y: 0,
+          z: t === 1 ? 0 : peak * u * u * (3 - 2 * u),
+          heading: 0,
+        };
+      }),
+    loop = (length: number, peak: number) =>
+      sample(
+        Math.max(96, Math.ceil(peak * 32)),
+        (t) => {
+          const angle = 2 * Math.PI * t,
+            dx = length + length * Math.PI * Math.cos(angle),
+            dy =
+              4 * Math.PI * Math.cos(angle) * Math.sin(Math.PI * t) +
+              2 * Math.PI * Math.sin(angle) * Math.cos(Math.PI * t);
+          return {
+            x: length * t + (length / 2) * Math.sin(angle),
+            y: 2 * Math.sin(angle) * Math.sin(Math.PI * t),
+            z: (peak * (1 - Math.cos(angle))) / 2,
+            heading: Math.atan2(dy, dx),
+          };
+        },
+        true,
+      ),
+    inversions = style !== "wood" && style !== "giga";
+
+  if (blueprint === "panorama") {
+    straight(2);
+    hill(10, height(style === "giga" ? 4 : 1.5));
+    turn(1, 3);
+    straight(4);
+    turn(1, 3);
+    hill(12, height(style === "giga" ? 2 : 0.8), 2);
+    turn(1, 3);
+    straight(4);
+    turn(1, 3);
+  } else if (blueprint === "twister") {
+    if (inversions) {
+      powered(() => straight(8), style === "launch" ? 90 : 80);
+      loop(4, height(4));
+      loop(4, height(4));
+    } else {
+      straight(2);
+      hill(8, height(style === "giga" ? 10 : 3), 1, 0.6);
+    }
+    turn(1);
+    hill(10, height(style === "giga" ? 4 : 1.5), 2);
+    turn(1);
+    straight(inversions ? 10 : 4);
+    turn(1);
+    straight(4);
+    turn(-1);
+    straight(2);
+    turn(1);
+    straight(2);
+    turn(1);
+  } else {
+    straight(2);
+    if (style === "launch") powered(() => hill(14, availableHeight, 1, 0.65), 93, 0.65);
+    else hill(14, availableHeight, 1, 0.65);
+    if (inversions) powered(() => straight(4), style === "inverted" ? 96 : 82);
+    else straight(4);
+    turn(1, 3);
+    straight(2);
+    if (inversions) loop(8, height(style === "steel" ? 4 : 6));
+    else hill(8, height(style === "giga" ? 9 : 3.2));
+    straight(2);
+    turn(1, 3);
+    hill(6, height(style === "giga" ? 5 : 2));
+    turn(1, 3);
+    straight(4);
+    turn(-1, 3);
+    hill(8, height(style === "giga" ? 3 : 1), 2);
+    turn(1, 3);
+    straight(2);
+    turn(1, 3);
+  }
+  // All paths close geometrically. Reuse the exact station to avoid float drift in saves.
+  track[track.length - 1] = { ...track[0] };
+  return track;
 }
 export function precisionJoin(prefix: Point[], goal: Point): Point[] | null {
   const a = prefix.at(-1)!,

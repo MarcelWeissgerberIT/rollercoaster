@@ -110,6 +110,12 @@ import RideProfileAssistant from "../components/ride-profile-assistant";
 import { commitRideProfile, type RideProfilePlan } from "../game/ride-profiles";
 import { invertingPiece } from "../game/track-parts";
 import VehicleCustomizer, { CarPreview } from "../components/vehicle-customizer";
+import {
+  coasterBlueprintAtPark,
+  coasterStationOrigin,
+  type CoasterBlueprintId,
+} from "../game/coaster-blueprints";
+import { CoasterTypePicker, CoasterBlueprintPicker } from "../components/coaster-blueprint-picker";
 import { vehicleFor } from "../game/vehicles";
 /* oxlint-disable next/no-img-element, react/react-compiler -- Native transparent sprite images and a mutable external simulation are intentional. */
 import ParkMenu, { parkMenuGroup } from "@/components/park-menu";
@@ -242,7 +248,6 @@ import {
   isClosedTrack,
   startTrack,
   appendPiece,
-  prefabBlueprint,
   closeTrack,
   pieceError,
   PIECES,
@@ -380,6 +385,7 @@ export default function Home() {
     "Willkommen im Waldhain. Dein erster Park wartet auf neue Ideen.",
   );
   const [coasterType, setCoasterType] = useState<CoasterType>("steel");
+  const [coasterBlueprint, setCoasterBlueprint] = useState<CoasterBlueprintId>("classic");
   const [sectionMode, setSectionMode] = useState<"remove" | "drive" | "profile">("remove");
   const [drive, setDrive] = useState<TrackDrive>({ kind: "boost", speed: 60, strength: 4 });
   const [cut, setCut] = useState<{
@@ -876,12 +882,22 @@ export default function Home() {
   const previewTrack = useMemo(
     () =>
       adjustmentPlan?.geometry.track ??
-      (tool === "coaster" && blueprintMode && hoverTile
-        ? prefabBlueprint(hoverTile, rotation, coasterType)
+      (tool === "coaster" && blueprintMode && hoverTile && snapshot
+        ? coasterBlueprintAtPark(snapshot, hoverTile, rotation, coasterType, coasterBlueprint)
         : tool === "coaster" && !blueprintMode
           ? draft
           : []),
-    [tool, blueprintMode, hoverTile, rotation, draft, adjustmentPlan, coasterType],
+    [
+      tool,
+      blueprintMode,
+      hoverTile,
+      rotation,
+      draft,
+      adjustmentPlan,
+      coasterType,
+      coasterBlueprint,
+      worldRevision,
+    ],
   );
   const [pathStyle, setPathStyle] = useState<PathStyle>("garden");
   const [terrainSettings, setTerrainSettings] = useState<TerrainSettings>(defaultTerrainSettings);
@@ -1018,6 +1034,7 @@ export default function Home() {
     setRotation(0);
     setBlueprintMode(true);
     setCoasterType("steel");
+    setCoasterBlueprint("classic");
     setPiece("straight");
     cameraTarget.current = null;
     const fitZoom = Math.min(1, 30 / next.tiles.length);
@@ -1581,7 +1598,7 @@ export default function Home() {
           return;
         }
         draftHistory.current = [];
-        setDraft(startTrack(p, rotation, coasterType));
+        setDraft(startTrack(coasterStationOrigin(s, p, coasterType), rotation, coasterType));
         notify("Station gesetzt. Wähle ein Bauteil: Es dockt automatisch am Streckenende an.");
       } else {
         addPiece(piece);
@@ -1599,7 +1616,9 @@ export default function Home() {
           s,
           tool as BuildTool,
           p,
-          tool === "coaster" ? prefabBlueprint(p, rotation, coasterType) : undefined,
+          tool === "coaster"
+            ? coasterBlueprintAtPark(s, p, rotation, coasterType, coasterBlueprint)
+            : undefined,
           autoClear,
           tool === "custom" ? customDesign : undefined,
           tool === "path" ? pathStyle : undefined,
@@ -2996,28 +3015,18 @@ export default function Home() {
                     </div>
                     {!snapshot?.trackEdit && (
                       <>
-                        <div className="coaster-types" role="group" aria-label="Achterbahntyp">
-                          {(Object.keys(COASTER_TYPES) as CoasterType[]).map((type) => (
-                            <button
-                              key={type}
-                              className={coasterType === type ? "active" : ""}
-                              disabled={
-                                (!blueprintMode && draft.length > 0) ||
-                                (!!snapshot && !isUnlocked(snapshot, "coaster", type))
-                              }
-                              onClick={() => {
-                                setCoasterType(type);
-                                if (!COASTER_TYPES[type].loop && invertingPiece(piece))
-                                  setPiece("straight");
-                              }}
-                            >
-                              <CarPreview
-                                vehicle={vehicleFor({ track: [{ x: 0, y: 0, style: type }] })}
-                              />
-                              <strong>{COASTER_TYPES[type].name}</strong>
-                            </button>
-                          ))}
-                        </div>
+                        <CoasterTypePicker
+                          selected={coasterType}
+                          disabled={(type) =>
+                            (!blueprintMode && draft.length > 0) ||
+                            (!!snapshot && !isUnlocked(snapshot, "coaster", type))
+                          }
+                          onSelect={(type) => {
+                            setCoasterType(type);
+                            if (!COASTER_TYPES[type].loop && invertingPiece(piece))
+                              setPiece("straight");
+                          }}
+                        />
 
                         <div className="build-modes" role="group" aria-label="Achterbahn-Bauweise">
                           <button
@@ -3045,27 +3054,12 @@ export default function Home() {
                     )}
                     {blueprintMode ? (
                       <>
-                        <img
-                          className="blueprint-art"
-                          src={assetUrl(`station-${coasterType}`)}
-                          alt=""
+                        <CoasterBlueprintPicker
+                          style={coasterType}
+                          selected={coasterBlueprint}
+                          rotation={rotation}
+                          onSelect={setCoasterBlueprint}
                         />
-                        <h3 className="blueprint-title">{COASTER_TYPES[coasterType].name}</h3>
-                        <p className="small">
-                          {coasterType === "launch"
-                            ? "Launch-Geraden und ein 20 m hoher Looping."
-                            : coasterType === "wood"
-                              ? "Weiche Kurven und zwei Hügel auf einem Holztragwerk."
-                              : "Ein Rundkurs mit Kettenlift, Abfahrt und weiten Kurven."}{" "}
-                          Klicke auf freie Wiese zum Bauen.
-                        </p>
-                        <div className="draftstats">
-                          <span>
-                            {trackStats(prefabBlueprint({ x: 0, y: 0 }, 0, coasterType)).length} m
-                            Strecke
-                          </span>
-                          <b>{EUR(trackCost(prefabBlueprint({ x: 0, y: 0 }, 0, coasterType)))}</b>
-                        </div>
                         <button
                           className="secondary"
                           style={{ width: "100%" }}

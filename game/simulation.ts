@@ -337,6 +337,7 @@ export type Guest = {
 };
 export type Park = {
   terrain?: Record<string, number>;
+  naturalTerrain?: boolean;
   elevatedPaths?: ElevatedPath[];
   maintenance?: MaintenanceState;
   financeLedger?: FinanceLedger;

@@ -1,3 +1,4 @@
+import { coasterPointBuried } from "./coaster-tunnels";
 import * as THREE from "three";
 import { COASTER_TYPES, type Building, type Park } from "./simulation";
 import { makeRidePath } from "./ride-path";
@@ -15,7 +16,7 @@ export const COASTER_SLEEPER_METRES = TRACK_TIE_SPACING * 5;
  */
 export function addCoasterStructure(
   scene: THREE.Scene,
-  park: Pick<Park, "tiles">,
+  park: Pick<Park, "tiles"> & Partial<Park>,
   building: Coaster,
   path: Path = makeRidePath(building.track!),
 ) {
@@ -58,7 +59,7 @@ export function addCoasterStructure(
   ) {
     const key = `${name}:${color}`,
       batch = batches.get(key) ?? {
-      geometry: round ? (cylinder ??= new THREE.CylinderGeometry(1, 1, 1, 8)) : cube,
+        geometry: round ? (cylinder ??= new THREE.CylinderGeometry(1, 1, 1, 8)) : cube,
         color,
         matrices: [],
       };
@@ -147,6 +148,11 @@ export function addCoasterStructure(
     if (
       f.position.y < 2.2 ||
       f.up.y < 0.3 ||
+      coasterPointBuried(park as Park, {
+        x: f.position.x / 5,
+        y: f.position.z / 5,
+        z: (f.position.y - 1.1) / 5,
+      }) ||
       !trackSupportClear(park, f.position.x / 5, f.position.z / 5)
     )
       continue;

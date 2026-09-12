@@ -1535,6 +1535,15 @@ button:hover:not(:disabled) {
   margin-top: 2px;
 }
 
+.car-preview {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
 .coaster-types {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -5289,5 +5298,219 @@ body:has(.manual[data-slot="dialog-content"] .free-play-card) [data-slot="dialog
   }
   .camera-quarter-turns {
     margin-left: 50px;
+  }
+}
+
+/* Coaster catalog: bounded canvases and actual track silhouettes, not oversized sprite crops. */
+.coaster-type-picker {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px 0 3px;
+  flex-shrink: 0;
+}
+.coaster-type-picker button {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 58px;
+  padding: 3px 1px 6px;
+  border: 1px solid #dedfd2;
+  border-radius: 9px;
+  background: #f8f7ef;
+  color: #385747;
+  cursor: pointer;
+}
+.coaster-type-picker button:hover:not(:disabled),
+.coaster-type-picker button.active {
+  background: color-mix(in srgb, var(--coaster-color) 10%, #fffaf0);
+  border-color: var(--coaster-color);
+}
+.coaster-type-picker button.active {
+  box-shadow: inset 0 -3px var(--coaster-color);
+}
+.coaster-type-picker button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.coaster-type-picker .car-preview {
+  width: 42px;
+  max-width: 100%;
+  height: 32px;
+  flex: 0 0 32px;
+  object-fit: contain;
+}
+.coaster-type-picker strong {
+  font-size: 10px;
+  line-height: 1.35;
+}
+.coaster-type-picker small {
+  font-size: 9px;
+  line-height: 1.4;
+  color: #6d7b68;
+}
+.coaster-type-lock {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+}
+.blueprint-picker {
+  flex-shrink: 0;
+}
+.blueprint-picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 11px 0 8px;
+  color: #3a5647;
+  font-size: 12px;
+}
+.blueprint-picker-heading > span {
+  font-size: 10px;
+  color: #849078;
+}
+.blueprint-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.blueprint-options button {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  border: 1px solid #dce2d4;
+  border-radius: 12px;
+  padding: 8px;
+  background: #fbfcf4;
+  color: #355444;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+.blueprint-options button:hover {
+  background: #f0f5e6;
+  border-color: #7d9a73;
+}
+.blueprint-options button.active {
+  background: #edf4e4;
+  border-color: #43815e;
+  box-shadow: inset 0 0 0 1px #43815e;
+}
+.blueprint-options button:focus-visible,
+.coaster-type-picker button:focus-visible {
+  outline: 3px solid #d9ad53;
+  outline-offset: 2px;
+}
+.blueprint-category {
+  align-self: flex-start;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #e3eddb;
+  font-size: 9px;
+  font-weight: 700;
+}
+.blueprint-category.category-scenic {
+  color: #3a6a79;
+  background: #e0eef0;
+}
+.blueprint-category.category-thrill {
+  color: #8b6431;
+  background: #f6e9cc;
+}
+.blueprint-category.category-extreme {
+  color: #955052;
+  background: #f6dedb;
+}
+.blueprint-selected {
+  position: absolute;
+  right: 8px;
+  top: 9px;
+  color: #43815e;
+}
+.blueprint-drawing {
+  display: block;
+  width: 100%;
+  height: 69px;
+}
+.blueprint-options strong {
+  font-size: 12px;
+  line-height: 1.3;
+}
+.blueprint-options small {
+  margin-top: 3px;
+  font-size: 10px;
+  color: #708068;
+}
+.blueprint-details {
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid #e2dfd1;
+  border-radius: 10px;
+  background: #fffdf4;
+}
+.blueprint-detail-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: #3a5745;
+}
+.blueprint-detail-title b {
+  white-space: nowrap;
+}
+.blueprint-details p {
+  margin: 6px 0 9px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #63745c;
+}
+.blueprint-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  color: #50694f;
+  font-size: 11px;
+}
+.blueprint-metrics span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.blueprint-place-hint {
+  margin: 8px 0 5px;
+  font-size: 10px;
+  line-height: 1.6;
+  color: #738267;
+}
+.coaster-type-selector {
+  flex-shrink: 0;
+}
+.coaster-type-caption {
+  font-size: 10px;
+  color: #71826b;
+  margin: 5px 0 6px;
+}
+.coaster-type-caption strong {
+  color: #3c5748;
+}
+@media (max-height: 800px) {
+  .blueprint-picker-heading {
+    margin-top: 6px;
+  }
+  .blueprint-options {
+    gap: 5px;
+  }
+  .blueprint-options button {
+    padding: 6px;
+  }
+  .blueprint-drawing {
+    height: 58px;
   }
 }
